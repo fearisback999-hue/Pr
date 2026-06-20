@@ -45,6 +45,15 @@ python -m tt_engine.cli weekly --out reports/out
 
 # Inspect the ranked board
 python -m tt_engine.cli board
+
+# Export the Appendix-A scoring spreadsheet (CSV)
+python -m tt_engine.cli export --out reports/out/board.csv
+
+# Part 11 — capital & cash-flow tracking (payout float, runway, # of tests you can afford)
+python -m tt_engine.cli capital --capital 5000 --test-budget 300 --daily-ad 50 --daily-cogs 30
+
+# Part 10 — account-health / Shop Performance proxy (a low score throttles reach)
+python -m tt_engine.cli health --ship-days 4 --refund-rate 0.03
 ```
 
 Everything above runs **offline** with deterministic logic. Wire in real data and the
@@ -73,7 +82,7 @@ tt_engine/
   config.py          # env + tunables
   db/                # SQLite schema + models (Part 12 tables)
   feeds/             # data-feed adapters (mock + Kalodata/EchoTik stubs)   — Part 2
-  detection/         # momentum, saturation, trigger, window estimate       — Part 2
+  detection/         # momentum, saturation, trigger, window, cross-confirm — Part 2
   scoring/           # 100-pt algorithm, 6 subscores, hard gates            — Part 3
   psychology/        # LLM pass over reviews/comments                       — Part 4
   economics/         # landed cost, margin, break-even ROAS, max CAC, offer — Part 5
@@ -81,13 +90,16 @@ tt_engine/
   creative/          # hooks, scripts, brief, compliance, Higgsfield        — Part 7
   distribution/      # affiliate / creator outreach funnel                  — Part 8
   validation/        # 30-day framework, kill/scale thresholds              — Part 9
+  account/           # Shop Performance Score proxy + throttle warnings     — Part 10
+  capital/           # payout float, runway, # of tests you can afford      — Part 11
   feedback/          # outcome ingestion + weight recalibration             — Part 13
-  reports/           # opportunity report + attack packets
+  reports/           # opportunity report, attack packets, Appendix-A CSV
   llm/               # Claude API client (offline fallback)
   pipeline.py        # orchestration
-  cli.py             # entry points: seed / daily / weekly / board / score
+  cli.py             # seed/daily/weekly/board/score/packet/validate/
+                     #   recalibrate/plan/export/capital/health
 scripts/             # cron wrappers
-tests/               # detection, scoring, economics, smoke
+tests/               # 73 tests across every part + end-to-end smoke
 docs/THESIS.md       # Part 0 — the operating thesis (read first)
 ```
 
