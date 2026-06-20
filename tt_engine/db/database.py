@@ -23,7 +23,14 @@ class Database:
 
     def _init_schema(self) -> None:
         self.conn.executescript(_SCHEMA.read_text())
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Lightweight, idempotent column additions for DBs created by older schema."""
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(products)")}
+        if "reviews" not in cols:
+            self.conn.execute("ALTER TABLE products ADD COLUMN reviews TEXT NOT NULL DEFAULT '[]'")
 
     def close(self) -> None:
         self.conn.close()
@@ -37,13 +44,15 @@ class Database:
     # ── products ───────────────────────────────────────────────────────────────
     def upsert_product(self, p: models.Product) -> None:
         self.conn.execute(
-            """INSERT INTO products(id, name, category, supplier_ref, first_seen, branded, restricted)
-               VALUES(?,?,?,?,?,?,?)
+            """INSERT INTO products
+                 (id, name, category, supplier_ref, first_seen, branded, restricted, reviews)
+               VALUES(?,?,?,?,?,?,?,?)
                ON CONFLICT(id) DO UPDATE SET
                  name=excluded.name, category=excluded.category,
                  supplier_ref=excluded.supplier_ref, branded=excluded.branded,
-                 restricted=excluded.restricted""",
-            (p.id, p.name, p.category, p.supplier_ref, p.first_seen, int(p.branded), int(p.restricted)),
+                 restricted=excluded.restricted, reviews=excluded.reviews""",
+            (p.id, p.name, p.category, p.supplier_ref, p.first_seen,
+             int(p.branded), int(p.restricted), json.dumps(p.reviews)),
         )
         self.conn.commit()
 
@@ -216,6 +225,7 @@ def _to_product(r: sqlite3.Row) -> models.Product:
     return models.Product(
         id=r["id"], name=r["name"], category=r["category"], supplier_ref=r["supplier_ref"],
         first_seen=r["first_seen"], branded=bool(r["branded"]), restricted=bool(r["restricted"]),
+        reviews=json.loads(r["reviews"]) if r["reviews"] else [],
     )
 
 

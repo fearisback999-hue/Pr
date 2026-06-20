@@ -38,6 +38,7 @@ def seed_sample(db: Database, lookback: int = 35) -> int:
     feed = MockFeed()
     records = feed.fetch(lookback_days=lookback)
     for rec in records:
+        rec.product.reviews = rec.reviews  # persist corpus for reproducible scoring
         db.upsert_product(rec.product)
         db.upsert_metrics(rec.metrics)
     for ref, pid, name, cost, ship_cost, ship_days, moq, us_wh, rating, resp, notes in _SUPPLIERS:

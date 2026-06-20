@@ -17,6 +17,7 @@ class Product:
     first_seen: str = field(default_factory=lambda: _date.today().isoformat())
     branded: bool = False
     restricted: bool = False
+    reviews: list[str] = field(default_factory=list)  # corpus for psychology + return-risk
 
 
 @dataclass

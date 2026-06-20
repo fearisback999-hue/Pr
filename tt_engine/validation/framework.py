@@ -30,10 +30,14 @@ SCALE_REFUND = 0.03      # low and stable
 MEANINGFUL_SPEND = 50.0  # per product before kill/scale calls mean anything
 
 WEEK_PLAN = {
-    1: "Research & selection — run the engine, shortlist 80+ that clear gates, order samples, confirm fulfillment route.",
-    2: "Creative production — full Higgsfield batch (20+/product), set up listing/offer/tracking, line up creators.",
-    3: "Testing — launch a spread on small per-ad-set budgets; watch 3s view rate → CTR → ATC → ROAS in that order.",
-    4: "Scaling decision — cut losers, pour into winners, decide if the product earns a real launch.",
+    1: ("Research & selection — run the engine, shortlist 80+ that clear gates, "
+        "order samples, confirm fulfillment route."),
+    2: ("Creative production — full Higgsfield batch (20+/product), set up "
+        "listing/offer/tracking, line up creators."),
+    3: ("Testing — launch a spread on small per-ad-set budgets; watch 3s view rate "
+        "→ CTR → ATC → ROAS in that order."),
+    4: ("Scaling decision — cut losers, pour into winners, decide if the product "
+        "earns a real launch."),
 }
 
 

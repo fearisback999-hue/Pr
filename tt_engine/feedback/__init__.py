@@ -5,10 +5,10 @@ execution is the one asset competitors cannot buy. After 20–30 tested products
 the Part-3 weights toward the sub-scores that actually predicted your winners."""
 
 from .recalibration import (
-    RecalibrationResult,
-    recalibrate,
-    label_winner,
     MIN_SAMPLES,
+    RecalibrationResult,
+    label_winner,
+    recalibrate,
 )
 
 __all__ = ["RecalibrationResult", "recalibrate", "label_winner", "MIN_SAMPLES"]

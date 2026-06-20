@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS products (
     supplier_ref TEXT,
     first_seen   TEXT NOT NULL,           -- ISO date the product entered our radar
     branded      INTEGER NOT NULL DEFAULT 0,  -- 1 = trademarked/branded (hard gate)
-    restricted   INTEGER NOT NULL DEFAULT 0   -- 1 = restricted TikTok category (hard gate)
+    restricted   INTEGER NOT NULL DEFAULT 0,  -- 1 = restricted TikTok category (hard gate)
+    reviews      TEXT NOT NULL DEFAULT '[]'   -- JSON corpus feeding psychology + return-risk NLP
 );
 
 -- One row per product per day: the time series detection runs over.

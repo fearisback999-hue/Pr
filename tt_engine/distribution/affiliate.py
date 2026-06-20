@@ -4,8 +4,8 @@ relationship stay human — this module deliberately does not generate messages.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 from ..detection._stats import clamp
 
@@ -59,7 +59,6 @@ class SeedingPlan:
 def score_creator(p: CreatorProspect, category: str) -> ScoredCreator:
     fit = 1.0 if p.niche.lower() == category.lower() else 0.4
     # Reach on a log-ish scale: ~500k followers → strong.
-    import math
     reach = clamp(math.log10(max(p.followers, 1)) / math.log10(500_000), 0, 1)
     conversion = clamp(0.6 * clamp(p.engagement_rate / 0.10, 0, 1) + 0.4 * p.shop_gmv_signal, 0, 1)
     score = round(100 * (0.4 * fit + 0.3 * reach + 0.3 * conversion), 1)
@@ -78,4 +77,7 @@ def build_seeding_plan(
     samples: int = 10,
 ) -> SeedingPlan:
     ranked = rank_creators(prospects, category)
-    return SeedingPlan(product_id=product_id, targets=ranked[:samples], samples_to_send=min(samples, len(ranked)))
+    return SeedingPlan(
+        product_id=product_id, targets=ranked[:samples],
+        samples_to_send=min(samples, len(ranked)),
+    )

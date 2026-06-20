@@ -5,7 +5,7 @@ the customer. The offer (price, bundle, free-ship threshold, upsell) is part of 
 selection, not separate from it.
 """
 
-from .calculator import Economics, compute_economics, FEE_RATE, MARGIN_FLOOR, MARGIN_TARGET
+from .calculator import FEE_RATE, MARGIN_FLOOR, MARGIN_TARGET, Economics, compute_economics
 from .offer import Offer, apply_offer
 
 __all__ = [

@@ -5,7 +5,6 @@ feedback loop (Part 13) can recalibrate what actually predicted your winners."""
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 from ..detection._stats import clamp
 from .inputs import ScoringInputs

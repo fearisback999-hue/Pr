@@ -17,7 +17,8 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import pipeline, seed as seedmod
+from . import pipeline
+from . import seed as seedmod
 from .config import CONFIG
 from .db import Database
 from .feedback import recalibrate
@@ -145,7 +146,8 @@ def cmd_recalibrate(args) -> int:
     with _db(args) as db:
         result = recalibrate(db, apply=args.apply)
         print(result.summary)
-        if not args.apply and result.sample_size >= 1:
+        # Only nudge toward --apply when a fit actually happened (weights moved).
+        if not args.apply and result.correlations:
             print("\n(dry run — re-run with --apply to write weights.json)")
     return 0
 
@@ -167,7 +169,8 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("seed", help="seed sample products + suppliers")
-    p.add_argument("--demo-outcomes", action="store_true", help="also seed synthetic outcomes for recalibration")
+    p.add_argument("--demo-outcomes", action="store_true",
+                   help="also seed synthetic outcomes for the recalibration demo")
     p.set_defaults(func=cmd_seed)
 
     sub.add_parser("daily", help="run the daily detection + scoring pass").set_defaults(func=cmd_daily)

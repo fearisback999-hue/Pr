@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from ..llm import LLMClient, LLMUnavailable
@@ -84,7 +84,7 @@ def analyze(
 _EMOTION_TOKENS = (
     "omg", "insane", "crazy", "obsessed", "cannot believe", "can't believe", "love",
     "amazing", "melts", "tingles", "fights over", "head-turner", "everyone asked",
-    "obsessed", "addicted", "!",
+    "addicted", "!",
 )
 
 

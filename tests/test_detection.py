@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from tt_engine.db import models
-from tt_engine.detection import evaluate, compute_momentum, compute_saturation
+from tt_engine.detection import compute_momentum, compute_saturation, evaluate
 from tt_engine.detection.trigger import MAX_WINDOW_DAYS
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
 
 from ..db import models
 from . import _stats
@@ -40,7 +40,8 @@ class TriggerResult:
     @property
     def headline(self) -> str:
         verb = "TRIGGER" if self.triggered else "no-go"
-        return f"[{verb}] ~{self.window_days:.0f}d runway · {self.momentum.summary} · {self.saturation.summary}"
+        return (f"[{verb}] ~{self.window_days:.0f}d runway · "
+                f"{self.momentum.summary} · {self.saturation.summary}")
 
 
 def _days_to_ceiling(current: float, ceiling: float, daily_rate: float) -> float:

@@ -5,9 +5,9 @@ of total. Recommend only products scoring ≥ 80 that also clear every gate. A h
 score must never override an economic or compliance landmine.
 """
 
-from .inputs import ScoringInputs, ContentSignals
+from .algorithm import DEFAULT_WEIGHTS, load_weights, save_weights, score_product
 from .gates import GateResult, check_gates
-from .algorithm import score_product, load_weights, save_weights, DEFAULT_WEIGHTS
+from .inputs import ContentSignals, ScoringInputs
 
 __all__ = [
     "ScoringInputs", "ContentSignals", "GateResult", "check_gates",

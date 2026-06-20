@@ -1,4 +1,4 @@
-from tt_engine.economics import compute_economics, apply_offer, Offer, MARGIN_FLOOR
+from tt_engine.economics import MARGIN_FLOOR, Offer, apply_offer, compute_economics
 
 
 def test_basic_unit_economics():

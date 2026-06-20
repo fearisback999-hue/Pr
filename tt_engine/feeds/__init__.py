@@ -6,9 +6,9 @@ velocity sources (e.g. Kalodata + EchoTik) and cross-confirm a trigger before tr
 """
 
 from .base import DataFeed, FeedRecord
-from .mock_feed import MockFeed
-from .kalodata import KalodataFeed
 from .echotik import EchoTikFeed
+from .kalodata import KalodataFeed
+from .mock_feed import MockFeed
 
 _REGISTRY = {
     "mock": MockFeed,

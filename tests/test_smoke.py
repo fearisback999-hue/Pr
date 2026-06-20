@@ -49,6 +49,19 @@ def test_weekly_report_has_attack_packet(tmp_path):
         assert db.creatives_for(top.product.id)
 
 
+def test_score_is_reproducible_from_stored_state(tmp_path):
+    """`score <pid>` (metrics-only re-score) must match what `daily` persisted — the
+    review corpus is persisted so the emotion signal survives a round-trip."""
+    with _db(tmp_path) as db:
+        result = pipeline.daily(db)
+        persisted = {s.record.product.id: s.breakdown.score.total for s in result.scored}
+        # Reviews survived the DB round-trip.
+        assert db.get_product("P-SCALPMASSAGER").reviews
+        re = pipeline.score_stored(db, "P-SCALPMASSAGER")
+        assert abs(re.breakdown.score.total - persisted["P-SCALPMASSAGER"]) < 0.01
+        assert re.breakdown.score.total >= 80  # still attack-ready when re-scored
+
+
 def test_recalibration_needs_sample_then_shifts_weights(tmp_path):
     with _db(tmp_path) as db:
         seed.seed_sample(db)

@@ -39,6 +39,9 @@ def ingest(db: Database, feed=None, lookback: int = 35) -> list[FeedRecord]:
     feed = feed or get_feed(CONFIG.primary_feed)
     records = feed.fetch(lookback_days=lookback)
     for rec in records:
+        # Persist the review corpus on the product so re-scoring is reproducible
+        # (it feeds psychology + the Viral-Demonstration emotion signal).
+        rec.product.reviews = rec.reviews
         db.upsert_product(rec.product)
         db.upsert_metrics(rec.metrics)
     return records
@@ -96,7 +99,8 @@ def score_stored(db: Database, product_id: str) -> Optional[ScoredRecord]:
     metrics = db.metrics_for(product_id)
     if not metrics:
         return None
-    rec = FeedRecord(product=product, metrics=metrics, reviews=[])
+    # Reviews were persisted at ingest, so this reproduces the canonical score exactly.
+    rec = FeedRecord(product=product, metrics=metrics, reviews=product.reviews)
     return score_record(db, rec)
 
 

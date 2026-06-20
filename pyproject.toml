@@ -24,3 +24,14 @@ include = ["tt_engine*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+# Deliberate house style: 110-col lines keep the data-heavy dataclasses and f-string
+# status lines readable without awkward wrapping.
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+# E741: short single-letter names (s, m, e) read fine in this numeric/score-heavy code.
+ignore = ["E741"]

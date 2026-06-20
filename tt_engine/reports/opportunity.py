@@ -4,9 +4,9 @@ product isn't). Pure rendering — the pipeline assembles the data."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date as _date
 from typing import Optional
 
+from ..config import CONFIG
 from ..creative.brief import CreativeKit
 from ..db import models
 from ..detection import TriggerResult
@@ -54,8 +54,9 @@ class AttackPacket:
             comp = "compliant" if self.kit.compliant else f"{len(self.kit.flagged)} compliance flags"
             lines += [
                 "",
-                f"**Creative kit** — {len(self.kit.hooks)} hooks, {len(self.kit.scripts)} scripts, "
-                f"{self.planned_creatives} planned variations across {len(self.kit.formats)} formats ({comp})",
+                f"**Creative kit** — {len(self.kit.hooks)} hooks, "
+                f"{len(self.kit.scripts)} scripts, {self.planned_creatives} planned "
+                f"variations across {len(self.kit.formats)} formats ({comp})",
             ]
         lines += [
             "",
@@ -79,7 +80,8 @@ class OpportunityReport:
         return f"{len(self.packets)} attack-ready · {len(self.watchlist)} on watch"
 
 
-def render_report(report: OpportunityReport) -> str:
+def render_report(report: OpportunityReport, threshold: Optional[float] = None) -> str:
+    bar = CONFIG.score_threshold if threshold is None else threshold
     out = [
         f"# TikTok Shop — Opportunity Report ({report.date})",
         "",
@@ -91,30 +93,32 @@ def render_report(report: OpportunityReport) -> str:
         "",
     ]
     if report.packets:
-        out += ["# Attack packets (≥80 and all gates clear)", ""]
+        out += [f"# Attack packets (≥{bar:.0f} and all gates clear)", ""]
         out += [p.render() for p in report.packets]
     else:
-        out += ["_No products cleared the 80+ bar AND all hard gates this pass._", ""]
+        out += [f"_No products cleared the {bar:.0f}+ bar AND all hard gates this pass._", ""]
 
     if report.watchlist:
         out += ["# Watchlist (momentum present, but blocked or below bar)", ""]
         for b in report.watchlist:
-            why = ", ".join(b.score.gate_failures) if not b.score.gates_passed else f"score {b.score.total:.0f} < 80"
+            why = (", ".join(b.score.gate_failures) if not b.score.gates_passed
+                   else f"score {b.score.total:.0f} < {bar:.0f}")
             out.append(f"- **{b.score.product_id}** — {b.score.total:.0f}/100 · "
                        f"~{b.score.window_days:.0f}d · blocked: {why}")
         out.append("")
     return "\n".join(out)
 
 
-def render_board(scores: list[models.Score], threshold: float = 0.0) -> str:
+def render_board(scores: list[models.Score], threshold: Optional[float] = None) -> str:
     """Appendix A board: one row per product, ranked by total descending."""
+    bar = CONFIG.score_threshold if threshold is None else threshold
     header = (
         f"{'PRODUCT':<22}{'TOTAL':>7}{'WINDOW':>9}{'GATES':>7}  VERDICT\n"
         + "-" * 70
     )
     rows = [header]
     for s in scores:
-        verdict = "ATTACK" if (s.gates_passed and s.total >= 80) else (
+        verdict = "ATTACK" if (s.gates_passed and s.total >= bar) else (
             "watch" if s.gates_passed else "GATED")
         window = f"{s.window_days:.0f}d" if s.window_days is not None else "—"
         gates = "pass" if s.gates_passed else "FAIL"

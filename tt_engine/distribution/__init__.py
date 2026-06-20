@@ -7,12 +7,12 @@ relationship or the outreach copy — spammy automated outreach performs badly a
 the channel."""
 
 from .affiliate import (
+    OUTREACH_PRINCIPLES,
     CreatorProspect,
     SeedingPlan,
-    score_creator,
-    rank_creators,
     build_seeding_plan,
-    OUTREACH_PRINCIPLES,
+    rank_creators,
+    score_creator,
 )
 
 __all__ = [

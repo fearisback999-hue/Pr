@@ -9,6 +9,7 @@ from datetime import date as _date
 from pathlib import Path
 from typing import Optional
 
+from ..config import CONFIG
 from ..db import models
 from .gates import GateResult, check_gates
 from .inputs import ScoringInputs
@@ -49,8 +50,9 @@ class ScoreBreakdown:
 
     @property
     def recommended(self) -> bool:
-        """Surface only ≥ threshold AND gates clear — see CONFIG.score_threshold."""
-        return self.score.gates_passed and self.score.total >= 80
+        """Surface only ≥ threshold AND gates clear (Part 3). The bar is CONFIG.score_threshold
+        (default 80, the brief's recommendation), so an operator override flows through here."""
+        return self.score.gates_passed and self.score.total >= CONFIG.score_threshold
 
 
 def score_product(

@@ -4,7 +4,7 @@ from tt_engine.db import models
 from tt_engine.detection import evaluate
 from tt_engine.economics import compute_economics
 from tt_engine.psychology import emotion_signal
-from tt_engine.scoring import ContentSignals, ScoringInputs, score_product, check_gates
+from tt_engine.scoring import ContentSignals, ScoringInputs, check_gates, score_product
 
 # Representative strong-emotion review corpus (as the live feed would supply).
 _STRONG_REVIEWS = [

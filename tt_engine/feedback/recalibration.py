@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from ..db import Database, models
-from ..scoring import load_weights, save_weights, DEFAULT_WEIGHTS
+from ..scoring import DEFAULT_WEIGHTS, load_weights, save_weights
 
 MIN_SAMPLES = 20         # Part 13: recalibrate after 20–30 tested products
 LEARN_RATE = 0.5         # how hard to nudge weights toward predictive sub-scores

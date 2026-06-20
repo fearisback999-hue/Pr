@@ -8,7 +8,7 @@ short enrichment tasks. Structured extraction uses `output_config.format` (JSON 
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from ..config import CONFIG
 

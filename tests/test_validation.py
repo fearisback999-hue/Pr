@@ -1,5 +1,5 @@
 from tt_engine.db import models
-from tt_engine.validation import summarize_tests, decide
+from tt_engine.validation import decide, summarize_tests
 
 
 def _tests(ctrs, roases, spend_each=20.0):
