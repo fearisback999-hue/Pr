@@ -18,10 +18,13 @@ class LLMUnavailable(RuntimeError):
 
 
 class LLMClient:
-    def __init__(self, config=CONFIG):
+    def __init__(self, config=CONFIG, client=None):
+        """`client` lets callers inject a pre-built SDK client (e.g. AnthropicBedrock /
+        AnthropicVertex, or a fake in tests). When None, build the first-party client iff
+        a key + SDK are available; otherwise stay offline (`available == False`)."""
         self.config = config
-        self._client = None
-        if config.llm_available:
+        self._client = client
+        if client is None and config.llm_available:
             import anthropic  # imported lazily; presence already checked by config
 
             self._client = anthropic.Anthropic(api_key=config.anthropic_api_key)
