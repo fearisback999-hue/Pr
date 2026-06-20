@@ -37,7 +37,10 @@ configured, auto-builds the Higgsfield creative kit.
 # 1. Seed a realistic sample dataset (no API keys needed — uses the mock feed)
 python -m tt_engine.cli seed
 
-# 2. Run the daily detection + scoring pass
+# 2. ⭐ Find the best winning products to move on now — ranked, with the "why"
+python -m tt_engine.cli find --top 5
+
+# (or) run the daily detection + scoring pass
 python -m tt_engine.cli daily
 
 # 3. Generate the weekly opportunity report with attack packets
@@ -59,6 +62,29 @@ python -m tt_engine.cli health --ship-days 4 --refund-rate 0.03
 Everything above runs **offline** with deterministic logic. Wire in real data and the
 Claude API by filling `.env` (see `.env.example`) and implementing the feed adapters'
 `fetch()` methods.
+
+## Finding *real* winners (the honest part)
+
+`find` ranks the best attack-ready products from whatever feed it's given. Out of the box
+that's the **sample feed** — so the results are illustrative, not real market finds (the
+command says so in its banner). The engine doesn't conjure winners; it detects
+acceleration in real velocity data. To find actual TikTok Shop winners:
+
+1. Get a velocity source — **Kalodata** (Enterprise API) and/or **EchoTik** (cheaper,
+   Growth-Velocity alerts). The data is *rented*: it's not your moat, your detection speed
+   and feedback loop are (Part 0).
+2. Put the key in `.env` and set `TT_PRIMARY_FEED=kalodata` (or `echotik`).
+3. Implement the adapter's `fetch()` — `tt_engine/feeds/kalodata.py` has a commented
+   template; map the vendor's daily series onto `units / gmv / price / sellers /
+   promo_videos / ads / avg_ad_age`. That's the only glue needed; detection, scoring,
+   gates, and `find` work unchanged.
+4. Stack a **second** source and cross-confirm (`detection.cross_confirm`) before trusting
+   a trigger — one rented feed can lag or be wrong.
+
+What the engine guarantees is *discipline*, not magic: it only surfaces products with real
+acceleration, low-but-rising saturation, runway left on the clock, healthy margins after
+the 6% fee, and no compliance/return landmines — then ranks them by how good the bet is.
+Most products you test will still lose money; that's structural (Appendix D).
 
 ## Build order (Part 14 — do not build it all at once)
 

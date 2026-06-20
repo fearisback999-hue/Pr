@@ -2,6 +2,7 @@
 rule of automation (Part 0): never automate anything you have not run manually first.
 
     python -m tt_engine.cli seed [--demo-outcomes]
+    python -m tt_engine.cli find [--top 5]      # ← the best winning products, ranked
     python -m tt_engine.cli daily
     python -m tt_engine.cli weekly [--out reports/out] [--no-creative]
     python -m tt_engine.cli board
@@ -70,6 +71,18 @@ def cmd_weekly(args) -> int:
         if args.out:
             print(f"wrote report + briefs to {args.out}/\n")
         print(render_report(report))
+    return 0
+
+
+def cmd_find(args) -> int:
+    """The core job: find the best winning products to move on right now, ranked."""
+    from .reports.opportunity import render_winners
+    llm = LLMClient()
+    if not llm.available:
+        print("(LLM not configured — psychology uses the deterministic offline fallback)\n")
+    with _db(args) as db:
+        result = pipeline.find_winners(db, top=args.top, llm=llm)
+        print(render_winners(result.winners, result.near_misses, result.source, result.date))
     return 0
 
 
@@ -208,6 +221,10 @@ def main(argv=None) -> int:
     p.set_defaults(func=cmd_seed)
 
     sub.add_parser("daily", help="run the daily detection + scoring pass").set_defaults(func=cmd_daily)
+
+    p = sub.add_parser("find", help="find the best winning products to move on now (ranked)")
+    p.add_argument("--top", type=int, default=5, help="how many winners to surface")
+    p.set_defaults(func=cmd_find)
 
     p = sub.add_parser("weekly", help="build the weekly opportunity report + attack packets")
     p.add_argument("--out", default=None, help="directory to write report + briefs")

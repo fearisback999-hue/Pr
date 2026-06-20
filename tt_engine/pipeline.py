@@ -137,8 +137,10 @@ def daily(db: Database, feed=None, lookback: int = 35) -> DailyResult:
 # ── attack-packet assembly (the 70% the product isn't) ──────────────────────────
 def build_attack_packet(
     db: Database, sr: ScoredRecord, llm: Optional[LLMClient] = None,
-    push_creative: bool = True,
+    push_creative: bool = True, build_creative: bool = True,
 ) -> AttackPacket:
+    """Assemble the full packet for a candidate. `build_creative=False` skips the Higgsfield
+    kit (finding ≠ producing creative) — used by `find_winners` for a fast ranked view."""
     llm = llm or LLMClient()
     product = sr.record.product
 
@@ -147,19 +149,58 @@ def build_attack_packet(
     suppliers = db.suppliers_for(product.id)
     supplier_score: Optional[SupplierScore] = rank_suppliers(suppliers)[0] if suppliers else None
 
-    kit = build_kit(product, psych, variations=30, llm=llm)
+    kit = None
     creatives = []
-    if push_creative:
-        hf = HiggsfieldClient()
-        creatives = hf.plan(kit)  # offline plan; hf.push() once the API is wired
-        for c in creatives:
-            db.upsert_creative(c)
+    if build_creative:
+        kit = build_kit(product, psych, variations=30, llm=llm)
+        if push_creative:
+            hf = HiggsfieldClient()
+            creatives = hf.plan(kit)  # offline plan; hf.push() once the API is wired
+            for c in creatives:
+                db.upsert_creative(c)
 
     return AttackPacket(
         product=product, breakdown=sr.breakdown, trigger=sr.trigger,
         economics=sr.economics, psych=psych, supplier=supplier_score,
         kit=kit, planned_creatives=len(creatives),
     )
+
+
+# ── find winners (the core job: surface the best products to move on now) ───────
+@dataclass
+class WinnersResult:
+    date: str
+    source: str                              # which feed produced these
+    winners: list[AttackPacket]              # attack-ready, ranked best-first
+    near_misses: list[ScoreBreakdown]        # momentum present but blocked / below bar
+
+    @property
+    def headline(self) -> str:
+        return (f"{len(self.winners)} winning product(s) found via '{self.source}' · "
+                f"{len(self.near_misses)} near-miss(es)")
+
+
+def find_winners(
+    db: Database, feed=None, top: int = 5, llm: Optional[LLMClient] = None,
+) -> WinnersResult:
+    """Run detection + scoring over the configured feed and return the best attack-ready
+    products, ranked, each with the 'why it wins' context (no creative kit — that's the
+    next step). Near-misses surface what's blocking the runners-up."""
+    llm = llm or LLMClient()
+    source = (feed.name if feed is not None else CONFIG.primary_feed)
+    result = daily(db, feed)
+
+    winners = [
+        build_attack_packet(db, sr, llm, build_creative=False)
+        for sr in result.new_candidates[:top]
+    ]
+    near = [
+        sr.breakdown for sr in result.scored
+        if not (sr.breakdown.score.gates_passed
+                and sr.breakdown.score.total >= CONFIG.score_threshold)
+        and (sr.trigger.triggered or sr.breakdown.score.total >= 60)
+    ]
+    return WinnersResult(date=result.date, source=source, winners=winners, near_misses=near)
 
 
 # ── weekly pass ─────────────────────────────────────────────────────────────────

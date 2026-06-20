@@ -31,6 +31,12 @@ _SUPPLIERS = [
     ("SUP-P-BRANDPLUSH", "P-BRANDPLUSH", "Licensed Toys Inc", 7.0, 1.5, 5, 100, True, 4.6, 10,
      "licensed product"),
     ("SUP-P-VAPEKIT", "P-VAPEKIT", "Vapor Supply", 3.0, 0.5, 5, 100, True, 4.2, 12, "restricted category"),
+    ("SUP-P-PIMPLEPATCH", "P-PIMPLEPATCH", "ClearSkin OEM", 3.0, 1.0, 4, 100, True, 4.7, 8,
+     "sample passed, consumable — repeat purchase, private label available"),
+    ("SUP-P-MAGSPRAY", "P-MAGSPRAY", "Calm Labs", 4.5, 1.0, 4, 100, True, 4.6, 10,
+     "sample passed, consumable — repeat purchase"),
+    ("SUP-P-TRENDYTUMBLER", "P-TRENDYTUMBLER", "Drinkware Factory", 9.0, 2.0, 6, 200, False, 4.0, 20,
+     "commoditized, everyone sells it"),
 ]
 
 

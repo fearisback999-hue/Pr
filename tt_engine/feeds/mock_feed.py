@@ -111,6 +111,40 @@ _ARCHETYPES: list[_Archetype] = [
         start_ads=2, ad_growth=0.04, avg_ad_age_today=5, price=14.99, restricted=True,
         reviews=("great flavors",),
     ),
+    _Archetype(
+        pid="P-PIMPLEPATCH", name="Hydrocolloid Pimple Patches", category="beauty",
+        base_units=80, early_growth=0.03, late_growth=0.15,
+        start_sellers=4, seller_growth=0.02, start_promo=5, promo_growth=0.04,
+        start_ads=3, ad_growth=0.05, avg_ad_age_today=6, price=16.99,
+        reviews=(
+            "these shrink my zits overnight, I'm obsessed",
+            "cannot believe how fast they work, skin cleared up",
+            "everyone asked what I did to my skin, amazing",
+            "I keep reordering these, they actually melt the spot away",
+        ),
+    ),
+    _Archetype(
+        pid="P-MAGSPRAY", name="Magnesium Sleep Spray", category="wellness",
+        base_units=50, early_growth=0.02, late_growth=0.15,
+        start_sellers=3, seller_growth=0.02, start_promo=4, promo_growth=0.035,
+        start_ads=2, ad_growth=0.045, avg_ad_age_today=7, price=22.99,
+        reviews=(
+            "I actually sleep through the night now, insane",
+            "this knocked me out, so relaxing, wish I found it sooner",
+            "spray it on and I'm out in minutes, reorder every month",
+        ),
+    ),
+    _Archetype(
+        pid="P-TRENDYTUMBLER", name="40oz Trendy Tumbler", category="home",
+        base_units=400, early_growth=0.0, late_growth=-0.01,
+        start_sellers=60, seller_growth=0.04, start_promo=200, promo_growth=0.05,
+        start_ads=90, ad_growth=0.04, avg_ad_age_today=50, price=34.99,
+        reviews=(
+            "cute but literally everyone has one now",
+            "saw it on every single shop, prices all over",
+            "it's fine, holds drinks, nothing special anymore",
+        ),
+    ),
 ]
 
 
