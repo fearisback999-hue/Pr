@@ -1,0 +1,192 @@
+"""Orchestration (Part 12 agent loop): data-feed → DB → detection → economics → scoring
+→ LLM enrichment → Higgsfield → report assembly. Each stage is independently callable so
+you can run it by hand before trusting the cron (the iron rule of automation, Part 0)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date as _date
+from pathlib import Path
+from typing import Optional
+
+from .config import CONFIG
+from .creative import HiggsfieldClient, build_kit
+from .db import Database, models
+from .detection import TriggerResult, evaluate
+from .detection._stats import clamp
+from .economics import Economics, compute_economics
+from .feeds import FeedRecord, get_feed
+from .llm import LLMClient
+from .psychology import PsychProfile, analyze, emotion_signal
+from .reports.opportunity import AttackPacket, OpportunityReport, render_report
+from .scoring import ContentSignals, ScoringInputs
+from .scoring.algorithm import ScoreBreakdown, score_product
+from .sourcing import SupplierScore, rank_suppliers
+
+# Category return-risk priors (Part 6: anything with sizing is a refund machine).
+_RETURN_RATE = {
+    "beauty": 0.04, "wellness": 0.04, "supplement": 0.05, "apparel": 0.12,
+    "toys": 0.05, "electronics": 0.05, "home": 0.06,
+}
+
+
+def return_rate_for(category: str) -> float:
+    return _RETURN_RATE.get(category.lower(), 0.06)
+
+
+# ── ingestion ───────────────────────────────────────────────────────────────────
+def ingest(db: Database, feed=None, lookback: int = 35) -> list[FeedRecord]:
+    feed = feed or get_feed(CONFIG.primary_feed)
+    records = feed.fetch(lookback_days=lookback)
+    for rec in records:
+        db.upsert_product(rec.product)
+        db.upsert_metrics(rec.metrics)
+    return records
+
+
+def economics_for(db: Database, product: models.Product, latest_price: float) -> Economics:
+    """Use the best (lowest-landed) known supplier; estimate from a category cost ratio
+    if none is on file. Return-risk is a category prior until you measure your own."""
+    suppliers = db.suppliers_for(product.id)
+    rr = return_rate_for(product.category)
+    if suppliers:
+        best = min(suppliers, key=lambda s: s.cost + s.ship_cost)
+        return compute_economics(latest_price, best.cost, best.ship_cost, return_rate=rr)
+    # Fallback estimate: assume a typical 30% landed-cost ratio.
+    est_cost = round(latest_price * 0.30, 2)
+    return compute_economics(latest_price, est_cost, 0.0, return_rate=rr)
+
+
+# ── scoring ─────────────────────────────────────────────────────────────────────
+@dataclass
+class ScoredRecord:
+    record: FeedRecord
+    trigger: TriggerResult
+    economics: Economics
+    breakdown: ScoreBreakdown
+
+
+def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
+    metrics = sorted(rec.metrics, key=lambda m: m.date)
+    trigger = evaluate(metrics)
+    latest_price = metrics[-1].price if metrics else 0.0
+    econ = economics_for(db, rec.product, latest_price)
+
+    # First-party signals: upstream-demand proxy from week-over-week growth, and a
+    # review-emotion read feeding the Viral Demonstration sub-score (Part 3.1).
+    trend_proxy = clamp(trigger.momentum.wow_growth, -0.3, 0.6)
+    content = ContentSignals()
+    sig = emotion_signal(rec.reviews)
+    if sig is not None:
+        content.curiosity_interrupt, content.emotional_reaction = sig
+    inputs = ScoringInputs(
+        product=rec.product, trigger=trigger, economics=econ,
+        search_trend_slope=trend_proxy, content=content,
+    )
+    breakdown = score_product(inputs)
+    return ScoredRecord(record=rec, trigger=trigger, economics=econ, breakdown=breakdown)
+
+
+def score_stored(db: Database, product_id: str) -> Optional[ScoredRecord]:
+    """Re-score a product from metrics already in the DB (no feed call). Reviews aren't
+    persisted, so psychology is built separately when assembling a packet."""
+    product = db.get_product(product_id)
+    if product is None:
+        return None
+    metrics = db.metrics_for(product_id)
+    if not metrics:
+        return None
+    rec = FeedRecord(product=product, metrics=metrics, reviews=[])
+    return score_record(db, rec)
+
+
+# ── daily pass ──────────────────────────────────────────────────────────────────
+@dataclass
+class DailyResult:
+    date: str
+    scored: list[ScoredRecord] = field(default_factory=list)
+    new_candidates: list[ScoredRecord] = field(default_factory=list)  # ≥ threshold AND gates pass
+
+    @property
+    def headline(self) -> str:
+        triggered = sum(1 for s in self.scored if s.trigger.triggered)
+        return (f"{len(self.scored)} products scored · {triggered} triggered · "
+                f"{len(self.new_candidates)} attack-ready (≥{CONFIG.score_threshold:.0f} & gates pass)")
+
+
+def daily(db: Database, feed=None, lookback: int = 35) -> DailyResult:
+    records = ingest(db, feed, lookback)
+    today = _date.today().isoformat()
+    scored: list[ScoredRecord] = []
+    candidates: list[ScoredRecord] = []
+    for rec in records:
+        sr = score_record(db, rec)
+        db.upsert_score(sr.breakdown.score)
+        scored.append(sr)
+        if sr.breakdown.score.gates_passed and sr.breakdown.score.total >= CONFIG.score_threshold:
+            candidates.append(sr)
+    scored.sort(key=lambda s: s.breakdown.score.total, reverse=True)
+    candidates.sort(key=lambda s: s.breakdown.score.total, reverse=True)
+    return DailyResult(date=today, scored=scored, new_candidates=candidates)
+
+
+# ── attack-packet assembly (the 70% the product isn't) ──────────────────────────
+def build_attack_packet(
+    db: Database, sr: ScoredRecord, llm: Optional[LLMClient] = None,
+    push_creative: bool = True,
+) -> AttackPacket:
+    llm = llm or LLMClient()
+    product = sr.record.product
+
+    psych: PsychProfile = analyze(product.name, sr.record.reviews, product.category, llm)
+
+    suppliers = db.suppliers_for(product.id)
+    supplier_score: Optional[SupplierScore] = rank_suppliers(suppliers)[0] if suppliers else None
+
+    kit = build_kit(product, psych, variations=30, llm=llm)
+    creatives = []
+    if push_creative:
+        hf = HiggsfieldClient()
+        creatives = hf.plan(kit)  # offline plan; hf.push() once the API is wired
+        for c in creatives:
+            db.upsert_creative(c)
+
+    return AttackPacket(
+        product=product, breakdown=sr.breakdown, trigger=sr.trigger,
+        economics=sr.economics, psych=psych, supplier=supplier_score,
+        kit=kit, planned_creatives=len(creatives),
+    )
+
+
+# ── weekly pass ─────────────────────────────────────────────────────────────────
+def weekly(
+    db: Database, feed=None, out_dir: Optional[str] = None,
+    llm: Optional[LLMClient] = None, push_creative: bool = True,
+) -> OpportunityReport:
+    llm = llm or LLMClient()
+    result = daily(db, feed)
+    report = OpportunityReport(date=result.date)
+
+    for sr in result.new_candidates:
+        report.packets.append(build_attack_packet(db, sr, llm, push_creative))
+
+    # Watchlist: momentum present but blocked by a gate or below the bar.
+    for sr in result.scored:
+        s = sr.breakdown.score
+        attack_ready = s.gates_passed and s.total >= CONFIG.score_threshold
+        if not attack_ready and (sr.trigger.triggered or s.total >= 60):
+            report.watchlist.append(sr.breakdown)
+
+    if out_dir:
+        _write_report(report, out_dir)
+    return report
+
+
+def _write_report(report: OpportunityReport, out_dir: str) -> None:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"opportunity_{report.date}.md").write_text(render_report(report))
+    # One brief file per attack-ready product, ready for Hermes Agent.
+    for p in report.packets:
+        if p.kit:
+            (out / f"brief_{p.product.id}.md").write_text(p.kit.brief_text())

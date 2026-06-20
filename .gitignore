@@ -1,0 +1,28 @@
+# Secrets
+.env
+
+# Local database + generated artifacts
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+reports/out/
+creative_kits/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

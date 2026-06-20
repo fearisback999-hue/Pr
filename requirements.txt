@@ -1,0 +1,10 @@
+# Runtime is stdlib-only — the engine runs offline with no third-party packages.
+# These are OPTIONAL and only needed to wire in live data feeds and the Claude API.
+
+# LLM enrichment (psychology, hooks, scripts). Without it, the engine uses a
+# deterministic offline fallback so nothing breaks. Pin to a recent SDK.
+anthropic>=0.69.0
+
+# Live HTTP feed adapters (Kalodata / EchoTik / PiPiADS / CJ Dropshipping).
+# Only required once you implement the real fetch() methods.
+requests>=2.31.0
