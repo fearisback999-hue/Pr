@@ -31,6 +31,9 @@ class Database:
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(products)")}
         if "reviews" not in cols:
             self.conn.execute("ALTER TABLE products ADD COLUMN reviews TEXT NOT NULL DEFAULT '[]'")
+        ccols = {r["name"] for r in self.conn.execute("PRAGMA table_info(creatives)")}
+        if "meta" not in ccols:
+            self.conn.execute("ALTER TABLE creatives ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'")
 
     def close(self) -> None:
         self.conn.close()
@@ -158,12 +161,15 @@ class Database:
     # ── creatives ──────────────────────────────────────────────────────────────
     def upsert_creative(self, c: models.Creative) -> None:
         self.conn.execute(
-            """INSERT INTO creatives(id, product_id, format, hook, hook_type, soul_id, asset_url, status)
-               VALUES(?,?,?,?,?,?,?,?)
+            """INSERT INTO creatives(id, product_id, format, hook, hook_type, soul_id,
+                                     asset_url, status, meta)
+               VALUES(?,?,?,?,?,?,?,?,?)
                ON CONFLICT(id) DO UPDATE SET
                  format=excluded.format, hook=excluded.hook, hook_type=excluded.hook_type,
-                 soul_id=excluded.soul_id, asset_url=excluded.asset_url, status=excluded.status""",
-            (c.id, c.product_id, c.format, c.hook, c.hook_type, c.soul_id, c.asset_url, c.status),
+                 soul_id=excluded.soul_id, asset_url=excluded.asset_url, status=excluded.status,
+                 meta=excluded.meta""",
+            (c.id, c.product_id, c.format, c.hook, c.hook_type, c.soul_id, c.asset_url,
+             c.status, json.dumps(c.meta)),
         )
         self.conn.commit()
 
@@ -172,6 +178,26 @@ class Database:
             "SELECT * FROM creatives WHERE product_id=?", (product_id,)
         ).fetchall()
         return [_to_creative(r) for r in rows]
+
+    def all_creatives(self) -> list[models.Creative]:
+        rows = self.conn.execute("SELECT * FROM creatives").fetchall()
+        return [_to_creative(r) for r in rows]
+
+    # ── import audit log ───────────────────────────────────────────────────────
+    def log_import(self, source: str, filename: str, products: int,
+                   metric_rows: int, rows_skipped: int) -> None:
+        self.conn.execute(
+            """INSERT INTO import_log(source, filename, products, metric_rows, rows_skipped)
+               VALUES(?,?,?,?,?)""",
+            (source, filename, products, metric_rows, rows_skipped),
+        )
+        self.conn.commit()
+
+    def import_history(self, limit: int = 20) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT * FROM import_log ORDER BY imported_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     # ── tests / results ────────────────────────────────────────────────────────
     def upsert_test(self, t: models.Test) -> None:
@@ -259,9 +285,12 @@ def _to_supplier(r: sqlite3.Row) -> models.Supplier:
 
 
 def _to_creative(r: sqlite3.Row) -> models.Creative:
+    keys = r.keys()
+    meta = json.loads(r["meta"]) if "meta" in keys and r["meta"] else {}
     return models.Creative(
         id=r["id"], product_id=r["product_id"], format=r["format"], hook=r["hook"],
-        hook_type=r["hook_type"], soul_id=r["soul_id"], asset_url=r["asset_url"], status=r["status"],
+        hook_type=r["hook_type"], soul_id=r["soul_id"], asset_url=r["asset_url"],
+        status=r["status"], meta=meta,
     )
 
 

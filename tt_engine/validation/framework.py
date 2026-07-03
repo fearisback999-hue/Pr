@@ -1,6 +1,7 @@
 """The 30-day plan and the kill/scale decision logic.
 
 Kill (ANY one, after meaningful spend):
+  • below break-even ROAS for 48 hours straight (the hard timer — trend can't save it)
   • CTR persistently far below ~1% with no improving trend
   • ROAS below break-even after the test budget, flat or declining
   • refund rate trending above ~5%
@@ -16,6 +17,7 @@ Scale (ALL together):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date as _date
 from statistics import mean
 from typing import Optional, Sequence
 
@@ -28,6 +30,7 @@ SCALE_CTR = 0.015        # ~1.5%
 KILL_REFUND = 0.05       # ~5%
 SCALE_REFUND = 0.03      # low and stable
 MEANINGFUL_SPEND = 50.0  # per product before kill/scale calls mean anything
+KILL_HOURS = 48.0        # hard timer: this long below break-even ROAS = KILL
 
 WEEK_PLAN = {
     1: ("Research & selection — run the engine, shortlist 80+ that clear gates, "
@@ -99,11 +102,48 @@ def summarize_tests(product_id: str, tests: Sequence[models.Test]) -> TestSummar
     )
 
 
+def hours_below_breakeven(
+    tests: Sequence[models.Test], breakeven_roas: float,
+) -> tuple[float, str]:
+    """The 48-hour timer, with the math shown. Aggregate spend-weighted ROAS per calendar
+    day; find the trailing run of consecutive days below break-even ending at the latest
+    day. Each observed day counts as 24h, so 2 consecutive bad days = 48h. Returns
+    (hours, detail) — hours is 0 when the latest day is at/above break-even."""
+    if breakeven_roas == float("inf"):
+        return 0.0, "break-even undefined (no profitable unit economics to beat)"
+    by_day: dict[str, tuple[float, float]] = {}  # date -> (spend, revenue)
+    for t in tests:
+        if t.roas is None or t.spend <= 0:
+            continue
+        sp, rev = by_day.get(t.date, (0.0, 0.0))
+        by_day[t.date] = (sp + t.spend, rev + t.roas * t.spend)
+    if not by_day:
+        return 0.0, "no spend logged yet"
+
+    days = sorted(by_day)
+    daily_roas = {d: (rev / sp if sp else 0.0) for d, (sp, rev) in by_day.items()}
+    if daily_roas[days[-1]] >= breakeven_roas:
+        return 0.0, f"latest day ROAS {daily_roas[days[-1]]:.2f} ≥ break-even {breakeven_roas:.2f}"
+
+    # Walk backward through strictly consecutive calendar days below break-even.
+    run = [days[-1]]
+    for d in reversed(days[:-1]):
+        prev = _date.fromisoformat(run[0])
+        if (prev - _date.fromisoformat(d)).days != 1 or daily_roas[d] >= breakeven_roas:
+            break
+        run.insert(0, d)
+    hours = 24.0 * len(run)
+    trail = ", ".join(f"{d}: {daily_roas[d]:.2f}" for d in run)
+    return hours, (f"{len(run)} consecutive day(s) below break-even {breakeven_roas:.2f} "
+                   f"({trail}) = {hours:.0f}h")
+
+
 def decide(
     summary: TestSummary,
     breakeven_roas: float,
     refund_rate: Optional[float] = None,
     sentiment_complaints: bool = False,
+    tests: Optional[Sequence[models.Test]] = None,
 ) -> ValidationDecision:
     reasons: list[str] = []
 
@@ -113,6 +153,10 @@ def decide(
 
     # ── Kill conditions (any one) ──────────────────────────────────────────────
     kill: list[str] = []
+    if tests is not None:
+        hours, detail = hours_below_breakeven(tests, breakeven_roas)
+        if hours >= KILL_HOURS:
+            kill.append(f"below break-even ROAS for {hours:.0f}h ≥ {KILL_HOURS:.0f}h — {detail}")
     if summary.avg_ctr is not None and summary.avg_ctr < KILL_CTR and summary.ctr_trend <= 0:
         kill.append(f"CTR {summary.avg_ctr*100:.2f}% < {KILL_CTR*100:.0f}% and not improving")
     if (summary.avg_roas is not None and breakeven_roas != float("inf")

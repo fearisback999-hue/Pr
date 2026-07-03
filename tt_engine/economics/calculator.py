@@ -24,13 +24,17 @@ class Economics:
     max_cac: float              # = gross_profit; spend more to acquire and you lose per sale
     return_rate: Optional[float] = None
     profit_after_returns: Optional[float] = None  # expected gross profit net of refunds
+    landed_known: bool = True   # False = no real supplier cost on file → refuse to score
 
     @property
     def meets_floor(self) -> bool:
-        return self.gross_margin >= MARGIN_FLOOR
+        return self.landed_known and self.gross_margin >= MARGIN_FLOOR
 
     @property
     def summary(self) -> str:
+        if not self.landed_known:
+            return (f"${self.sell_price:.2f} sell · landed cost UNKNOWN — economics not "
+                    f"scored (add a real supplier cost: `add-supplier`)")
         s = (
             f"${self.sell_price:.2f} sell · ${self.landed_cost:.2f} landed · "
             f"{self.gross_margin*100:.0f}% margin · ${self.gross_profit:.2f} profit/unit · "
@@ -39,6 +43,17 @@ class Economics:
         if self.return_rate is not None:
             s += f" · returns {self.return_rate*100:.0f}%"
         return s
+
+
+def unknown_economics(sell_price: float, return_rate: Optional[float] = None) -> Economics:
+    """No real landed cost on file. Every derived number is zeroed rather than guessed —
+    the scorer refuses to score Economics and the margin gate fails as unverifiable."""
+    return Economics(
+        sell_price=sell_price, supplier_cost=0.0, ship_cost=0.0, fee_rate=FEE_RATE,
+        landed_cost=0.0, fee=0.0, gross_profit=0.0, gross_margin=0.0,
+        breakeven_roas=float("inf"), max_cac=0.0, return_rate=return_rate,
+        profit_after_returns=None, landed_known=False,
+    )
 
 
 def compute_economics(

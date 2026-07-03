@@ -15,8 +15,9 @@ from .compliance import ComplianceReport, review_text
 from .hooks import Hook, generate_hooks
 from .scripts import UGCScript, generate_scripts
 
-# Formats to vary across (Part 7).
-FORMATS = ("UGC", "HyperMotion", "Unboxing", "Tutorial", "ASMR", "TryOn")
+# Formats to vary across (Part 7 / Phase 2 spec): UGC reaction, Hyper Motion reveal,
+# ASMR, POV before/after, unboxing.
+FORMATS = ("UGC-Reaction", "HyperMotion-Reveal", "ASMR", "POV-BeforeAfter", "Unboxing")
 
 
 @dataclass

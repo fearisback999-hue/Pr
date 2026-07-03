@@ -74,6 +74,7 @@ class Creative:
     soul_id: Optional[str] = None
     asset_url: Optional[str] = None
     status: str = "briefed"
+    meta: dict = field(default_factory=dict)  # aigc_disclosure, format_tag, job_id…
 
 
 @dataclass

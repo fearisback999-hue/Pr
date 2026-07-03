@@ -33,29 +33,42 @@ configured, auto-builds the Higgsfield creative kit.
 
 ## Quick start
 
+> Operating the engine day-to-day? Read **[`docs/OPERATING.md`](docs/OPERATING.md)** —
+> the plain-language Phase 1/Phase 2 runbook.
+
 ```bash
 # 1. Seed a realistic sample dataset (no API keys needed — uses the mock feed)
 python -m tt_engine.cli seed
 
+# — or bring real data in by hand (Phase 1: no scrapers, CSV + manual entry only) —
+python -m tt_engine.cli import-csv exports/kalodata.csv --source kalodata
+python -m tt_engine.cli add --name "Cloud Slippers" --category home --id P-CLOUD
+python -m tt_engine.cli add-metric P-CLOUD --units 120 --price 24.99
+python -m tt_engine.cli add-supplier P-CLOUD --cost 4.50 --ship-cost 1.00  # REQUIRED to score economics
+
 # 2. ⭐ Find the best winning products to move on now — ranked, with the "why"
 python -m tt_engine.cli find --top 5
 
-# (or) run the daily detection + scoring pass
+# (or) run the daily detection + scoring pass, then read one product's full scorecard
 python -m tt_engine.cli daily
+python -m tt_engine.cli scorecard P-CLOUD          # every sub-score + verdict KILL/WATCH/TEST
 
-# 3. Generate the weekly opportunity report with attack packets
+# 3. Run a live test: log spend/revenue daily; the 48h below-break-even timer flags KILL
+python -m tt_engine.cli log-test P-CLOUD --spend 40 --revenue 30
+python -m tt_engine.cli validate P-CLOUD
+python -m tt_engine.cli log-result P-CLOUD --decision kill   # concluded → feeds Part 13
+
+# Phase 2 — psychology, creative (Higgsfield MCP), feedback
+python -m tt_engine.cli psych P-CLOUD --file comments.txt
+python -m tt_engine.cli creative P-CLOUD                     # dry-run plan; --confirm to spend
+python -m tt_engine.cli export-creatives P-CLOUD             # blocks assets missing AIGC disclosure
+python -m tt_engine.cli report-monthly --month 2026-07       # recalibration suggestions only
+
+# Reports & ops
 python -m tt_engine.cli weekly --out reports/out
-
-# Inspect the ranked board
 python -m tt_engine.cli board
-
-# Export the Appendix-A scoring spreadsheet (CSV)
 python -m tt_engine.cli export --out reports/out/board.csv
-
-# Part 11 — capital & cash-flow tracking (payout float, runway, # of tests you can afford)
 python -m tt_engine.cli capital --capital 5000 --test-budget 300 --daily-ad 50 --daily-cogs 30
-
-# Part 10 — account-health / Shop Performance proxy (a low score throttles reach)
 python -m tt_engine.cli health --ship-days 4 --refund-rate 0.03
 ```
 
@@ -125,8 +138,9 @@ tt_engine/
   cli.py             # seed/daily/weekly/board/score/packet/validate/
                      #   recalibrate/plan/export/capital/health
 scripts/             # cron wrappers
-tests/               # 73 tests across every part + end-to-end smoke
+tests/               # 109 tests across every part + end-to-end smoke + CLI workflow
 docs/THESIS.md       # Part 0 — the operating thesis (read first)
+docs/OPERATING.md    # the Phase 1/2 runbook — how to actually run this daily
 ```
 
 ## Realistic expectations (Appendix D — reread when excited)

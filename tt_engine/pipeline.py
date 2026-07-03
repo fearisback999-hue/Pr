@@ -14,7 +14,7 @@ from .creative import HiggsfieldClient, build_kit
 from .db import Database, models
 from .detection import TriggerResult, evaluate
 from .detection._stats import clamp
-from .economics import Economics, compute_economics
+from .economics import Economics, compute_economics, unknown_economics
 from .feeds import FeedRecord, get_feed
 from .llm import LLMClient
 from .psychology import PsychProfile, analyze, emotion_signal
@@ -48,16 +48,16 @@ def ingest(db: Database, feed=None, lookback: int = 35) -> list[FeedRecord]:
 
 
 def economics_for(db: Database, product: models.Product, latest_price: float) -> Economics:
-    """Use the best (lowest-landed) known supplier; estimate from a category cost ratio
-    if none is on file. Return-risk is a category prior until you measure your own."""
+    """Use the best (lowest-landed) known supplier. If none is on file we REFUSE to guess
+    (no placeholder landed costs — those numbers gate real money): economics comes back
+    flagged `landed_known=False`, the Economics sub-score is withheld, and the margin gate
+    fails as unverifiable. Return-risk is a category prior until you measure your own."""
     suppliers = db.suppliers_for(product.id)
     rr = return_rate_for(product.category)
     if suppliers:
         best = min(suppliers, key=lambda s: s.cost + s.ship_cost)
         return compute_economics(latest_price, best.cost, best.ship_cost, return_rate=rr)
-    # Fallback estimate: assume a typical 30% landed-cost ratio.
-    est_cost = round(latest_price * 0.30, 2)
-    return compute_economics(latest_price, est_cost, 0.0, return_rate=rr)
+    return unknown_economics(latest_price, return_rate=rr)
 
 
 # ── scoring ─────────────────────────────────────────────────────────────────────
@@ -201,6 +201,35 @@ def find_winners(
         and (sr.trigger.triggered or sr.breakdown.score.total >= 60)
     ]
     return WinnersResult(date=result.date, source=source, winners=winners, near_misses=near)
+
+
+# ── Phase 2: creative production on TEST verdict ────────────────────────────────
+def produce_creatives(
+    db: Database, product_id: str, llm: Optional[LLMClient] = None,
+    confirm: bool = False, variations: int = 30, force: bool = False, mcp=None,
+):
+    """The Phase-2 trigger: when a product hits TEST verdict (gates clear, ≥ threshold),
+    build the brief (product + psychology paragraph + hooks) and run the Higgsfield MCP
+    batch across formats. Refuses on non-TEST products unless force=True, and never
+    generates for real without confirm=True (generation spends money)."""
+    from .creative import build_kit as _build_kit, generate_batch
+
+    llm = llm or LLMClient()
+    sr = score_stored(db, product_id)
+    if sr is None:
+        raise ValueError(f"{product_id}: no stored metrics — import or add data first")
+    if not sr.breakdown.recommended and not force:
+        s = sr.breakdown.score
+        why = ("hard gate(s) failed: " + ", ".join(s.gate_failures)) if not s.gates_passed \
+            else f"total {s.total:.1f} < {CONFIG.score_threshold:.0f}"
+        raise ValueError(
+            f"{product_id} is not at TEST verdict ({why}). Creative production is gated "
+            "on TEST — re-score after fixing the blocker, or pass --force to override."
+        )
+    product = sr.record.product
+    psych = analyze(product.name, product.reviews, product.category, llm)
+    kit = _build_kit(product, psych, variations=variations, llm=llm)
+    return kit, generate_batch(db, kit, confirm=confirm, mcp=mcp)
 
 
 # ── weekly pass ─────────────────────────────────────────────────────────────────

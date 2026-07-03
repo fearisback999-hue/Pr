@@ -58,6 +58,11 @@ class Config:
     # Creative (Part 7)
     higgsfield_api_key: str = field(default_factory=lambda: _get("HIGGSFIELD_API_KEY"))
     higgsfield_soul_id: str = field(default_factory=lambda: _get("HIGGSFIELD_SOUL_ID"))
+    # Phase 2: Higgsfield via MCP (streamable-HTTP endpoint). Unset → dry-run planning.
+    higgsfield_mcp_url: str = field(default_factory=lambda: _get("HIGGSFIELD_MCP_URL"))
+    higgsfield_mcp_tool: str = field(
+        default_factory=lambda: _get("HIGGSFIELD_MCP_TOOL", "generate_video")
+    )
 
     @property
     def llm_available(self) -> bool:

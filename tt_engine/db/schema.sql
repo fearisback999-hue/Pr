@@ -65,12 +65,13 @@ CREATE TABLE IF NOT EXISTS suppliers (
 CREATE TABLE IF NOT EXISTS creatives (
     id          TEXT PRIMARY KEY,
     product_id  TEXT NOT NULL,
-    format      TEXT NOT NULL,            -- UGC | HyperMotion | Unboxing | Tutorial | ASMR | TryOn
+    format      TEXT NOT NULL,            -- UGC-Reaction | HyperMotion-Reveal | ASMR | POV-BeforeAfter | Unboxing
     hook        TEXT NOT NULL,
     hook_type   TEXT,                     -- curiosity | problem | shock | transformation
-    soul_id     TEXT,                     -- recurring persona id
+    soul_id     TEXT,                     -- recurring persona id (ONE per store)
     asset_url   TEXT,
     status      TEXT NOT NULL DEFAULT 'briefed',  -- briefed|generating|ready|exported|failed
+    meta        TEXT NOT NULL DEFAULT '{}',       -- JSON: aigc_disclosure, format_tag, job_id…
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
@@ -99,6 +100,17 @@ CREATE TABLE IF NOT EXISTS results (
     decision     TEXT,                    -- kill | scale | watch
     PRIMARY KEY (product_id, date),
     FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Audit trail for CSV imports (Kalodata / FastMoss / manual exports).
+CREATE TABLE IF NOT EXISTS import_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    source        TEXT NOT NULL,          -- kalodata | fastmoss | generic
+    filename      TEXT,
+    products      INTEGER NOT NULL DEFAULT 0,
+    metric_rows   INTEGER NOT NULL DEFAULT 0,
+    rows_skipped  INTEGER NOT NULL DEFAULT 0,
+    imported_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON product_daily_metrics(date);

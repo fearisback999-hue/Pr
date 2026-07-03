@@ -53,6 +53,7 @@ def test_score_is_reproducible_from_stored_state(tmp_path):
     """`score <pid>` (metrics-only re-score) must match what `daily` persisted — the
     review corpus is persisted so the emotion signal survives a round-trip."""
     with _db(tmp_path) as db:
+        seed.seed_sample(db)  # suppliers on file → economics scoreable
         result = pipeline.daily(db)
         persisted = {s.record.product.id: s.breakdown.score.total for s in result.scored}
         # Reviews survived the DB round-trip.
@@ -60,6 +61,19 @@ def test_score_is_reproducible_from_stored_state(tmp_path):
         re = pipeline.score_stored(db, "P-SCALPMASSAGER")
         assert abs(re.breakdown.score.total - persisted["P-SCALPMASSAGER"]) < 0.01
         assert re.breakdown.score.total >= 80  # still attack-ready when re-scored
+
+
+def test_no_supplier_means_economics_refused_and_gated(tmp_path):
+    """No real landed cost on file → the engine must refuse to score economics (no
+    placeholder guesses) and fail the margin gate as unverifiable."""
+    with _db(tmp_path) as db:
+        result = pipeline.daily(db)  # feed ingested, but NO suppliers seeded
+        sr = next(s for s in result.scored if s.record.product.id == "P-SCALPMASSAGER")
+        assert not sr.economics.landed_known
+        assert sr.breakdown.score.economics == 0.0
+        assert not sr.breakdown.score.gates_passed
+        assert any("landed cost" in f for f in sr.breakdown.score.gate_failures)
+        assert "NOT_SCORED_no_landed_cost" in sr.breakdown.components["economics"]
 
 
 def test_recalibration_needs_sample_then_shifts_weights(tmp_path):

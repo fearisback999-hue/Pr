@@ -12,6 +12,15 @@ from .brief import FORMATS, CreativeKit, build_kit
 from .compliance import DISCLOSURE, ComplianceReport, review_text
 from .higgsfield import HiggsfieldClient
 from .hooks import HOOK_TYPES, Hook, generate_hooks
+from .mcp_client import (
+    ConfirmationRequired,
+    ExportResult,
+    GenerationResult,
+    HiggsfieldMCP,
+    export_creatives,
+    generate_batch,
+    soul_consistency,
+)
 from .scripts import UGCScript, generate_scripts
 
 __all__ = [
@@ -20,4 +29,6 @@ __all__ = [
     "ComplianceReport", "review_text", "DISCLOSURE",
     "CreativeKit", "build_kit", "FORMATS",
     "HiggsfieldClient",
+    "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",
+    "GenerationResult", "ExportResult", "ConfirmationRequired",
 ]

@@ -6,6 +6,7 @@ velocity sources (e.g. Kalodata + EchoTik) and cross-confirm a trigger before tr
 """
 
 from .base import DataFeed, FeedRecord
+from .csv_import import ImportSummary, import_csv
 from .echotik import EchoTikFeed
 from .kalodata import KalodataFeed
 from .mock_feed import MockFeed
@@ -25,4 +26,7 @@ def get_feed(name: str) -> DataFeed:
         raise ValueError(f"unknown feed '{name}'. options: {sorted(_REGISTRY)}")
 
 
-__all__ = ["DataFeed", "FeedRecord", "MockFeed", "KalodataFeed", "EchoTikFeed", "get_feed"]
+__all__ = [
+    "DataFeed", "FeedRecord", "MockFeed", "KalodataFeed", "EchoTikFeed", "get_feed",
+    "import_csv", "ImportSummary",
+]

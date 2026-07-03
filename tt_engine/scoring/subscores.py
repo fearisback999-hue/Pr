@@ -87,6 +87,10 @@ def competition_timing(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
 # ── 4. Economics (20): margin 8, break-even ROAS feasibility 6, return-risk⁻¹ 6 ──
 def economics(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     e = inp.economics
+    if not e.landed_known:
+        # No real landed cost on file — refuse to score rather than guess (the spec's
+        # hard rule: these numbers gate real money). 0/20 with the reason in the breakdown.
+        return 0.0, {"NOT_SCORED_no_landed_cost": 0.0}
     margin = clamp((e.gross_margin - 0.40) / (0.70 - 0.40), 0, 1)  # 40%→0, 70%→full
     # Lower break-even ROAS is more feasible vs category CAC. 1.5→full, 5+→0.
     if e.breakeven_roas == float("inf"):

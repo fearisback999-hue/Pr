@@ -27,7 +27,11 @@ class GateResult:
 def check_gates(inp: ScoringInputs) -> GateResult:
     failures: list[str] = []
 
-    if inp.economics.gross_margin < MARGIN_FLOOR:
+    if not inp.economics.landed_known:
+        failures.append(
+            "no real landed cost on file — margin unverifiable (add a supplier: `add-supplier`)"
+        )
+    elif inp.economics.gross_margin < MARGIN_FLOOR:
         failures.append(
             f"margin {inp.economics.gross_margin*100:.0f}% below {MARGIN_FLOOR*100:.0f}% floor"
         )
