@@ -241,6 +241,9 @@ def cmd_add(args) -> int:
             branded=args.branded, restricted=args.restricted,
         ))
         print(f"added {pid}: {args.name} ({args.category})")
+        if (args.price is None) != (args.units is None):
+            print("  ⚠️  --price and --units go together — no metric logged; "
+                  "use `add-metric` with both")
         if args.price is not None and args.units is not None:
             db.upsert_metric(models.DailyMetric(
                 product_id=pid, date=args.date or _date.today().isoformat(),
@@ -303,6 +306,9 @@ def cmd_import_csv(args) -> int:
         try:
             result = import_csv(db, args.file, source=args.source, column_map=overrides,
                                 default_category=args.category)
+        except FileNotFoundError:
+            print(f"import failed: {args.file} not found")
+            return 1
         except ValueError as e:
             print(f"import failed: {e}")
             return 1
@@ -348,6 +354,10 @@ def cmd_log_test(args) -> int:
                     id=creative_id, product_id=args.product_id, format="Manual",
                     hook="manual ad test", status="ready",
                 ))
+        elif not any(c.id == creative_id for c in db.creatives_for(args.product_id)):
+            print(f"creative '{creative_id}' not found on {args.product_id} — "
+                  "omit --creative to log against the manual placeholder")
+            return 1
         roas = (args.revenue / args.spend) if args.spend > 0 else 0.0
         db.upsert_test(models.Test(
             id=f"{creative_id}-{date}", creative_id=creative_id, date=date,
@@ -389,7 +399,12 @@ def cmd_psych(args) -> int:
         new: list[str] = []
         if args.file:
             from pathlib import Path
-            new = [ln.strip() for ln in Path(args.file).read_text().splitlines() if ln.strip()]
+            try:
+                new = [ln.strip() for ln in Path(args.file).read_text().splitlines()
+                       if ln.strip()]
+            except FileNotFoundError:
+                print(f"{args.file} not found")
+                return 1
         if new:
             product.reviews = product.reviews + [r for r in new if r not in product.reviews]
             db.upsert_product(product)

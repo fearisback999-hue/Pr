@@ -10,12 +10,14 @@ Verdict mapping (Phase 1 spec):
 
 from __future__ import annotations
 
+from typing import Optional
+
 from ..config import CONFIG
 from ..economics import FEE_RATE, MARGIN_FLOOR
 from ..pipeline import ScoredRecord
 
 
-def verdict(gates_passed: bool, total: float, threshold: float | None = None) -> str:
+def verdict(gates_passed: bool, total: float, threshold: Optional[float] = None) -> str:
     threshold = CONFIG.score_threshold if threshold is None else threshold
     if not gates_passed:
         return "KILL"

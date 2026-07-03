@@ -98,16 +98,21 @@ def test_export_blocks_creatives_missing_disclosure(tmp_path):
         db.upsert_creative(models.Creative(
             id="BAD-1", product_id="P-X", format="ASMR", hook="h", status="ready",
             meta={}))  # slipped through without disclosure
+        db.upsert_creative(models.Creative(
+            id="PLAN-1", product_id="P-X", format="ASMR", hook="h", status="briefed",
+            meta={"aigc_disclosure": "AI-generated content."}))  # never generated
         out = tmp_path / "manifest.json"
         result = export_creatives(db, "P-X", str(out))
         assert [c.id for c in result.exported] == ["OK-1"]
         assert [c.id for c in result.blocked] == ["BAD-1"]
+        assert [c.id for c in result.not_ready] == ["PLAN-1"]  # a plan is not an asset
         assert "BLOCKED" in result.summary and "AIGC disclosure" in result.summary
         assert out.exists()
-        # Exported creative flipped to 'exported'; blocked one untouched.
+        # Exported creative flipped to 'exported'; blocked + not-ready untouched.
         stored = {c.id: c for c in db.creatives_for("P-X")}
         assert stored["OK-1"].status == "exported"
         assert stored["BAD-1"].status == "ready"
+        assert stored["PLAN-1"].status == "briefed"
 
 
 def test_produce_creatives_gated_on_test_verdict(tmp_path):

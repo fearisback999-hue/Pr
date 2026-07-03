@@ -85,7 +85,8 @@ acceleration in real velocity data. To find actual TikTok Shop winners:
 
 1. Get a velocity source — **Kalodata** (Enterprise API) and/or **EchoTik** (cheaper,
    Growth-Velocity alerts). The data is *rented*: it's not your moat, your detection speed
-   and feedback loop are (Part 0).
+   and feedback loop are (Part 0). **No API budget?** Export CSVs by hand from the vendor
+   UI and `import-csv` them — same detection, scoring, and gates, zero integration work.
 2. Put the key in `.env` and set `TT_PRIMARY_FEED=kalodata` (or `echotik`).
 3. Implement the adapter's `fetch()` — `tt_engine/feeds/kalodata.py` has a commented
    template; map the vendor's daily series onto `units / gmv / price / sellers /

@@ -213,12 +213,16 @@ def generate_batch(
 class ExportResult:
     exported: list[models.Creative] = field(default_factory=list)
     blocked: list[models.Creative] = field(default_factory=list)
+    not_ready: list[models.Creative] = field(default_factory=list)
     manifest_path: Optional[str] = None
 
     @property
     def summary(self) -> str:
         lines = [f"{len(self.exported)} creative(s) exported"
                  + (f" → {self.manifest_path}" if self.manifest_path else "")]
+        if self.not_ready:
+            lines.append(f"({len(self.not_ready)} not generated yet — status "
+                         "briefed/generating — nothing to export; run `creative --confirm`)")
         for c in self.blocked:
             lines.append(f"⛔ BLOCKED {c.id}: missing AIGC disclosure in asset metadata — "
                          "regenerate through the pipeline; do not export undisclosed AI content")
@@ -226,12 +230,16 @@ class ExportResult:
 
 
 def export_creatives(db: Database, product_id: str, out_path: str) -> ExportResult:
-    """Write the export manifest. Any creative without the AIGC disclosure in its
-    metadata is refused and flagged — that is the point of the guardrail."""
+    """Write the export manifest. Two filters, in order: only generated assets
+    (ready/exported) can be exported at all, and any creative without the AIGC
+    disclosure in its metadata is refused and flagged — that is the guardrail."""
     from pathlib import Path
 
     result = ExportResult()
     for c in db.creatives_for(product_id):
+        if c.status not in ("ready", "exported"):
+            result.not_ready.append(c)
+            continue
         if not c.meta.get("aigc_disclosure"):
             result.blocked.append(c)
             continue
