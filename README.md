@@ -64,6 +64,17 @@ python -m tt_engine.cli creative P-CLOUD                     # dry-run plan; --c
 python -m tt_engine.cli export-creatives P-CLOUD             # blocks assets missing AIGC disclosure
 python -m tt_engine.cli report-monthly --month 2026-07       # recalibration suggestions only
 
+# ⭐ The dashboard — everything on one site (board, scorecards, advertising,
+#    budget + Etsy POD planner, creator marketplaces, next-step guide)
+python -m tt_engine.cli serve                    # → http://127.0.0.1:8787
+python -m tt_engine.cli serve --host 0.0.0.0     # reachable from other devices
+
+# What to do next, per product (same guide the dashboard shows)
+python -m tt_engine.cli next
+
+# Etsy print-on-demand: how many listings to publish for a profit target
+python -m tt_engine.cli pod --target 1000 --profit 8
+
 # Reports & ops
 python -m tt_engine.cli weekly --out reports/out
 python -m tt_engine.cli board
@@ -133,7 +144,9 @@ tt_engine/
   account/           # Shop Performance Score proxy + throttle warnings     — Part 10
   capital/           # payout float, runway, # of tests you can afford      — Part 11
   feedback/          # outcome ingestion + weight recalibration             — Part 13
-  reports/           # opportunity report, attack packets, Appendix-A CSV
+  reports/           # opportunity report, attack packets, scorecards, Appendix-A CSV
+  web/               # the local dashboard (stdlib http.server, read-only)
+  guide.py           # "what do I do next" — derives the next action from DB state
   llm/               # Claude API client (offline fallback)
   pipeline.py        # orchestration
   cli.py             # seed/daily/weekly/board/score/packet/validate/

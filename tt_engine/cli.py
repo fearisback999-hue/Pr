@@ -468,6 +468,37 @@ def cmd_report_monthly(args) -> int:
     return 0
 
 
+# ── dashboard + guide + POD planner ─────────────────────────────────────────────
+def cmd_serve(args) -> int:
+    from .web import run
+    run(args.db, host=args.host, port=args.port)
+    return 0
+
+
+def cmd_next(args) -> int:
+    from .guide import render_guide
+    with _db(args) as db:
+        print(render_guide(db, limit=args.limit))
+    return 0
+
+
+def cmd_pod(args) -> int:
+    from .capital import plan_pod
+    try:
+        plan = plan_pod(
+            target_monthly_profit=args.target, profit_per_sale=args.profit,
+            sales_per_listing_month=args.sales_per_listing,
+            current_listings=args.current, hours_per_week=args.hours,
+            minutes_per_listing=args.minutes,
+        )
+    except ValueError as e:
+        print(f"error: {e}")
+        return 1
+    print("Etsy POD listing plan (all assumptions are flags — see --help):\n")
+    print(plan.summary)
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="tt-engine", description=__doc__)
     parser.add_argument("--db", default=CONFIG.db_path, help="SQLite path (default: TT_DB_PATH)")
@@ -631,6 +662,28 @@ def main(argv=None) -> int:
     p.add_argument("--month", default=None, help="YYYY-MM (default: all outcomes)")
     p.add_argument("--out", default=None)
     p.set_defaults(func=cmd_report_monthly)
+
+    # ── dashboard + guide + POD ────────────────────────────────────────────────
+    p = sub.add_parser("serve", help="run the local dashboard (everything on one site)")
+    p.add_argument("--host", default="127.0.0.1",
+                   help="bind address (0.0.0.0 to reach it from other devices)")
+    p.add_argument("--port", type=int, default=8787)
+    p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("next", help="what to do next, per product (most urgent first)")
+    p.add_argument("--limit", type=int, default=None)
+    p.set_defaults(func=cmd_next)
+
+    p = sub.add_parser("pod", help="Etsy print-on-demand: how many listings to publish")
+    p.add_argument("--target", type=float, required=True, help="target profit $/month")
+    p.add_argument("--profit", type=float, required=True,
+                   help="profit per sale $ (price − POD base − ~9.5%% Etsy fees − ads)")
+    p.add_argument("--sales-per-listing", type=float, default=0.3,
+                   help="sales per listing per month (0.3 new shop; use YOUR measured rate)")
+    p.add_argument("--current", type=int, default=0, help="listings live now")
+    p.add_argument("--hours", type=float, default=5.0, help="hours/week you can spend")
+    p.add_argument("--minutes", type=float, default=30.0, help="minutes per listing")
+    p.set_defaults(func=cmd_pod)
 
     args = parser.parse_args(argv)
     return args.func(args)

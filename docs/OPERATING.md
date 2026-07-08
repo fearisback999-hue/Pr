@@ -8,6 +8,34 @@ Every command takes `--db path.db` (defaults to `TT_DB_PATH`). Start with
 
 ---
 
+## The dashboard — everything on one site
+
+```bash
+python -m tt_engine.cli serve                  # → http://127.0.0.1:8787
+python -m tt_engine.cli serve --host 0.0.0.0   # reach it from other devices on your LAN
+```
+
+Five sections, all live from the DB:
+
+- **Overview** — KPIs, the ranked board with KILL/WATCH/TEST chips, and *What to do
+  next*: every product's single next action with the exact command, most urgent first
+  (a KILL-timer breach shows 🔴 at the top). The same list is `cli next` in a terminal.
+- **Product page** — the full scorecard rendered (sub-scores, momentum/saturation
+  inputs, economics math), the next step, creatives, and test telemetry.
+- **Advertising** — Higgsfield/MCP configuration status (what's set, what's missing,
+  what each key does), creative batches per product with AIGC-disclosure state, and
+  live ad tests vs break-even with the 48h kill timer. The dashboard **never spends
+  money** — generation stays a deliberate `creative <id> --confirm` in the terminal.
+- **Budget** — the TikTok capital/cash-flow calculator (payout float, runway, tests
+  you can afford) and the **Etsy POD listings planner** (how many listings, at what
+  weekly pace, for your profit target — all assumptions editable in the form). Plus
+  actual ad spend logged in the last 7 days.
+- **Creators** — the UGC/affiliate marketplaces (TikTok Affiliate Center, Creator
+  Marketplace, Insense, Billo, Collabstr, Twirl, Fiverr, Upwork) and which TEST-ready
+  products to pitch, with the `packet` command that builds the outreach materials.
+
+---
+
 ## Phase 1 — the manual loop (daily, ~20 minutes)
 
 ### 1. Get data in (pick any mix)
@@ -125,6 +153,22 @@ For every concluded test, the report shows which sub-scores called the outcome a
 which were wrong (✓/✗ per category), per-category hit-rates, and the suggested weight
 adjustments from the correlation fit. **Suggestions only** — nothing is applied until
 you run `recalibrate --apply` yourself.
+
+---
+
+## Accuracy: what the scorer now checks that it didn't before
+
+- **One viral day is not a trend.** A single 7-day-window day above 3× the window
+  median is capped before velocity/WoW are computed (`[spike capped]` shows in the
+  momentum summary). A genuine multi-day ramp passes through untouched.
+- **Steady beats spiky.** `trend_consistency` (0–1, last 14 days vs their own trend
+  line) is a scored component of Market Demand — steady growth predicts a real wave,
+  a spiky average predicts a one-video flash.
+- **Complaints predict refunds.** The review corpus is scanned for complaint language
+  ("broke", "refund", "flimsy", "doesn't work"…); a complaint-dense corpus adds up to
+  +8pts of expected return rate — enough to trip the 10% return-risk hard gate.
+- **Impulse price band.** $15–50 scores full marks in Economics; below ~$10 you can't
+  buy the customer profitably, above ~$70 the scroll-buy reflex dies.
 
 ---
 

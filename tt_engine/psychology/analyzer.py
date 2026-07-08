@@ -100,6 +100,27 @@ def emotion_signal(reviews: list[str]) -> Optional[tuple[float, float]]:
     return round(curiosity, 3), round(emotion, 3)
 
 
+# Complaint patterns that historically precede refunds (Part 6: return-risk red flags).
+_COMPLAINT_TOKENS = (
+    "broke", "broken", "refund", "returned it", "return it", "cheap", "flimsy",
+    "stopped working", "doesn't work", "does not work", "didn't work", "waste of money",
+    "scam", "never arrived", "fell apart", "poor quality", "too small", "too big",
+    "runs small", "runs large", "not as pictured", "nothing like the picture",
+    "smells", "defective",
+)
+
+
+def complaint_signal(reviews: list[str]) -> float:
+    """Complaint density in 0..1 from the review corpus — the first-party return-risk
+    read. 0 = no complaint language; 1 ≈ every review carries one. Feeds the pipeline's
+    return-rate estimate so complaint-heavy products trip the return-risk gate."""
+    if not reviews:
+        return 0.0
+    text = " ".join(reviews).lower()
+    hits = sum(text.count(t) for t in _COMPLAINT_TOKENS)
+    return min(1.0, hits / max(len(reviews), 1))
+
+
 # ── deterministic fallback ─────────────────────────────────────────────────────
 _TRIGGER_KEYWORDS = {
     "relief": ["headache", "tension", "stress", "pain", "relax", "sleep", "sore"],

@@ -53,7 +53,7 @@ def viral_demo(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     })
 
 
-# ── 2. Market Demand (20): velocity 8, accel 5, trend 4, urgency 3 ──
+# ── 2. Market Demand (20): velocity 8, accel 5, trend 3, consistency 2, urgency 2 ──
 def market_demand(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     m = inp.trigger.momentum
     # velocity on a log scale: ~500 units/day → full marks.
@@ -65,8 +65,11 @@ def market_demand(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     return _weighted({
         "sales_velocity": (velocity, 8),
         "wow_acceleration": (accel, 5),
-        "search_trend": (trend, 4),
-        "urgency_repeat": (clamp(urgency, 0, 1), 3),
+        "search_trend": (trend, 3),
+        # Steady multi-day growth predicts a real wave; a spiky average predicts a
+        # one-video flash. Computed from the last 14 days vs their own trend line.
+        "trend_consistency": (clamp(m.consistency, 0, 1), 2),
+        "urgency_repeat": (clamp(urgency, 0, 1), 2),
     })
 
 
@@ -84,7 +87,17 @@ def competition_timing(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     })
 
 
-# ── 4. Economics (20): margin 8, break-even ROAS feasibility 6, return-risk⁻¹ 6 ──
+# ── 4. Economics (20): margin 7, break-even ROAS 5, return-risk⁻¹ 6, price band 2 ──
+def _price_band(price: float) -> float:
+    """TikTok Shop impulse sweet spot. $15–$50 converts on impulse; below ~$10 you
+    can't buy the customer profitably, above ~$70 the scroll-buy reflex dies."""
+    if 15.0 <= price <= 50.0:
+        return 1.0
+    if price < 15.0:
+        return clamp((price - 5.0) / 10.0, 0, 1)        # $5→0, $15→1
+    return clamp(1.0 - (price - 50.0) / 50.0, 0, 1)     # $50→1, $100→0
+
+
 def economics(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     e = inp.economics
     if not e.landed_known:
@@ -100,9 +113,10 @@ def economics(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     rr = e.return_rate if e.return_rate is not None else 0.05  # assume moderate if unknown
     return_inv = 1 - clamp(rr / 0.10, 0, 1)
     return _weighted({
-        "gross_margin": (margin, 8),
-        "breakeven_roas": (feasibility, 6),
+        "gross_margin": (margin, 7),
+        "breakeven_roas": (feasibility, 5),
         "return_risk_inv": (return_inv, 6),
+        "impulse_price_band": (_price_band(e.sell_price), 2),
     })
 
 

@@ -17,7 +17,7 @@ from .detection._stats import clamp
 from .economics import Economics, compute_economics, unknown_economics
 from .feeds import FeedRecord, get_feed
 from .llm import LLMClient
-from .psychology import PsychProfile, analyze, emotion_signal
+from .psychology import PsychProfile, analyze, complaint_signal, emotion_signal
 from .reports.opportunity import AttackPacket, OpportunityReport, render_report
 from .scoring import ContentSignals, ScoringInputs
 from .scoring.algorithm import ScoreBreakdown, score_product
@@ -30,8 +30,14 @@ _RETURN_RATE = {
 }
 
 
-def return_rate_for(category: str) -> float:
-    return _RETURN_RATE.get(category.lower(), 0.06)
+def return_rate_for(category: str, reviews: Optional[list[str]] = None) -> float:
+    """Category prior, sharpened by the first-party complaint read when reviews exist.
+    A complaint-dense corpus can add up to +8pts of expected return rate — enough to
+    push a 'fine on paper' product over the 10% return-risk gate, which is the point."""
+    prior = _RETURN_RATE.get(category.lower(), 0.06)
+    if reviews:
+        prior += 0.08 * complaint_signal(reviews)
+    return min(prior, 0.30)
 
 
 # ── ingestion ───────────────────────────────────────────────────────────────────
@@ -53,7 +59,7 @@ def economics_for(db: Database, product: models.Product, latest_price: float) ->
     flagged `landed_known=False`, the Economics sub-score is withheld, and the margin gate
     fails as unverifiable. Return-risk is a category prior until you measure your own."""
     suppliers = db.suppliers_for(product.id)
-    rr = return_rate_for(product.category)
+    rr = return_rate_for(product.category, product.reviews)
     if suppliers:
         best = min(suppliers, key=lambda s: s.cost + s.ship_cost)
         return compute_economics(latest_price, best.cost, best.ship_cost, return_rate=rr)
