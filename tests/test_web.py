@@ -83,6 +83,29 @@ def test_unknown_route_404s(server):
     assert status == 404
 
 
+def test_million_page_computes_and_stays_honest(server):
+    status, body = _get(server, "/million?goal=1000000&type=revenue&months=24")
+    assert status == 200
+    assert "Road to $1M" in body
+    assert "revenue / month needed" in body
+    assert "Milestone ladder" in body
+    assert "low-probability upside" in body        # the thesis framing is on the page
+    assert "fewer than 10% of new sellers survive" in body
+    assert "greyjournal.net" in body               # a researched source is linked
+
+
+def test_million_page_profit_target_shows_top_percentile(server):
+    status, body = _get(server, "/million?goal=1000000&type=profit&months=12&margin=0.16")
+    assert status == 200
+    assert "top-1%" in body or "top 1%" in body
+
+
+def test_million_page_rejects_bad_margin_gracefully(server):
+    status, body = _get(server, "/million?margin=2")
+    assert status == 200                            # not a 500
+    assert "net_margin" in body
+
+
 def test_overview_links_to_playbook(server):
     status, body = _get(server, "/")
     assert status == 200

@@ -77,7 +77,7 @@ ul { margin:6px 0; padding-left:22px; }
 """
 
 _NAV = [("Overview", "/"), ("Playbook", "/playbook"), ("Advertising", "/advertising"),
-        ("Budget", "/budget"), ("Creators", "/creators")]
+        ("Budget", "/budget"), ("Creators", "/creators"), ("Road to $1M", "/million")]
 
 
 def page(title: str, body: str, active: str = "/") -> str:

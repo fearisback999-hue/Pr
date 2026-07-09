@@ -81,6 +81,10 @@ python -m tt_engine.cli next
 # Etsy print-on-demand: how many listings to publish for a profit target
 python -m tt_engine.cli pod --target 1000 --profit 8
 
+# Road to $1M — the honest milestone math (revenue vs profit, with the real odds)
+python -m tt_engine.cli roadmap                       # $1M revenue in 24 months
+python -m tt_engine.cli roadmap --type profit --months 12   # the hard million
+
 # Reports & ops
 python -m tt_engine.cli weekly --out reports/out
 python -m tt_engine.cli board
@@ -150,6 +154,7 @@ tt_engine/
   account/           # Shop Performance Score proxy + throttle warnings     — Part 10
   capital/           # payout float, runway, tests you can afford, Etsy POD planner — Part 11
   playbook.py        # zero-to-hero checklist for the WHOLE business, not just the engine
+  roadmap.py         # Road to $1M — milestone math + the real seller-distribution odds
   feedback/          # outcome ingestion + weight recalibration             — Part 13
   reports/           # opportunity report, attack packets, scorecards, Appendix-A CSV
   web/               # the local dashboard (stdlib http.server, read-only)

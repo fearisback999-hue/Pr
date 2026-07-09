@@ -503,6 +503,20 @@ def cmd_pod(args) -> int:
     return 0
 
 
+def cmd_roadmap(args) -> int:
+    from .roadmap import plan_million, render_roadmap
+    try:
+        plan = plan_million(
+            goal_amount=args.goal, goal_type=args.type, horizon_months=args.months,
+            aov=args.aov, net_margin=args.margin, pod_listings=args.pod_listings,
+        )
+    except ValueError as e:
+        print(f"error: {e}")
+        return 1
+    print(render_roadmap(plan))
+    return 0
+
+
 def cmd_playbook(args) -> int:
     from .playbook import render_playbook
     with _db(args) as db:
@@ -729,6 +743,18 @@ def main(argv=None) -> int:
     p.add_argument("--hours", type=float, default=5.0, help="hours/week you can spend")
     p.add_argument("--minutes", type=float, default=30.0, help="minutes per listing")
     p.set_defaults(func=cmd_pod)
+
+    p = sub.add_parser("roadmap", help="the honest milestone math from $0 to $1M")
+    p.add_argument("--goal", type=float, default=1_000_000.0, help="target $ (default 1,000,000)")
+    p.add_argument("--type", default="revenue", choices=["revenue", "profit"],
+                   help="revenue (lifetime GMV, easier) or profit (take-home, top-1%% hard)")
+    p.add_argument("--months", type=int, default=24, help="horizon in months (default 24)")
+    p.add_argument("--aov", type=float, default=45.0, help="avg order value $ (TikTok ~$35–45)")
+    p.add_argument("--margin", type=float, default=0.16,
+                   help="net margin fraction (0.16 blended; ~0.35 organic-first)")
+    p.add_argument("--pod-listings", type=int, default=0,
+                   help="Etsy POD listings running in parallel (contributes ~$75/mo each)")
+    p.set_defaults(func=cmd_roadmap)
 
     p = sub.add_parser("playbook",
                        help="the zero-to-hero checklist for the whole business, in order")

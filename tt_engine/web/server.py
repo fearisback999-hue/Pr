@@ -420,6 +420,86 @@ def page_creators(db: Database) -> str:
     return page("Creators", "".join(body), "/creators")
 
 
+def page_million(db: Database, q: dict) -> str:
+    from ..roadmap import SOURCES, VERIFIED_DATE as RM_DATE, plan_million
+
+    body = ["<h1>Road to $1M — the honest math</h1>",
+            "<blockquote>Two different targets: <b>$1M revenue</b> (lifetime GMV — hard but "
+            "reached by survivors) vs <b>$1M profit</b> (take-home — roughly top-1% "
+            "execution). This computes what your target actually requires and places it in "
+            "the real seller distribution. It sells nothing.</blockquote>"]
+
+    goal = _f(q, "goal", 1_000_000.0)
+    gtype = (q.get("type") or ["revenue"])[0]
+    if gtype not in ("revenue", "profit"):
+        gtype = "revenue"
+    months = _i(q, "months", 24)
+    aov = _f(q, "aov", 45.0)
+    margin = _f(q, "margin", 0.16)
+    pod = _i(q, "pod_listings", 0)
+
+    body.append("<div class=panel><form class=calc method=get action=/million>"
+                f"<label>Goal $<input name=goal value='{goal:.0f}'></label>"
+                "<label>Type<input name=type value='" + esc(gtype) + "'></label>"
+                f"<label>Horizon (months)<input name=months value='{months}'></label>"
+                f"<label>AOV $<input name=aov value='{aov:g}'></label>"
+                f"<label>Net margin (0–1)<input name=margin value='{margin:g}'></label>"
+                f"<label>Etsy POD listings<input name=pod_listings value='{pod}'></label>"
+                "<button>Recalculate</button></form>"
+                "<p class=mut>Type = <code>revenue</code> or <code>profit</code>. Net margin "
+                "~0.16 blended, ~0.35 organic-first (your own content, no affiliate cut).</p>"
+                "</div>")
+
+    try:
+        plan = plan_million(goal_amount=goal, goal_type=gtype, horizon_months=months,
+                            aov=aov, net_margin=margin, pod_listings=pod)
+    except ValueError as e:
+        body.append(f"<p class=bad>{esc(str(e))}</p>")
+        return page("Road to $1M", "".join(body), "/million")
+
+    body.append("<div class=kpis>"
+                + kpi(f"${plan.monthly_revenue_needed:,.0f}", "revenue / month needed")
+                + kpi(f"{plan.orders_per_day:.0f}", "orders / day")
+                + kpi(str(plan.winners_needed), "winning products at scale")
+                + kpi(f"${plan.monthly_ad_budget:,.0f}", "implied ad budget / mo")
+                + "</div>")
+    body.append(f"<div class=panel><p><b>Reality check:</b> {esc(plan.percentile)}</p>")
+    if plan.notes:
+        body.append("<ul>" + "".join(f"<li>{esc(n)}</li>" for n in plan.notes) + "</ul>")
+    body.append("</div>")
+
+    # milestone ladder
+    body.append("<h2>Milestone ladder — survive the early rungs first</h2><div class=panel>")
+    for m in plan.milestones:
+        goalflag = (" <span class='chip TEST'>YOUR GOAL</span>" if m.is_goal else "")
+        body.append(
+            f"<div class=step><b>${m.monthly_revenue:,.0f}/mo — {esc(m.name)}</b>{goalflag}"
+            f"<div class=mut>{esc(m.detail)}</div>"
+            f"<div class=mut><i>odds: {esc(m.odds)}</i></div></div>"
+        )
+    body.append("</div>")
+
+    # the odds, plainly
+    body.append("<h2>The odds, stated plainly</h2><div class=panel><ul>"
+                "<li>Over half of all TikTok Shops are inactive; fewer than 10% of new "
+                "sellers survive year one.</li>"
+                "<li>Only ~1.5% of dropshipping stores ever earn more than $50k total; "
+                "~1–5% build a sustainable business.</li>"
+                "<li>The top 1% of US sellers drive ~60% of GMV; the median seller does "
+                "~$1,150/mo. The distribution is brutally top-heavy.</li>"
+                "<li>This engine doesn't beat those odds by magic — it compresses time and "
+                "enforces discipline (real landed cost, the 45% margin gate, the 48h kill "
+                "timer, tuned scoring). The near-certain payoff is the skill and the "
+                "system; the $1M is the low-probability upside. Build for the former.</li>"
+                "</ul></div>")
+
+    body.append(f"<h2>Sources (verified {RM_DATE})</h2><div class=panel><ul>")
+    body.extend(f"<li><a href='{esc(u)}' target=_blank rel=noopener>{esc(u)}</a></li>"
+                for u in SOURCES)
+    body.append("</ul></div>")
+    return page("Road to $1M", "".join(body), "/million")
+
+
 # ── HTTP plumbing ────────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
     db_path: str = CONFIG.db_path
@@ -450,6 +530,8 @@ class Handler(BaseHTTPRequestHandler):
                     html = page_budget(db, q)
                 elif url.path == "/creators":
                     html = page_creators(db)
+                elif url.path == "/million":
+                    html = page_million(db, q)
                 else:
                     return self._send(404, page("Not found", "<h1>404</h1>"))
             self._send(200, html)
