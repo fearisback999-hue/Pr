@@ -6,6 +6,8 @@ from tt_engine.db import Database
 from tt_engine.playbook import (
     PHASES,
     STEPS,
+    VERIFIED_DATE,
+    all_sources,
     current_phase,
     overall,
     progress,
@@ -125,3 +127,35 @@ def test_render_playbook_reflects_check_off(tmp_path):
         text = render_playbook(db)
         assert "[x]" in text
         assert text.count("[ ]") == len(STEPS) - 1
+
+
+# ── research-grounded content (2026-07-09 pass) ─────────────────────────────────
+def test_sourced_steps_carry_real_urls():
+    sourced = [s for s in STEPS if s.sources]
+    assert len(sourced) >= 10, "the research pass should have grounded a real chunk of steps"
+    for step in sourced:
+        for url in step.sources:
+            assert url.startswith("https://"), f"{step.id}: non-https source {url!r}"
+            assert " " not in url, f"{step.id}: malformed source URL {url!r}"
+
+
+def test_all_sources_is_deduplicated_and_ordered():
+    sources = all_sources()
+    assert len(sources) == len(set(sources))  # no duplicates
+    assert len(sources) >= 15
+    # First-seen order: whichever sourced step appears first in STEPS contributes first.
+    first_step_with_sources = next(s for s in STEPS if s.sources)
+    assert sources[0] == first_step_with_sources.sources[0]
+
+
+def test_render_playbook_includes_sources_section(tmp_path):
+    with _db(tmp_path) as db:
+        text = render_playbook(db)
+        assert f"## Sources (verified {VERIFIED_DATE})" in text
+        for url in all_sources():
+            assert url in text
+
+
+def test_verified_date_is_iso_format():
+    import datetime
+    datetime.date.fromisoformat(VERIFIED_DATE)  # raises if malformed

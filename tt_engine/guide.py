@@ -133,14 +133,17 @@ def next_step(db: Database, product: models.Product) -> Step:
                         "Assets exported — launch small ad sets (spread the hooks), then "
                         "log spend/revenue here every day.",
                         _cli(f"log-test {pid} --spend X --revenue Y"), 2)
-        if CONFIG.higgsfield_mcp_url:
+        if CONFIG.higgsfield_available:
             return Step(pid, product.name, "generate",
-                        f"{len(creatives)} creative(s) planned — MCP is configured; "
+                        f"{len(creatives)} creative(s) planned — key + SDK configured; "
                         "confirm generation (this spends money).",
                         _cli(f"creative {pid} --confirm"), 2)
-        return Step(pid, product.name, "configure-mcp",
-                    f"{len(creatives)} creative(s) planned but HIGGSFIELD_MCP_URL is not "
-                    "set — add it to .env, then confirm generation.",
+        return Step(pid, product.name, "configure-higgsfield",
+                    f"{len(creatives)} creative(s) planned but HIGGSFIELD_API_KEY / the "
+                    "higgsfield-client SDK isn't set up — add the key to .env and `pip "
+                    "install higgsfield-client`, then confirm generation. (Or, in a "
+                    "Claude Code session with the Higgsfield MCP connected, just ask the "
+                    "agent to generate the batch directly.)",
                     _cli(f"creative {pid} --confirm"), 1)
 
     if not product.reviews:

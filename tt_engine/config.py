@@ -55,13 +55,27 @@ class Config:
     cj_api_key: str = field(default_factory=lambda: _get("CJ_DROPSHIPPING_API_KEY"))
     zendrop_api_key: str = field(default_factory=lambda: _get("ZENDROP_API_KEY"))
 
-    # Creative (Part 7)
+    # Creative (Part 7). Verified July 2026 (Higgsfield's own docs/changelog — reverify
+    # before relying on this, vendor APIs move fast):
+    #   • Scripted/headless generation (what this engine calls) goes through the
+    #     `higgsfield-client` Python SDK against the Higgsfield Cloud API, authenticated
+    #     via HTTP Basic auth built from the HF_KEY env var (or HF_API_KEY + HF_API_SECRET).
+    #     The SDK reads those exact env-var names itself; set HIGGSFIELD_API_KEY below for
+    #     this project's own gating AND set HF_KEY to the same value in .env for the SDK.
+    #   • Higgsfield ALSO ships an official interactive MCP server at
+    #     https://mcp.higgsfield.ai/mcp (launched 2026-04-30) — but it authenticates via
+    #     browser OAuth, not an API key, so it's built for an interactive MCP client (e.g.
+    #     this engine running inside a Claude Code session) rather than an unattended
+    #     script. If you're operating from such a session, you can just ask the agent to
+    #     run the batch directly through its connected Higgsfield MCP tools
+    #     (`generate_video` for the batch, `create_character` for Soul ID,
+    #     `get_status`/`subscribe` to poll) — that sidesteps HIGGSFIELD_API_KEY entirely.
     higgsfield_api_key: str = field(default_factory=lambda: _get("HIGGSFIELD_API_KEY"))
     higgsfield_soul_id: str = field(default_factory=lambda: _get("HIGGSFIELD_SOUL_ID"))
-    # Phase 2: Higgsfield via MCP (streamable-HTTP endpoint). Unset → dry-run planning.
-    higgsfield_mcp_url: str = field(default_factory=lambda: _get("HIGGSFIELD_MCP_URL"))
-    higgsfield_mcp_tool: str = field(
-        default_factory=lambda: _get("HIGGSFIELD_MCP_TOOL", "generate_video")
+    # Informational only — never dialed by this code. The real, verified endpoint for the
+    # interactive-agent path above; printed as guidance, not POSTed to programmatically.
+    higgsfield_mcp_url: str = field(
+        default_factory=lambda: _get("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
     )
 
     @property
@@ -71,6 +85,18 @@ class Config:
             return False
         try:
             import anthropic  # noqa: F401
+        except ImportError:
+            return False
+        return True
+
+    @property
+    def higgsfield_available(self) -> bool:
+        """True only if we have both a key and the official SDK importable — mirrors
+        llm_available. False means: plan the batch, never attempt to generate for real."""
+        if not self.higgsfield_api_key:
+            return False
+        try:
+            import higgsfield_client  # noqa: F401
         except ImportError:
             return False
         return True

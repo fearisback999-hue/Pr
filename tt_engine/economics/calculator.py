@@ -5,7 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-FEE_RATE = 0.06        # TikTok Shop fee (Part 5)
+FEE_RATE = 0.06        # TikTok Shop referral fee (Part 5). Verified July 2026 — TikTok
+                       # Seller Center: 6% flat on most US categories (select jewelry
+                       # items run 5%; new sellers get a promotional 3% for 30 days
+                       # after their first sale within 60 days of onboarding). On top of
+                       # this, TikTok also charges a ~1–3.8% payment-processing fee, and
+                       # affiliate creator commissions (10–30%, category-dependent) are a
+                       # separate, seller-chosen cost — neither is folded into this
+                       # constant, so true take-rate runs meaningfully higher than 6%.
+                       # Reverify before trusting: fee schedules change without much notice.
 MARGIN_FLOOR = 0.45    # hard floor — below this the product is disqualified (Part 3 gate)
 MARGIN_TARGET = 0.60   # aim here or better
 

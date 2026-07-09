@@ -17,6 +17,16 @@ seller account) you check off yourself with `playbook-check <step_id>`. Legal/ta
 describe what to go figure out, not legal or tax advice — verify specifics with a
 professional and the current platform terms, since both change.
 
+Concrete numbers in the playbook (fees, thresholds, SLAs, return windows) come from live
+web research done 2026-07-09 against primary sources where possible — TikTok Seller
+Center's own policy essays, Etsy Help, IRS.gov, plus vendor pricing pages for suppliers/
+POD/UGC platforms. Every fact-bearing step shows its source link, and the full list is
+at the bottom of `playbook` output / the dashboard's Playbook page. These are snapshots:
+re-verify anything money- or compliance-critical before relying on it, since platforms
+change fee schedules and policy without much notice — this is exactly why the
+Economics module refuses to score without a real, current landed-cost quote instead of
+a remembered one.
+
 ---
 
 ## The dashboard — everything on one site
@@ -137,7 +147,7 @@ one-paragraph spine. With `ANTHROPIC_API_KEY` set it's an LLM pass; without, a
 deterministic keyword fallback (it says which one it used). The comments are stored on
 the product, so the creative brief automatically uses them.
 
-### Creative pipeline (Higgsfield via MCP)
+### Creative pipeline (Higgsfield)
 
 ```bash
 python -m tt_engine.cli creative P-CLOUD                       # dry-run plan (free)
@@ -146,16 +156,35 @@ python -m tt_engine.cli creative P-CLOUD --brief reports/out/brief.md
 python -m tt_engine.cli export-creatives P-CLOUD --out reports/out/creatives.json
 ```
 
+Two real ways to make `--confirm` actually generate (verified July 2026 — reverify,
+vendor APIs move fast):
+
+1. **Scripted** — set `HIGGSFIELD_API_KEY` in `.env`, also set `HF_KEY` to the same value
+   (the official `higgsfield-client` SDK reads that exact name itself), and
+   `pip install higgsfield-client`. Wire the exact SDK call in
+   `HiggsfieldMCP.submit()`/`.poll()` — the request/response shape isn't published
+   outside the SDK, so this engine won't guess at it; the integration-point comments on
+   those two methods show what's confirmed vs. what you verify against your own account.
+2. **Interactive** — if you're operating this engine from inside a Claude Code session
+   with the Higgsfield MCP connected (hosted at `https://mcp.higgsfield.ai/mcp`, browser
+   OAuth, **not** an API key — confirmed tools include `generate_video`,
+   `create_character` for Soul ID, `get_status`/`subscribe` to poll), just ask the agent
+   to generate the batch directly from the brief. No `.env` entry needed for this path.
+
+Without either configured, `creative` always dry-runs: plans the batch across the five
+formats (UGC-Reaction, HyperMotion-Reveal, ASMR, POV-BeforeAfter, Unboxing) and persists
+them as `briefed`.
+
 Rules wired in, none optional:
 
 - **Gated on TEST verdict.** A WATCH or KILL product is refused (`--force` overrides,
   loudly). Finding ≠ producing; don't spend creative budget on an unproven product.
-- **`--confirm` required to spend money.** With `HIGGSFIELD_MCP_URL` set but no
-  `--confirm`, the command refuses. Without the URL it dry-runs: plans the batch across
-  the five formats (UGC-Reaction, HyperMotion-Reveal, ASMR, POV-BeforeAfter, Unboxing)
-  and persists them as `briefed`.
+- **`--confirm` required to spend money**, on either path above.
 - **AIGC disclosure travels in asset metadata.** `export-creatives` refuses to export
-  any creative missing it and tells you which ones.
+  any creative missing it and tells you which ones. (TikTok's own disclosure rule, per
+  its Seller Center policy: label content that's fully AI-generated or significantly
+  AI-altered — including an AI-generated background behind a real product; minor edits
+  like color grading don't require it.)
 - **One Soul ID persona per store** (`HIGGSFIELD_SOUL_ID`). A mismatch against
   creatives already in the DB is flagged before anything generates.
 

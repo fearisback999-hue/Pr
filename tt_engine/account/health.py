@@ -2,7 +2,21 @@
 the three levers the brief calls out — shipping speed, refund rate, service response time —
 so the engine can warn *before* reach gets throttled. Handle service personally early
 (Part 10): it's where you learn what people actually complain about, which feeds straight
-back into product selection and return-risk scoring."""
+back into product selection and return-risk scoring.
+
+What this simplifies vs. the real system (verified July 2026 — TikTok Seller Center's
+"Guide to Shop Performance Score" and "Account Health Rating Requirements" essays;
+reverify, this changes often): TikTok actually runs TWO separate 90-day scores — the Shop
+Performance Score (0–5, needs ≥30 delivered orders/90d to even generate, driven by six
+named sub-metrics: Negative Review Rate, Seller-Fault Return/Refund Rate, Seller-Fault
+Cancellation Rate, Customer-Service Chat Rating, After-Sales Handling Time, On-Time
+Delivery Rate — a low SPS throttles reach/campaign eligibility but isn't itself an
+enforcement trigger) and the Account Health Rating (0–1,000, policy-violation points,
+where a low score DOES trigger enforcement). As of July 2026 two of the six SPS
+sub-metrics (negative-review rate, seller-fault refund rate) are graded relative to your
+product category's peers rather than fixed thresholds. This module doesn't replicate that
+exact weighting — the real formula isn't published — it's a directional proxy on the same
+three inputs the original brief specified."""
 
 from __future__ import annotations
 
@@ -17,6 +31,9 @@ SUSPENSION_THRESHOLD = 50.0   # below this you're in suspension territory — st
 SHIP_OK_DAYS = 3.0
 SHIP_BAD_DAYS = 10.0
 REFUND_BAD = 0.10
+# 48h happens to match TikTok's own recommended After-Sales Handling Time ceiling (one
+# of the six real SPS sub-metrics, per Seller Center — see module docstring), though this
+# constant models general service response time, not AHT specifically.
 RESPONSE_BAD_HRS = 48.0
 
 

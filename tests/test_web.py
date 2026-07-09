@@ -56,7 +56,8 @@ def test_product_page_renders_scorecard_and_next_step(server):
 def test_advertising_page_shows_mcp_config_and_tests(server):
     status, body = _get(server, "/advertising")
     assert status == 200
-    assert "HIGGSFIELD_MCP_URL" in body
+    assert "HIGGSFIELD_API_KEY" in body
+    assert "mcp.higgsfield.ai" in body          # the real, verified OAuth-agent endpoint
     assert "Creative batches" in body and "Live ad tests" in body
     assert "never spends money" in body       # the guardrail is stated on the page
 
@@ -97,6 +98,22 @@ def test_playbook_page_renders_all_phases(server):
     assert "12 — Systemize" in body
     # An auto step already satisfied by the seeded+scored DB shows as done.
     assert "Get real market data into the engine" in body
+
+
+def test_playbook_page_shows_sourced_facts_and_links(server):
+    import html as _html
+
+    from tt_engine.playbook import VERIFIED_DATE, all_sources
+
+    status, body = _get(server, "/playbook")
+    assert status == 200
+    assert f"Sources (verified {VERIFIED_DATE})" in body
+    sources = all_sources()
+    assert sources  # the research pass grounded real steps
+    # URLs render HTML-escaped (query-string & becomes &amp;) — compare escaped forms.
+    assert all(f"href='{_html.escape(url)}'" in body for url in sources)
+    assert "irs.gov" in body.lower()          # a real primary source made it onto the page
+    assert "seller-us.tiktok.com" in body     # TikTok's own Seller Center essays cited
 
 
 def test_playbook_toggle_persists_and_redirects(server):

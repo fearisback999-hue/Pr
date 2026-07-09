@@ -19,24 +19,38 @@ from ..capital import plan_capital, plan_pod
 from ..config import CONFIG
 from ..db import Database
 from ..guide import all_steps, next_step
-from ..playbook import STEPS, current_phase, overall, progress
+from ..playbook import STEPS, VERIFIED_DATE, all_sources, current_phase, overall, progress
 from ..reports.scorecard import render_scorecard, verdict
 from ..validation import KILL_HOURS, hours_below_breakeven, summarize_tests
 from .render import chip, esc, kpi, md_to_html, page, table
 
+# Pricing verified 2026-07-09 via live web research — reverify before budgeting against
+# it, these platforms change plans/pricing often. See docs/OPERATING.md for sources.
 CREATOR_LINKS = [
     ("TikTok Shop Affiliate Center", "https://affiliate-us.tiktok.com",
-     "Open collaboration + targeted invites — the main channel for TikTok Shop affiliates."),
+     "Free. Open collaboration + targeted invites — the main channel for TikTok Shop "
+     "affiliates; you only pay the commission rate you set, per sale."),
     ("TikTok Creator Marketplace", "https://creatormarketplace.tiktok.com",
-     "TikTok's official creator search (audience size, engagement, categories)."),
-    ("Insense", "https://insense.pro", "UGC + paid-usage creators, brief-based workflow."),
-    ("Billo", "https://billo.app", "Fixed-price UGC videos, fast turnaround."),
-    ("Collabstr", "https://collabstr.com", "Marketplace of UGC/influencer creators, pay per deal."),
-    ("Twirl", "https://www.twirl.so", "Vetted UGC creators, subscription batches."),
+     "Free to browse. TikTok's official creator search (audience size, engagement, "
+     "categories)."),
+    ("Collabstr", "https://collabstr.com",
+     "Free to browse, 10% fee on bookings. Pro $299/mo or Premium $399/mo for advanced "
+     "features. Good default starting point — no minimum spend."),
     ("Fiverr — UGC videos", "https://www.fiverr.com/search/gigs?query=ugc%20tiktok%20video",
-     "Cheapest tier — good for volume-testing hooks before paying premium creators."),
+     "Pay-per-gig, no subscription. Cheapest tier — good for volume-testing hooks "
+     "before paying premium creators."),
+    ("Billo", "https://billo.app",
+     "~$99+/video, buy packs from a balance, bulk discounts. No monthly minimum."),
+    ("Twirl", "https://www.twirl.so",
+     "Self-serve from ~$325/video (full usage rights). Managed service from "
+     "~$2,560/campaign if you want strategy support included."),
+    ("Insense", "https://insense.pro",
+     "Self-service plan from ~$500/mo (billed quarterly), + a 7–20% marketplace fee on "
+     "creator payments depending on tier. Higher commitment — better once you know your "
+     "angle works and want to scale UGC volume."),
     ("Upwork — UGC creators", "https://www.upwork.com/services/ugc",
-     "Longer-term creator relationships, hourly or per-asset."),
+     "Pay-per-project or hourly, no platform subscription. Best for a longer-term "
+     "creator relationship once you've found someone who converts."),
 ]
 
 
@@ -142,12 +156,33 @@ def page_playbook(db: Database) -> str:
             cmd = (f"<div class=cmd><code>{esc(step.command)}</code></div>"
                   if step.command else "")
             src = "auto" if step.auto else "manual"
+            cites = ""
+            if step.sources:
+                links = " · ".join(
+                    f"<a href='{esc(u)}' target=_blank rel=noopener>source</a>"
+                    if i == 0 else f"<a href='{esc(u)}' target=_blank rel=noopener>[{i+1}]</a>"
+                    for i, u in enumerate(step.sources)
+                )
+                cites = f"<div class='cmd mut'>{links}</div>"
             body.append(
                 f"<div class='pbstep{' done' if is_done else ''}'>{box}"
                 f"<div class=body><b>{esc(step.title)}</b><span class=src>{src}</span>"
-                f"<div class=mut>{esc(step.detail)}</div>{cmd}</div></div>"
+                f"<div class=mut>{esc(step.detail)}</div>{cmd}{cites}</div></div>"
             )
         body.append("</div>")
+
+    sources = all_sources()
+    if sources:
+        body.append(f"<h2>Sources (verified {VERIFIED_DATE})</h2><div class=panel>")
+        body.append("<p class=mut>Concrete facts above (fees, thresholds, SLAs, windows) "
+                    "were pulled from these — re-check before relying on anything money- "
+                    "or compliance-critical, platforms change terms without much "
+                    "notice.</p><ul>")
+        body.extend(
+            f"<li><a href='{esc(u)}' target=_blank rel=noopener>{esc(u)}</a></li>"
+            for u in sources
+        )
+        body.append("</ul></div>")
     return page("Playbook", "".join(body), "/playbook")
 
 
@@ -201,18 +236,16 @@ def page_product(db: Database, pid: str) -> Optional[str]:
 def page_advertising(db: Database) -> str:
     body = ["<h1>Advertising</h1>"]
 
-    # ── Higgsfield / MCP configuration status ──────────────────────────────────
-    mcp_ok = bool(CONFIG.higgsfield_mcp_url)
+    # ── Higgsfield configuration status ─────────────────────────────────────────
+    hf_ok = CONFIG.higgsfield_available
     soul_ok = bool(CONFIG.higgsfield_soul_id)
     llm_ok = CONFIG.llm_available
     body.append("<h2>Creative pipeline configuration</h2><div class=panel>")
     body.append(table(["Setting", "Status", "What it does"], [
-        ["<code>HIGGSFIELD_MCP_URL</code>",
-         "<span class=good>configured</span>" if mcp_ok
+        ["<code>HIGGSFIELD_API_KEY</code> + <code>higgsfield-client</code> SDK",
+         "<span class=good>configured</span>" if hf_ok
          else "<span class=warn>not set — dry-run mode</span>",
-         "The MCP endpoint that generates video batches. Unset = plans only."],
-        ["<code>HIGGSFIELD_MCP_TOOL</code>", f"<code>{esc(CONFIG.higgsfield_mcp_tool)}</code>",
-         "Tool name called for each generation job."],
+         "Scripted generation via the official SDK. Unset/not installed = plans only."],
         ["<code>HIGGSFIELD_SOUL_ID</code>",
          f"<code>{esc(CONFIG.higgsfield_soul_id)}</code>" if soul_ok
          else "<span class=warn>not set</span>",
@@ -222,10 +255,14 @@ def page_advertising(db: Database) -> str:
          else "<span class=warn>offline fallback</span>",
          "Psychology + hooks/scripts quality (LLM pass vs deterministic)."],
     ]))
-    body.append("<p class=mut>Set these in <code>.env</code> next to the repo, then restart "
-                "the server. Generation always requires an explicit "
-                "<code>creative &lt;id&gt; --confirm</code> in the terminal — the dashboard "
-                "never spends money.</p></div>")
+    body.append(f"<p class=mut>Set these in <code>.env</code> next to the repo, then "
+                f"restart the server. Alternative: running this from a Claude Code "
+                f"session with the Higgsfield MCP connected "
+                f"(<code>{esc(CONFIG.higgsfield_mcp_url)}</code>, browser OAuth, no API "
+                f"key needed) — just ask the agent to generate the batch directly. "
+                f"Either way, generation always requires an explicit "
+                f"<code>creative &lt;id&gt; --confirm</code> in the terminal — the "
+                f"dashboard never spends money.</p></div>")
 
     # ── Creative batches per product ───────────────────────────────────────────
     body.append("<h2>Creative batches</h2><div class=panel>")

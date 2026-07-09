@@ -47,7 +47,7 @@ def test_stage_progression(tmp_path):
             db.upsert_creative(models.Creative(
                 id="C1", product_id=pid, format="ASMR", hook="h",
                 meta={"aigc_disclosure": "x"}))
-            assert next_step(db, p).stage in ("configure-mcp", "generate")
+            assert next_step(db, p).stage in ("configure-higgsfield", "generate")
 
             for c in db.creatives_for(pid):
                 c.status = "ready"

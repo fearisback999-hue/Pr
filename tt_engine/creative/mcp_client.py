@@ -1,4 +1,4 @@
-"""Higgsfield batch generation via MCP (Phase 2).
+"""Higgsfield batch generation (Phase 2).
 
 The flow when a product hits TEST verdict: creative brief (product + psychology paragraph
 + hooks) → batch generation across the five formats → poll for completion → save assets
@@ -12,16 +12,29 @@ Three guardrails, none optional:
   3. One Soul ID persona per store — a mismatch against creatives already in the DB is
      surfaced before anything generates.
 
-The MCP server is configured with HIGGSFIELD_MCP_URL (a streamable-HTTP MCP endpoint).
-Unset → dry-run mode: the batch is planned and persisted as 'briefed' so the rest of the
-engine works end-to-end offline.
+Two real integration paths exist for Higgsfield (verified July 2026 — see config.py for
+the detail and sources; reverify before trusting, vendor APIs move fast):
+  • This module targets the SCRIPTED path: the official `higgsfield-client` SDK against
+    the Higgsfield Cloud API, gated on CONFIG.higgsfield_available (an API key + the SDK
+    installed). Unset/not installed → dry-run: the batch is planned and persisted as
+    'briefed' so the rest of the engine works end-to-end offline.
+  • If you're running this from an interactive MCP client instead (e.g. this engine
+    operated from inside a Claude Code session with the Higgsfield MCP connected), the
+    simpler path is asking the agent to generate the batch directly through its own
+    connected tools — that authenticates via browser OAuth and needs no key in .env at
+    all. See CONFIG.higgsfield_mcp_url for that endpoint.
+
+submit()/poll() below are the extension points: even with a key configured, they raise
+NotImplementedError until wired to the SDK's actual call shape — the SDK's exact request/
+response fields aren't published outside the SDK itself, and this project refuses to
+guess at an integration it hasn't verified against a real account (the same rule as the
+Kalodata/EchoTik feed stubs and Economics' no-placeholder-cost rule).
 """
 
 from __future__ import annotations
 
 import json
 import time
-import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -45,8 +58,8 @@ class GenerationResult:
 
     @property
     def summary(self) -> str:
-        mode = "DRY-RUN (no MCP configured — plan persisted as 'briefed')" if self.dry_run \
-            else "generated via Higgsfield MCP"
+        mode = "DRY-RUN (no key/SDK configured — plan persisted as 'briefed')" if self.dry_run \
+            else "generated via Higgsfield"
         by_status: dict[str, int] = {}
         for c in self.creatives:
             by_status[c.status] = by_status.get(c.status, 0) + 1
@@ -80,63 +93,56 @@ def _asset_meta(c: models.Creative) -> dict:
 
 
 class HiggsfieldMCP:
-    """Minimal MCP client over streamable HTTP (JSON-RPC 2.0, stdlib only)."""
+    """Gate + extension point for scripted Higgsfield generation via the official SDK.
 
-    def __init__(self, url: Optional[str] = None, tool: Optional[str] = None):
-        self.url = url if url is not None else CONFIG.higgsfield_mcp_url
-        self.tool = tool or CONFIG.higgsfield_mcp_tool
+    `available` mirrors CONFIG.higgsfield_available (key + SDK both present) by default.
+    Test doubles/subclasses can override the property directly to force a path without
+    needing a real key or the SDK installed — see FakeMCP in tests/test_creative_mcp.py.
+    """
+
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key if api_key is not None else CONFIG.higgsfield_api_key
 
     @property
     def available(self) -> bool:
-        return bool(self.url)
-
-    def _rpc(self, method: str, params: dict, timeout: float = 120.0) -> dict:
-        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method,
-                           "params": params}).encode()
-        req = urllib.request.Request(
-            self.url, data=body,
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
-        if "error" in payload:
-            raise RuntimeError(f"MCP error from {method}: {payload['error']}")
-        return payload.get("result", {})
+        return bool(self.api_key) and CONFIG.higgsfield_available
 
     def submit(self, kit: CreativeKit, c: models.Creative) -> str:
-        """Submit one generation job; returns the job id."""
-        result = self._rpc("tools/call", {
-            "name": self.tool,
-            "arguments": {
-                "format": c.format, "hook": c.hook, "soul_id": c.soul_id,
-                "product": kit.product.name, "spine": kit.psych.spine,
-                "aspect_ratio": "9:16", "disclosure": DISCLOSURE,
-            },
-        })
-        return _extract(result, "job_id") or _extract(result, "id") or c.id
+        """Submit one generation job; returns the job id.
+
+        ── Integration point ───────────────────────────────────────────────────
+        # import higgsfield_client
+        # controller = higgsfield_client.submit(
+        #     model="soul" if c.soul_id else "kling-3.0",   # verify current model names
+        #     prompt=f"{c.hook} — {kit.psych.spine}",
+        #     character_id=c.soul_id, aspect_ratio="9:16",
+        # )
+        # return controller.id
+        The SDK's exact request/response shape isn't published outside the SDK — get a
+        real Higgsfield account, read `higgsfield_client`'s own docstrings/examples, and
+        wire this for real rather than guessing.
+        """
+        raise NotImplementedError(
+            "HiggsfieldMCP.submit() — wire the higgsfield_client SDK call. The offline "
+            "plan is used until then; see the integration-point comment on this method."
+        )
 
     def poll(self, job_id: str) -> tuple[str, Optional[str]]:
-        """Poll one job → (status, asset_url). Status: generating|ready|failed."""
-        result = self._rpc("tools/call", {
-            "name": f"{self.tool}_status", "arguments": {"job_id": job_id},
-        })
-        status = _extract(result, "status") or "generating"
-        return status, _extract(result, "asset_url") or _extract(result, "url")
+        """Poll one job → (status, asset_url). Status: generating|ready|failed.
 
-
-def _extract(result: dict, key: str) -> Optional[str]:
-    """Pull a key out of an MCP tool result (top level, or JSON in content[0].text)."""
-    if key in result:
-        return result[key]
-    for item in result.get("content", []):
-        if item.get("type") == "text":
-            try:
-                data = json.loads(item["text"])
-                if key in data:
-                    return data[key]
-            except (ValueError, TypeError):
-                continue
-    return None
+        ── Integration point ───────────────────────────────────────────────────
+        # import higgsfield_client
+        # result = higgsfield_client.status(job_id)
+        # if result.status == "Completed":
+        #     return "ready", result.result().output_url   # verify actual field names
+        # if result.status in ("Failed", "NSFW", "Cancelled"):
+        #     return "failed", None
+        # return "generating", None
+        """
+        raise NotImplementedError(
+            "HiggsfieldMCP.poll() — wire the higgsfield_client SDK call. See the "
+            "integration-point comment on this method."
+        )
 
 
 def generate_batch(
@@ -174,8 +180,10 @@ def generate_batch(
     if not mcp.available:
         for c in creatives:
             db.upsert_creative(c)
-        notes.append("Set HIGGSFIELD_MCP_URL to generate for real; the plan above is "
-                     "what would be submitted.")
+        notes.append("Set HIGGSFIELD_API_KEY (and install higgsfield-client) to generate "
+                     "for real; the plan above is what would be submitted. Or, if you're "
+                     "in a Claude Code session with the Higgsfield MCP connected, just "
+                     "ask the agent to run this batch directly.")
         return GenerationResult(creatives=creatives, dry_run=True,
                                 soul_warnings=warnings, notes=notes)
 

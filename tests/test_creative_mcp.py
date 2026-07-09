@@ -1,9 +1,17 @@
-"""Phase 2 Higgsfield MCP pipeline: dry-run, confirmation guardrail, AIGC disclosure,
-Soul ID consistency, and the export block."""
+"""Phase 2 Higgsfield generation: dry-run, confirmation guardrail, AIGC disclosure,
+Soul ID consistency, and the export block.
+
+Also pins the July-2026 research fix: this project no longer speaks a fabricated,
+unauthenticated JSON-RPC "MCP" protocol over raw urllib (that was never real — Higgsfield's
+actual hosted MCP is OAuth-only, and scripted access goes through the official
+higgsfield_client SDK). submit()/poll() are honest NotImplementedError stubs until wired
+against a real account, matching this repo's own convention for unverified integrations
+(see KalodataFeed.fetch(), HiggsfieldClient.push())."""
 
 import pytest
 
 from tt_engine import pipeline, seed
+from tt_engine.config import CONFIG
 from tt_engine.creative import (
     ConfirmationRequired,
     HiggsfieldMCP,
@@ -28,10 +36,15 @@ def _kit(soul_id="SOUL-STORE-1"):
 
 
 class FakeMCP(HiggsfieldMCP):
-    """In-memory MCP double: every submitted job completes on first poll."""
+    """In-memory double: forces the live path without a real key/SDK, and every
+    submitted job completes on first poll."""
     def __init__(self):
-        super().__init__(url="http://fake-mcp.test/mcp")
+        super().__init__(api_key="fake-key-for-tests")
         self.submitted = []
+
+    @property
+    def available(self):
+        return True
 
     def submit(self, kit, c):
         self.submitted.append(c.id)
@@ -44,7 +57,7 @@ class FakeMCP(HiggsfieldMCP):
 def test_dry_run_plans_batch_with_disclosure_metadata(tmp_path):
     with _db(tmp_path) as db:
         db.upsert_product(models.Product(id="P-X", name="Scalp Massager Pro", category="beauty"))
-        result = generate_batch(db, _kit(), mcp=HiggsfieldMCP(url=""))  # unconfigured
+        result = generate_batch(db, _kit(), mcp=HiggsfieldMCP())  # no key/SDK configured
         assert result.dry_run
         assert len(result.creatives) == 10
         stored = db.creatives_for("P-X")
@@ -124,7 +137,37 @@ def test_produce_creatives_gated_on_test_verdict(tmp_path):
             pipeline.produce_creatives(db, "P-BRANDPLUSH")
         # TEST-verdict product → dry-run plan flows through.
         kit, result = pipeline.produce_creatives(db, "P-SCALPMASSAGER",
-                                                 mcp=HiggsfieldMCP(url=""))
+                                                 mcp=HiggsfieldMCP())
         assert result.dry_run and len(result.creatives) == 30
         assert kit.psych.spine  # psychology paragraph feeds the brief
         assert "Psychological spine" in kit.brief_text()
+
+
+def test_unconfigured_client_is_unavailable_and_never_calls_out():
+    """With no key and no SDK, HiggsfieldMCP must be unavailable — this is what routes
+    generate_batch() to the dry-run path instead of attempting any network call."""
+    assert HiggsfieldMCP(api_key="").available is False
+    assert HiggsfieldMCP().available is False  # ambient CONFIG in this sandbox: no key
+
+
+def test_submit_and_poll_are_honest_stubs_not_fake_network_calls():
+    """The old code POSTed an invented JSON-RPC payload to a URL with zero auth — a
+    silent-wrong-protocol bug. It's gone: calling submit()/poll() directly (bypassing the
+    dry-run gate) must fail loudly and explain what to wire, never pretend to succeed."""
+    mcp = HiggsfieldMCP(api_key="whatever-key")
+    kit = _kit()
+    fake_creative = models.Creative(id="C1", product_id="P-X", format="ASMR", hook="h")
+    with pytest.raises(NotImplementedError, match="higgsfield_client"):
+        mcp.submit(kit, fake_creative)
+    with pytest.raises(NotImplementedError, match="higgsfield_client"):
+        mcp.poll("job-123")
+
+
+def test_available_requires_both_key_and_sdk_like_llm_available():
+    """Mirrors CONFIG.llm_available's shape exactly: a key alone isn't enough without the
+    SDK importable, since this sandbox never has higgsfield_client installed."""
+    assert CONFIG.higgsfield_available is False  # no key in this test environment
+    mcp = HiggsfieldMCP(api_key="some-key")
+    # Even with an explicit key passed to the instance, the class still requires the
+    # ambient CONFIG to report available (key + importable SDK) — no key alone shortcuts it.
+    assert mcp.available is False

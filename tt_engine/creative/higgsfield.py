@@ -51,23 +51,14 @@ class HiggsfieldClient:
             return creatives  # offline plan — status stays 'briefed'
 
         # ── Integration point ──────────────────────────────────────────────────
-        # import requests
-        # 1) Hermes Agent (Click-to-Ad): POST the brief / product URL → draft.
-        # 2) AI Hook Generator: POST kit.hooks → data-driven openings.
-        # 3) Batch generate across formats with the Soul ID persona.
-        # 4) Export each asset to TikTok in 9:16, set creative.asset_url + status.
-        # for c in creatives:
-        #     resp = requests.post(
-        #         "https://api.higgsfield.ai/v1/generate",
-        #         headers={"Authorization": f"Bearer {self.api_key}"},
-        #         json={"format": c.format, "hook": c.hook, "soul_id": c.soul_id,
-        #               "product": kit.product.name, "spine": kit.psych.spine},
-        #         timeout=120,
-        #     )
-        #     resp.raise_for_status()
-        #     c.asset_url = resp.json()["asset_url"]
-        #     c.status = "ready"
+        # This class only plans; tt_engine.creative.mcp_client.HiggsfieldMCP is where the
+        # scripted generation call actually lives (see its submit()/poll() docstrings for
+        # the up-to-date integration comment). As of 2026-07 the verified path is the
+        # official `higgsfield-client` SDK against the Higgsfield Cloud API — auth is
+        # HTTP Basic built from the HF_KEY env var (NOT a Bearer token; that was an
+        # earlier, wrong guess in this file), not a raw REST POST to a hand-guessed URL.
         raise NotImplementedError(
-            "HiggsfieldClient.push() — wire the Hermes/Hook-Generator/batch/export calls. "
-            "The offline plan() is used until then."
+            "HiggsfieldClient.push() — this class is planning-only. Wire real generation "
+            "in HiggsfieldMCP.submit()/poll() (tt_engine/creative/mcp_client.py) against "
+            "the higgsfield_client SDK. The offline plan() here is used until then."
         )
