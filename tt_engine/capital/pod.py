@@ -67,6 +67,8 @@ def plan_pod(
                          "(sale price − POD base cost − Etsy fees ~9.5% − ads)")
     if sales_per_listing_month <= 0:
         raise ValueError("sales_per_listing_month must be > 0")
+    if minutes_per_listing <= 0:
+        raise ValueError("minutes_per_listing must be > 0")
 
     sales_needed = target_monthly_profit / profit_per_sale
     listings_needed = math.ceil(sales_needed / sales_per_listing_month)

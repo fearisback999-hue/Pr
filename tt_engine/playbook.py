@@ -31,7 +31,7 @@ source before you rely on it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 from .config import CONFIG

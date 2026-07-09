@@ -38,6 +38,18 @@ def test_genuine_ramp_is_not_capped():
     assert not m.spike_capped
 
 
+def test_old_spike_does_not_suppress_acceleration():
+    """An old viral day (in the prior-7 window) must be capped there too, so it can't
+    inflate the baseline slope and make a genuinely accelerating product read as flat.
+    Prior week has a spike; recent week is a clean, steeper ramp."""
+    prior_with_spike = [40, 42, 900, 41, 43, 40, 42]     # one old viral day
+    recent_ramp = [60, 80, 105, 135, 170, 210, 255]      # steadily accelerating now
+    m = compute_momentum(_metrics([40] * 14 + prior_with_spike + recent_ramp))
+    # With the prior spike capped, the recent week is clearly the steeper one.
+    assert m.acceleration > 0
+    assert m.is_accelerating
+
+
 # ── trend consistency ────────────────────────────────────────────────────────────
 def test_consistency_prefers_steady_growth_over_spikes():
     steady = trend_consistency([40, 46, 53, 61, 70, 80, 92, 106, 122, 140, 161, 185, 213, 245])

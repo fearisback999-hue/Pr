@@ -152,7 +152,7 @@ def page_playbook(db: Database) -> str:
             else:
                 nxt = 0 if is_done else 1
                 box = (f"<div class=box><a href='/playbook/toggle?id={esc(step.id)}"
-                       f"&done={nxt}' title='toggle'>{'✓' if is_done else ''}</a></div>")
+                       f"&amp;done={nxt}' title='toggle'>{'✓' if is_done else ''}</a></div>")
             cmd = (f"<div class=cmd><code>{esc(step.command)}</code></div>"
                   if step.command else "")
             src = "auto" if step.auto else "manual"

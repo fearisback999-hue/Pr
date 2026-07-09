@@ -39,3 +39,7 @@ def test_pod_refuses_nonsense_inputs():
         plan_pod(target_monthly_profit=1000, profit_per_sale=0)
     with pytest.raises(ValueError, match="sales_per_listing"):
         plan_pod(target_monthly_profit=1000, profit_per_sale=5, sales_per_listing_month=0)
+    # minutes_per_listing=0 must raise ValueError (not ZeroDivisionError) so the web
+    # budget form's `except ValueError` shows a friendly message instead of a 500.
+    with pytest.raises(ValueError, match="minutes_per_listing"):
+        plan_pod(target_monthly_profit=1000, profit_per_sale=5, minutes_per_listing=0)

@@ -62,19 +62,15 @@ def compute_momentum(metrics: Sequence[models.DailyMetric]) -> MomentumResult:
     velocity_30d = _stats.mean(last30)
     momentum_ratio = velocity_7d / velocity_30d if velocity_30d else 0.0
 
-    # Week-over-week: last 7 days vs the 7 before them (both spike-capped alike).
-    if len(units) >= 14:
-        prior7 = _stats.despike(units[-14:-7])
-        wow_growth = _stats.pct_change(sum(prior7), sum(last7))
-    else:
-        wow_growth = 0.0
+    # Prior week, spike-capped the same way as the recent week — so an OLD viral day
+    # (8–14 days ago) can't inflate the baseline and understate this week's growth.
+    # Both WoW growth and the acceleration slope reuse it, for a consistent comparison.
+    prior7 = _stats.despike(units[-14:-7]) if len(units) >= 14 else []
+    wow_growth = _stats.pct_change(sum(prior7), sum(last7)) if prior7 else 0.0
 
     slope_recent = _stats.slope(last7)
     # Acceleration: is the recent slope steeper than the prior week's slope?
-    if len(units) >= 14:
-        slope_prior = _stats.slope(units[-14:-7])
-    else:
-        slope_prior = 0.0
+    slope_prior = _stats.slope(prior7) if prior7 else 0.0
     acceleration = slope_recent - slope_prior
 
     is_accelerating = momentum_ratio > 1.05 and acceleration > 0
