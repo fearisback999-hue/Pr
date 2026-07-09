@@ -19,6 +19,7 @@ from ..capital import plan_capital, plan_pod
 from ..config import CONFIG
 from ..db import Database
 from ..guide import all_steps, next_step
+from ..playbook import STEPS, current_phase, overall, progress
 from ..reports.scorecard import render_scorecard, verdict
 from ..validation import KILL_HOURS, hours_below_breakeven, summarize_tests
 from .render import chip, esc, kpi, md_to_html, page, table
@@ -58,12 +59,20 @@ def page_overview(db: Database) -> str:
     attack = sum(1 for s in scores if s.gates_passed and s.total >= CONFIG.score_threshold)
     live_tests = {t.creative_id.rsplit("-", 1)[0] for p in db.all_products()
                   for t in db.tests_for_product(p.id)}
+    pb_done, pb_total = overall(db)
     body.append("<div class=kpis>"
                 + kpi(str(len(scores)), "products scored")
                 + kpi(str(attack), "TEST-ready now")
                 + kpi(str(len(live_tests)), "products with live tests")
                 + kpi(f"{CONFIG.score_threshold:.0f}", "score threshold")
+                + kpi(f"{pb_done}/{pb_total}", "playbook steps")
                 + "</div>")
+
+    where = current_phase(db)
+    if where:
+        body.append(f"<blockquote>Business playbook: <b>{esc(where.name)}</b> "
+                    f"({where.done_count}/{where.total}) — "
+                    f"<a href='/playbook'>open the full checklist →</a></blockquote>")
 
     body.append("<h2>What to do next</h2><div class=panel>")
     steps = all_steps(db)
@@ -97,6 +106,59 @@ def page_overview(db: Database) -> str:
         body.append("<p class=mut>No scores yet — run <code>daily</code> after importing data.</p>")
     body.append("</div>")
     return page("Overview", "".join(body), "/")
+
+
+def page_playbook(db: Database) -> str:
+    """The zero-to-hero checklist: every step of the business, in order, with a live
+    completion state. Auto steps flip themselves from DB state; manual steps toggle via
+    a plain link (no money moves here — checking a box is always safe and reversible)."""
+    phases = progress(db)
+    done, total = overall(db)
+    where = current_phase(db)
+
+    body = ["<h1>Zero-to-hero playbook</h1>"]
+    body.append("<div class=kpis>" + kpi(f"{done}/{total}", "steps complete")
+                + kpi(where.name if where else "complete", "you are here")
+                + "</div>")
+    pct = int(100 * done / total) if total else 0
+    body.append(f"<div class=panel><div class=bar><i style='width:{pct}%'></i></div>"
+                f"<p class=mut>{pct}% of the whole business checklist — legal setup "
+                "through scaling a winner. Auto steps (marked <code>auto</code>) check "
+                "themselves off the moment the DB shows the work; manual steps "
+                "(marked <code>manual</code>) you tick yourself once done off-engine.</p></div>")
+
+    for p in phases:
+        ppct = int(100 * p.done_count / p.total) if p.total else 0
+        body.append(f"<div class=phasehead><h2 style='margin:0'>{esc(p.name)}</h2>"
+                    f"<span class=n>{p.done_count}/{p.total}</span></div>")
+        body.append(f"<div class=panel><div class=bar><i style='width:{ppct}%'></i></div>")
+        for step, is_done in p.steps:
+            if step.auto:
+                box = "<div class=box>✓</div>" if is_done else "<div class=box>·</div>"
+            else:
+                nxt = 0 if is_done else 1
+                box = (f"<div class=box><a href='/playbook/toggle?id={esc(step.id)}"
+                       f"&done={nxt}' title='toggle'>{'✓' if is_done else ''}</a></div>")
+            cmd = (f"<div class=cmd><code>{esc(step.command)}</code></div>"
+                  if step.command else "")
+            src = "auto" if step.auto else "manual"
+            body.append(
+                f"<div class='pbstep{' done' if is_done else ''}'>{box}"
+                f"<div class=body><b>{esc(step.title)}</b><span class=src>{src}</span>"
+                f"<div class=mut>{esc(step.detail)}</div>{cmd}</div></div>"
+            )
+        body.append("</div>")
+    return page("Playbook", "".join(body), "/playbook")
+
+
+def playbook_toggle(db: Database, step_id: str, done: bool) -> Optional[str]:
+    """Apply a manual toggle from the dashboard. Returns None for an unknown/auto step
+    (nothing to toggle), else the step id that was set."""
+    step = next((s for s in STEPS if s.id == step_id), None)
+    if step is None or step.auto is not None:
+        return None
+    db.set_playbook_step(step_id, done)
+    return step_id
 
 
 def page_product(db: Database, pid: str) -> Optional[str]:
@@ -338,6 +400,13 @@ class Handler(BaseHTTPRequestHandler):
                     if html is None:
                         return self._send(404, page("Not found",
                                                     f"<h1>No product {esc(pid)}</h1>"))
+                elif url.path == "/playbook":
+                    html = page_playbook(db)
+                elif url.path == "/playbook/toggle":
+                    step_id = (q.get("id") or [""])[0]
+                    done = (q.get("done") or ["1"])[0] == "1"
+                    playbook_toggle(db, step_id, done)  # unknown/auto ids are a silent no-op
+                    return self._redirect("/playbook")
                 elif url.path == "/advertising":
                     html = page_advertising(db)
                 elif url.path == "/budget":
@@ -349,6 +418,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, html)
         except Exception as e:  # show the error instead of a hung tab (local tool)
             self._send(500, page("Error", f"<h1>Error</h1><pre>{esc(repr(e))}</pre>"))
+
+    def _redirect(self, location: str) -> None:
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.end_headers()
 
     def _send(self, code: int, html: str) -> None:
         data = html.encode()

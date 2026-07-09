@@ -6,6 +6,17 @@ by hand before trusting any automation (the iron rule, Part 0).
 Every command takes `--db path.db` (defaults to `TT_DB_PATH`). Start with
 `python -m tt_engine.cli seed` if you just want to poke at sample data first.
 
+**Brand new to this?** Run `python -m tt_engine.cli playbook` (or open `/playbook` in
+the dashboard) first — it's the zero-to-hero checklist for the whole business, not just
+the product-scoring part: entity/tax setup, TikTok Shop + Etsy platform accounts,
+capital planning, sourcing, the engine's own loop, paid traffic, creator outreach,
+scaling, and ongoing compliance, in order. Steps the engine can see (a supplier on
+file, a TEST-verdict product, a live test logged) check themselves off automatically;
+everything that happens outside the database (opening a bank account, verifying a
+seller account) you check off yourself with `playbook-check <step_id>`. Legal/tax items
+describe what to go figure out, not legal or tax advice — verify specifics with a
+professional and the current platform terms, since both change.
+
 ---
 
 ## The dashboard — everything on one site
@@ -15,11 +26,16 @@ python -m tt_engine.cli serve                  # → http://127.0.0.1:8787
 python -m tt_engine.cli serve --host 0.0.0.0   # reach it from other devices on your LAN
 ```
 
-Five sections, all live from the DB:
+Six sections, all live from the DB:
 
 - **Overview** — KPIs, the ranked board with KILL/WATCH/TEST chips, and *What to do
   next*: every product's single next action with the exact command, most urgent first
   (a KILL-timer breach shows 🔴 at the top). The same list is `cli next` in a terminal.
+  Also shows where you are in the business playbook with a link through.
+- **Playbook** — the zero-to-hero checklist (see above), with a progress bar per phase.
+  Manual steps toggle with a click (safe — it only records that YOU did something off-
+  engine; it can never spend money or place an order). Auto steps show a plain checkmark
+  with no toggle, because faking them would just lie to you about the DB's real state.
 - **Product page** — the full scorecard rendered (sub-scores, momentum/saturation
   inputs, economics math), the next step, creatives, and test telemetry.
 - **Advertising** — Higgsfield/MCP configuration status (what's set, what's missing,

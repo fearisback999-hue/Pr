@@ -37,6 +37,12 @@ configured, auto-builds the Higgsfield creative kit.
 > the plain-language Phase 1/Phase 2 runbook.
 
 ```bash
+# 0. Brand new to this? The zero-to-hero checklist for the WHOLE business — entity/tax
+#    setup, TikTok Shop + Etsy accounts, capital planning, sourcing, the engine's own
+#    loop, paid traffic, creator outreach, scaling, ongoing compliance — in order.
+python -m tt_engine.cli playbook
+python -m tt_engine.cli playbook-check biz-structure   # check off a manual step once done
+
 # 1. Seed a realistic sample dataset (no API keys needed — uses the mock feed)
 python -m tt_engine.cli seed
 
@@ -64,8 +70,8 @@ python -m tt_engine.cli creative P-CLOUD                     # dry-run plan; --c
 python -m tt_engine.cli export-creatives P-CLOUD             # blocks assets missing AIGC disclosure
 python -m tt_engine.cli report-monthly --month 2026-07       # recalibration suggestions only
 
-# ⭐ The dashboard — everything on one site (board, scorecards, advertising,
-#    budget + Etsy POD planner, creator marketplaces, next-step guide)
+# ⭐ The dashboard — everything on one site (playbook, board, scorecards,
+#    advertising, budget + Etsy POD planner, creator marketplaces, next-step guide)
 python -m tt_engine.cli serve                    # → http://127.0.0.1:8787
 python -m tt_engine.cli serve --host 0.0.0.0     # reachable from other devices
 
@@ -142,7 +148,8 @@ tt_engine/
   distribution/      # affiliate / creator outreach funnel                  — Part 8
   validation/        # 30-day framework, kill/scale thresholds              — Part 9
   account/           # Shop Performance Score proxy + throttle warnings     — Part 10
-  capital/           # payout float, runway, # of tests you can afford      — Part 11
+  capital/           # payout float, runway, tests you can afford, Etsy POD planner — Part 11
+  playbook.py        # zero-to-hero checklist for the WHOLE business, not just the engine
   feedback/          # outcome ingestion + weight recalibration             — Part 13
   reports/           # opportunity report, attack packets, scorecards, Appendix-A CSV
   web/               # the local dashboard (stdlib http.server, read-only)

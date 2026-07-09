@@ -57,10 +57,27 @@ form.calc button { padding:8px 18px; border-radius:8px; border:none; background:
 .mut { color:var(--mut); } .good { color:var(--good); } .warn { color:var(--warn); }
 .bad { color:var(--bad); }
 ul { margin:6px 0; padding-left:22px; }
+.bar { height:6px; border-radius:99px; background:var(--line); overflow:hidden; margin:6px 0 2px; }
+.bar > i { display:block; height:100%; background:var(--good); }
+.pbstep { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line);
+          align-items:flex-start; }
+.pbstep:last-child { border-bottom:none; }
+.pbstep.done { opacity:.55; }
+.pbstep .box { flex:0 0 auto; }
+.pbstep .box a { display:block; width:18px; height:18px; border-radius:5px;
+                  border:1px solid var(--line); text-align:center; line-height:16px;
+                  font-size:13px; color:var(--good); text-decoration:none; }
+.pbstep .box a:hover { border-color:var(--good); }
+.pbstep .body b { display:inline-block; }
+.pbstep .src { font-size:11px; color:var(--mut); margin-left:6px; }
+.pbstep .cmd { margin-top:3px; }
+.phasehead { display:flex; justify-content:space-between; align-items:baseline;
+             margin:22px 0 4px; }
+.phasehead .n { color:var(--mut); font-size:13px; }
 """
 
-_NAV = [("Overview", "/"), ("Advertising", "/advertising"), ("Budget", "/budget"),
-        ("Creators", "/creators")]
+_NAV = [("Overview", "/"), ("Playbook", "/playbook"), ("Advertising", "/advertising"),
+        ("Budget", "/budget"), ("Creators", "/creators")]
 
 
 def page(title: str, body: str, active: str = "/") -> str:

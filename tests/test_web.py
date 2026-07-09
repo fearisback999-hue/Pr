@@ -80,3 +80,43 @@ def test_creators_page_links_marketplaces(server):
 def test_unknown_route_404s(server):
     status, _ = _get(server, "/nope")
     assert status == 404
+
+
+def test_overview_links_to_playbook(server):
+    status, body = _get(server, "/")
+    assert status == 200
+    assert "/playbook" in body
+    assert "playbook steps" in body
+
+
+def test_playbook_page_renders_all_phases(server):
+    status, body = _get(server, "/playbook")
+    assert status == 200
+    assert "Zero-to-hero playbook" in body
+    assert "0 — Business foundation" in body
+    assert "12 — Systemize" in body
+    # An auto step already satisfied by the seeded+scored DB shows as done.
+    assert "Get real market data into the engine" in body
+
+
+def test_playbook_toggle_persists_and_redirects(server):
+    status, _ = _get(server, "/playbook/toggle?id=biz-structure&done=1")
+    assert status == 303  # redirect back to /playbook, no money moved
+
+    status, body = _get(server, "/playbook")
+    assert status == 200
+    # Toggling back off works too.
+    _get(server, "/playbook/toggle?id=biz-structure&done=0")
+    status, body2 = _get(server, "/playbook")
+    assert status == 200
+    assert body != body2  # the page actually reflects the state change
+
+
+def test_playbook_toggle_ignores_auto_steps(server):
+    """An auto step's completion is derived from DB state — a toggle link must not
+    be able to fake it."""
+    status, before = _get(server, "/playbook")
+    _get(server, "/playbook/toggle?id=first-test-verdict&done=0")
+    status, after = _get(server, "/playbook")
+    assert status == 200
+    assert before == after  # no-op: auto steps ignore manual toggles

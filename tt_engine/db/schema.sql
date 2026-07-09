@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS results (
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+-- Zero-to-hero playbook (business-level, not per-product): manual check-off state
+-- for the ordered checklist in tt_engine/playbook.py. Steps are defined in code so
+-- they can evolve; only completion state lives in the DB.
+CREATE TABLE IF NOT EXISTS playbook_state (
+    step_id     TEXT PRIMARY KEY,
+    done        INTEGER NOT NULL DEFAULT 0,
+    done_at     TEXT,
+    note        TEXT NOT NULL DEFAULT ''
+);
+
 -- Audit trail for CSV imports (Kalodata / FastMoss / manual exports).
 CREATE TABLE IF NOT EXISTS import_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

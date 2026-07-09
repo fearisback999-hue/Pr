@@ -1,6 +1,10 @@
 """Command-line entry points. Run each stage by hand before trusting the cron — the iron
 rule of automation (Part 0): never automate anything you have not run manually first.
 
+New to this? Start here:
+    python -m tt_engine.cli playbook          # the whole business, zero to hero, in order
+    python -m tt_engine.cli serve              # the dashboard — everything on one site
+
 Data in (Phase 1 — manual first, no scrapers):
     python -m tt_engine.cli add --name "..." --category beauty --price 24.99
     python -m tt_engine.cli add-supplier <product_id> --cost 6.50 --ship-cost 1.20
@@ -499,6 +503,47 @@ def cmd_pod(args) -> int:
     return 0
 
 
+def cmd_playbook(args) -> int:
+    from .playbook import render_playbook
+    with _db(args) as db:
+        text = render_playbook(db)
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out}")
+        else:
+            print(text)
+    return 0
+
+
+def _playbook_ids() -> list[str]:
+    from .playbook import STEPS
+    return [s.id for s in STEPS]
+
+
+def cmd_playbook_check(args) -> int:
+    ids = _playbook_ids()
+    if args.step_id not in ids:
+        print(f"unknown step '{args.step_id}'. Run `playbook` to see valid step ids.")
+        return 1
+    with _db(args) as db:
+        db.set_playbook_step(args.step_id, True, note=args.note or "")
+        print(f"checked off: {args.step_id}")
+    return 0
+
+
+def cmd_playbook_uncheck(args) -> int:
+    ids = _playbook_ids()
+    if args.step_id not in ids:
+        print(f"unknown step '{args.step_id}'. Run `playbook` to see valid step ids.")
+        return 1
+    with _db(args) as db:
+        db.set_playbook_step(args.step_id, False)
+        print(f"unchecked: {args.step_id}")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="tt-engine", description=__doc__)
     parser.add_argument("--db", default=CONFIG.db_path, help="SQLite path (default: TT_DB_PATH)")
@@ -684,6 +729,20 @@ def main(argv=None) -> int:
     p.add_argument("--hours", type=float, default=5.0, help="hours/week you can spend")
     p.add_argument("--minutes", type=float, default=30.0, help="minutes per listing")
     p.set_defaults(func=cmd_pod)
+
+    p = sub.add_parser("playbook",
+                       help="the zero-to-hero checklist for the whole business, in order")
+    p.add_argument("--out", default=None, help="write markdown to a file instead of stdout")
+    p.set_defaults(func=cmd_playbook)
+
+    p = sub.add_parser("playbook-check", help="check off a manual playbook step")
+    p.add_argument("step_id")
+    p.add_argument("--note", default="", help="optional note to attach")
+    p.set_defaults(func=cmd_playbook_check)
+
+    p = sub.add_parser("playbook-uncheck", help="uncheck a manual playbook step")
+    p.add_argument("step_id")
+    p.set_defaults(func=cmd_playbook_uncheck)
 
     args = parser.parse_args(argv)
     return args.func(args)

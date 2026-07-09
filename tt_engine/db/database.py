@@ -199,6 +199,24 @@ class Database:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    # ── playbook (zero-to-hero checklist) ─────────────────────────────────────
+    def playbook_state(self) -> dict[str, dict]:
+        rows = self.conn.execute("SELECT * FROM playbook_state").fetchall()
+        return {r["step_id"]: dict(r) for r in rows}
+
+    def set_playbook_step(self, step_id: str, done: bool, note: str = "") -> None:
+        from datetime import datetime
+        self.conn.execute(
+            """INSERT INTO playbook_state(step_id, done, done_at, note)
+               VALUES(?,?,?,?)
+               ON CONFLICT(step_id) DO UPDATE SET
+                 done=excluded.done, done_at=excluded.done_at,
+                 note=CASE WHEN excluded.note != '' THEN excluded.note ELSE playbook_state.note END""",
+            (step_id, int(done), datetime.now().isoformat(timespec="seconds") if done else None,
+             note),
+        )
+        self.conn.commit()
+
     # ── tests / results ────────────────────────────────────────────────────────
     def upsert_test(self, t: models.Test) -> None:
         self.conn.execute(
