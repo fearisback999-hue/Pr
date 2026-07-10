@@ -38,6 +38,11 @@ def render_scorecard(sr: ScoredRecord) -> str:
         f"**Date:** {s.date} · **Total:** {s.total:.1f}/100 · **Verdict:** **{v}**",
         "",
     ]
+    if sr.lifecycle is not None:
+        lines += [f"**Lifecycle:** {sr.lifecycle.stage.replace('_', ' ')} — "
+                  f"{sr.lifecycle.reasons[0] if sr.lifecycle.reasons else ''}", ""]
+    if sr.confidence is not None:
+        lines += [f"**{sr.confidence.summary}**", ""]
     if v == "KILL":
         lines.append("> ⛔ Disqualified by hard gate(s) — total score is irrelevant. "
                      "A hot momentum score never overrides a compliance or economic gate.")

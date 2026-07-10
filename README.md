@@ -96,6 +96,12 @@ python -m tt_engine.cli pod --target 1000 --profit 8
 python -m tt_engine.cli roadmap                       # $1M revenue in 24 months
 python -m tt_engine.cli roadmap --type profit --months 12   # the hard million
 
+# Deep-dive one product: full market analysis, the creative pack, landing copy
+python -m tt_engine.cli analyze P-CLOUD               # SWOT/risks/audience/offers, data-cited
+python -m tt_engine.cli creative-pack P-CLOUD --out pack.md   # 50 hooks, 50 concepts, 40 scripts…
+python -m tt_engine.cli landing P-CLOUD --out landing.md      # compliance-swept page copy
+python -m tt_engine.cli search --q strap --min-price 20       # search your product DB
+
 # Reports & ops
 python -m tt_engine.cli weekly --out reports/out
 python -m tt_engine.cli board
@@ -154,7 +160,8 @@ tt_engine/
   config.py          # env + tunables
   db/                # SQLite schema + models (Part 12 tables)
   feeds/             # data-feed adapters (mock + Kalodata/EchoTik stubs)   — Part 2
-  detection/         # momentum, saturation, trigger, window, cross-confirm — Part 2
+  detection/         # momentum, saturation, trigger, window, lifecycle, cross-confirm — Part 2
+  analysis.py        # market analysis: SWOT/risks/audience/offers, every claim data-cited
   scoring/           # 100-pt algorithm, 6 subscores, hard gates            — Part 3
   psychology/        # LLM pass over reviews/comments                       — Part 4
   economics/         # landed cost, margin, break-even ROAS, max CAC, offer — Part 5

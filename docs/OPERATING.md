@@ -229,6 +229,24 @@ you run `recalibrate --apply` yourself.
 
 ---
 
+## Data sources — what's wired, what's plug-in, what's refused
+
+The engine is source-agnostic: anything that lands in `product_daily_metrics` drives
+detection, lifecycle, scoring, and everything downstream identically.
+
+- **Wired today:** manual CSV exports from Kalodata / FastMoss / any vendor
+  (`import-csv`, with `--map` for odd headers), manual entry (`add`/`add-metric`),
+  and the offline sample feed.
+- **Plug-in adapters (add a key + implement `fetch()`):** Kalodata Enterprise API,
+  EchoTik API — `feeds/kalodata.py` has the template. Any additional *official* API
+  (a vendor you pay who provides one) drops in the same way.
+- **Refused, deliberately:** scraping TikTok, Amazon, AliExpress, Temu, Meta Ad
+  Library, Instagram, YouTube, Reddit, X, or Discord. Their ToS prohibit it, scrapers
+  break weekly, and a banned seller account or IP range costs more than any data is
+  worth. If you can export it as a CSV or reach it through an official API, the engine
+  eats it; if the only way in is a scraper, that source stays out. This is the repo's
+  original guardrail and it stands.
+
 ## What was deliberately NOT built, and why
 
 - **Scrapers.** CSV import + official APIs only. Scraping platforms that prohibit it

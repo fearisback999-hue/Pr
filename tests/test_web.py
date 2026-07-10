@@ -106,6 +106,33 @@ def test_million_page_rejects_bad_margin_gracefully(server):
     assert "net_margin" in body
 
 
+def test_search_page_filters_and_renders(server):
+    status, body = _get(server, "/search?q=strap")
+    assert status == 200
+    assert "P-COWHIDESTRAP" in body
+    assert "P-PIMPLEPATCH" not in body              # keyword filter works
+    assert "<svg" in body                            # trend sparkline rendered
+    assert "will not) scrape" in body                # the no-scraping stance is stated
+
+    status, body = _get(server, "/search?category=beauty")
+    assert status == 200
+    assert "P-PIMPLEPATCH" in body and "P-COWHIDESTRAP" not in body
+
+    status, body = _get(server, "/search?min_price=30&max_price=45")
+    assert "P-COWHIDESTRAP" in body                  # $39.99 in range
+    assert "P-SOURDOUGHLAME" not in body             # $21.99 out of range
+
+
+def test_product_page_shows_lifecycle_confidence_and_chart(server):
+    status, body = _get(server, "/product?id=P-SOURDOUGHLAME")
+    assert status == 200
+    assert "early trend" in body                     # lifecycle chip
+    assert "Data confidence" in body
+    assert "<svg" in body                            # units sparkline
+    assert "Suppliers (best first)" in body          # auto-recommended supplier (★)
+    assert "★" in body
+
+
 def test_overview_links_to_playbook(server):
     status, body = _get(server, "/")
     assert status == 200

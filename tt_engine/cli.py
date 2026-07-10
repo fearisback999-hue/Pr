@@ -503,6 +503,113 @@ def cmd_pod(args) -> int:
     return 0
 
 
+def _scored_or_fail(db, product_id):
+    sr = pipeline.score_stored(db, product_id)
+    if sr is None:
+        print(f"no stored metrics for {product_id} — add/import data first")
+    return sr
+
+
+def cmd_analyze(args) -> int:
+    from .analysis import analyze_market
+    from .psychology import analyze
+    llm = LLMClient()
+    with _db(args) as db:
+        sr = _scored_or_fail(db, args.product_id)
+        if sr is None:
+            return 1
+        product = sr.record.product
+        psych = analyze(product.name, product.reviews, product.category, llm)
+        text = analyze_market(sr, psych).render()
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out}")
+        else:
+            print(text)
+    return 0
+
+
+def cmd_creative_pack(args) -> int:
+    from .creative import build_pack
+    from .psychology import analyze
+    llm = LLMClient()
+    with _db(args) as db:
+        product = db.get_product(args.product_id)
+        if product is None:
+            print(f"{args.product_id} not found")
+            return 1
+        psych = analyze(product.name, product.reviews, product.category, llm)
+        pack = build_pack(product, psych, llm=llm)
+        text = pack.render()
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out} — {len(pack.hooks)} hooks, {len(pack.concepts)} "
+                  f"concepts, {len(pack.paid_scripts)}+{len(pack.organic_scripts)} scripts"
+                  + (f", ⚠️ {len(pack.flagged)} compliance flag(s)" if pack.flagged else ""))
+        else:
+            print(text)
+    return 0
+
+
+def cmd_landing(args) -> int:
+    from .psychology import analyze
+    from .reports.landing import build_landing_page
+    llm = LLMClient()
+    with _db(args) as db:
+        sr = _scored_or_fail(db, args.product_id)
+        if sr is None:
+            return 1
+        product = sr.record.product
+        psych = analyze(product.name, product.reviews, product.category, llm)
+        suppliers = db.suppliers_for(product.id)
+        us_wh = any(s.us_warehouse for s in suppliers)
+        page = build_landing_page(product, psych, sr.economics, us_warehouse=us_wh)
+        text = page.render()
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out}"
+                  + (f" — ⚠️ {len(page.flagged)} compliance flag(s)" if page.flagged else ""))
+        else:
+            print(text)
+    return 0
+
+
+def cmd_search(args) -> int:
+    from .reports.scorecard import verdict
+    with _db(args) as db:
+        q = (args.q or "").lower()
+        rows = []
+        for p in db.all_products():
+            if q and q not in p.name.lower() and q not in p.id.lower():
+                continue
+            if args.category and p.category.lower() != args.category.lower():
+                continue
+            metrics = db.metrics_for(p.id)
+            price = metrics[-1].price if metrics else None
+            if args.min_price is not None and (price is None or price < args.min_price):
+                continue
+            if args.max_price is not None and (price is None or price > args.max_price):
+                continue
+            score = db.latest_score(p.id)
+            rows.append((p, price, score))
+        if not rows:
+            print("no products match")
+            return 1
+        rows.sort(key=lambda r: (r[2].total if r[2] else -1), reverse=True)
+        for p, price, score in rows:
+            v = verdict(score.gates_passed, score.total) if score else "—"
+            total = f"{score.total:.0f}" if score else "—"
+            pr = f"${price:.2f}" if price else "—"
+            print(f"{total:>4}  [{v:<5}] {p.id:<20} {pr:>8}  {p.category:<12} {p.name}")
+    return 0
+
+
 def cmd_roadmap(args) -> int:
     from .roadmap import plan_million, render_roadmap
     try:
@@ -743,6 +850,29 @@ def main(argv=None) -> int:
     p.add_argument("--hours", type=float, default=5.0, help="hours/week you can spend")
     p.add_argument("--minutes", type=float, default=30.0, help="minutes per listing")
     p.set_defaults(func=cmd_pod)
+
+    p = sub.add_parser("analyze", help="full market analysis: SWOT, risks, audience, offers")
+    p.add_argument("product_id")
+    p.add_argument("--out", default=None, help="write markdown to a file")
+    p.set_defaults(func=cmd_analyze)
+
+    p = sub.add_parser("creative-pack",
+                       help="50 hooks + 50 UGC concepts + 20 paid/20 organic scripts + more")
+    p.add_argument("product_id")
+    p.add_argument("--out", default=None, help="write markdown to a file")
+    p.set_defaults(func=cmd_creative_pack)
+
+    p = sub.add_parser("landing", help="landing-page copy (compliance-swept, honest slots)")
+    p.add_argument("product_id")
+    p.add_argument("--out", default=None, help="write markdown to a file")
+    p.set_defaults(func=cmd_landing)
+
+    p = sub.add_parser("search", help="search products by keyword / category / price")
+    p.add_argument("--q", default=None, help="keyword in name or id")
+    p.add_argument("--category", default=None)
+    p.add_argument("--min-price", type=float, default=None)
+    p.add_argument("--max-price", type=float, default=None)
+    p.set_defaults(func=cmd_search)
 
     p = sub.add_parser("roadmap", help="the honest milestone math from $0 to $1M")
     p.add_argument("--goal", type=float, default=1_000_000.0, help="target $ (default 1,000,000)")

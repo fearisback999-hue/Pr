@@ -12,7 +12,7 @@ from typing import Optional
 from .config import CONFIG
 from .creative import HiggsfieldClient, build_kit
 from .db import Database, models
-from .detection import TriggerResult, evaluate
+from .detection import LifecycleResult, TriggerResult, classify_lifecycle, evaluate
 from .detection._stats import clamp
 from .economics import Economics, compute_economics, unknown_economics
 from .feeds import FeedRecord, get_feed
@@ -25,7 +25,7 @@ from .psychology import (
     emotion_signal,
 )
 from .reports.opportunity import AttackPacket, OpportunityReport, render_report
-from .scoring import ContentSignals, ScoringInputs
+from .scoring import ConfidenceResult, ContentSignals, ScoringInputs, compute_confidence
 from .scoring.algorithm import ScoreBreakdown, score_product
 from .sourcing import SupplierScore, rank_suppliers
 
@@ -82,6 +82,8 @@ class ScoredRecord:
     trigger: TriggerResult
     economics: Economics
     breakdown: ScoreBreakdown
+    lifecycle: LifecycleResult = None      # type: ignore[assignment]
+    confidence: ConfidenceResult = None    # type: ignore[assignment]
 
 
 def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
@@ -105,7 +107,11 @@ def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
         commodity_signal=commodity_signal(rec.reviews),
     )
     breakdown = score_product(inputs)
-    return ScoredRecord(record=rec, trigger=trigger, economics=econ, breakdown=breakdown)
+    return ScoredRecord(
+        record=rec, trigger=trigger, economics=econ, breakdown=breakdown,
+        lifecycle=classify_lifecycle(metrics, trigger),
+        confidence=compute_confidence(metrics, trigger, econ, rec.reviews),
+    )
 
 
 def score_stored(db: Database, product_id: str) -> Optional[ScoredRecord]:

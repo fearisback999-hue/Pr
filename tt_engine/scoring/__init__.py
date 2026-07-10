@@ -6,10 +6,12 @@ score must never override an economic or compliance landmine.
 """
 
 from .algorithm import DEFAULT_WEIGHTS, load_weights, save_weights, score_product
+from .confidence import ConfidenceResult, compute_confidence
 from .gates import GateResult, check_gates
 from .inputs import ContentSignals, ScoringInputs
 
 __all__ = [
     "ScoringInputs", "ContentSignals", "GateResult", "check_gates",
     "score_product", "load_weights", "save_weights", "DEFAULT_WEIGHTS",
+    "ConfidenceResult", "compute_confidence",
 ]

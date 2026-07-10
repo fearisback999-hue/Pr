@@ -10,6 +10,7 @@ creative kit and (when configured) pushes it into Higgsfield.
 
 from .brief import FORMATS, CreativeKit, build_kit
 from .compliance import DISCLOSURE, ComplianceReport, review_text
+from .concepts import CreativePack, UGCConcept, build_pack
 from .higgsfield import HiggsfieldClient
 from .hooks import HOOK_TYPES, Hook, generate_hooks
 from .mcp_client import (
@@ -28,6 +29,7 @@ __all__ = [
     "UGCScript", "generate_scripts",
     "ComplianceReport", "review_text", "DISCLOSURE",
     "CreativeKit", "build_kit", "FORMATS",
+    "CreativePack", "build_pack", "UGCConcept",
     "HiggsfieldClient",
     "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",
     "GenerationResult", "ExportResult", "ConfirmationRequired",

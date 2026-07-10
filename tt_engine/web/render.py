@@ -76,8 +76,44 @@ ul { margin:6px 0; padding-left:22px; }
 .phasehead .n { color:var(--mut); font-size:13px; }
 """
 
-_NAV = [("Overview", "/"), ("Playbook", "/playbook"), ("Advertising", "/advertising"),
-        ("Budget", "/budget"), ("Creators", "/creators"), ("Road to $1M", "/million")]
+_NAV = [("Overview", "/"), ("Search", "/search"), ("Playbook", "/playbook"),
+        ("Advertising", "/advertising"), ("Budget", "/budget"),
+        ("Creators", "/creators"), ("Road to $1M", "/million")]
+
+
+def sparkline(values: list[float], width: int = 220, height: int = 44,
+              stroke: str = "#4da3ff") -> str:
+    """Inline SVG sparkline — no JS, no external assets."""
+    pts = [v for v in values if v is not None]
+    if len(pts) < 2:
+        return "<span class=mut>not enough data to chart</span>"
+    lo, hi = min(pts), max(pts)
+    span = (hi - lo) or 1.0
+    step = width / (len(pts) - 1)
+    coords = " ".join(
+        f"{i * step:.1f},{height - 4 - (v - lo) / span * (height - 8):.1f}"
+        for i, v in enumerate(pts)
+    )
+    return (f"<svg width='{width}' height='{height}' viewBox='0 0 {width} {height}' "
+            f"role='img' aria-label='trend'>"
+            f"<polyline points='{coords}' fill='none' stroke='{stroke}' "
+            f"stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/></svg>")
+
+
+_STAGE_CLASS = {"early_trend": "TEST", "growing": "TEST", "brand_new": "info",
+                "peaking": "WATCH", "oversaturated": "KILL", "dead": "KILL"}
+
+
+def stage_chip(stage: str) -> str:
+    cls = _STAGE_CLASS.get(stage, "info")
+    return f'<span class="chip {cls}">{esc(stage.replace("_", " "))}</span>'
+
+
+def meter(fraction: float, label: str) -> str:
+    pct = int(max(0.0, min(1.0, fraction)) * 100)
+    color = "var(--good)" if pct >= 80 else ("var(--warn)" if pct >= 55 else "var(--bad)")
+    return (f"<div class=bar title='{esc(label)}'>"
+            f"<i style='width:{pct}%;background:{color}'></i></div>")
 
 
 def page(title: str, body: str, active: str = "/") -> str:

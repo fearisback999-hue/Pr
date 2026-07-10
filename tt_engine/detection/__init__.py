@@ -7,10 +7,12 @@ window closes (Part 0, truth #1). The pieces:
   saturation — seller / promo-video / ad counts + ad-age (flood of fresh ads = closing)
   trigger    — fires on HIGH momentum + LOW-but-rising saturation, and always emits a
                window_days runway estimate ("good product, ~18 days of runway")
+  lifecycle  — brand_new / early_trend / growing / peaking / oversaturated / dead
   confirm    — cross-confirm a trigger across two velocity sources before trusting it
 """
 
 from .confirm import CrossConfirmation, confirm_metrics, cross_confirm
+from .lifecycle import STAGES, LifecycleResult, classify_lifecycle
 from .momentum import MomentumResult, compute_momentum
 from .saturation import SaturationResult, compute_saturation
 from .trigger import TriggerResult, evaluate
@@ -20,4 +22,5 @@ __all__ = [
     "SaturationResult", "compute_saturation",
     "TriggerResult", "evaluate",
     "CrossConfirmation", "cross_confirm", "confirm_metrics",
+    "LifecycleResult", "classify_lifecycle", "STAGES",
 ]

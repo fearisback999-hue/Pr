@@ -22,7 +22,9 @@ from ..guide import all_steps, next_step
 from ..playbook import STEPS, VERIFIED_DATE, all_sources, current_phase, overall, progress
 from ..reports.scorecard import render_scorecard, verdict
 from ..validation import KILL_HOURS, hours_below_breakeven, summarize_tests
-from .render import chip, esc, kpi, md_to_html, page, table
+from .render import (
+    chip, esc, kpi, md_to_html, meter, page, sparkline, stage_chip, table,
+)
 
 # Pricing verified 2026-07-09 via live web research — reverify before budgeting against
 # it, these platforms change plans/pricing often. See docs/OPERATING.md for sources.
@@ -209,9 +211,38 @@ def page_product(db: Database, pid: str) -> Optional[str]:
 
     sr = pipeline.score_stored(db, pid)
     if sr is not None:
+        # Lifecycle + confidence + trend — the at-a-glance read above the full scorecard.
+        metrics = db.metrics_for(pid)
+        units = [float(m.units) for m in metrics][-35:]
+        body.append("<div class=panel>"
+                    f"<p>{stage_chip(sr.lifecycle.stage)} "
+                    f"<span class=mut>{esc('; '.join(sr.lifecycle.reasons[:1]))}</span></p>"
+                    f"<p><b>Units/day (last {len(units)}d)</b><br>{sparkline(units)}</p>"
+                    f"<p><b>Data confidence: {sr.confidence.score:.0%} "
+                    f"({sr.confidence.band})</b>{meter(sr.confidence.score, 'confidence')}"
+                    + ("".join(f"<div class=mut>• {esc(r)}</div>"
+                               for r in sr.confidence.reasons) or
+                       "<div class=mut>no data-quality gaps</div>")
+                    + "</p></div>")
         body.append(f"<div class=panel>{md_to_html(render_scorecard(sr))}</div>")
     else:
         body.append("<div class=panel><p class=mut>No metrics yet — nothing to score.</p></div>")
+
+    suppliers = db.suppliers_for(pid)
+    if suppliers:
+        from ..sourcing import rank_suppliers
+        ranked = rank_suppliers(suppliers)
+        body.append("<h2>Suppliers (best first)</h2><div class=panel>")
+        rows = []
+        for i, ss in enumerate(ranked):
+            s = ss.supplier
+            rows.append([("★ " if i == 0 else "") + esc(s.name or s.ref),
+                         f"${s.cost:.2f}+${s.ship_cost:.2f}", f"{s.ship_days:.0f}d",
+                         "US" if s.us_warehouse else "—", f"{ss.total:.0f}/100"])
+        body.append(table(["Supplier", "Landed", "Ship", "Warehouse", "Score"], rows,
+                          num_cols={1, 2, 4}))
+        body.append("<p class=mut>★ = recommended (composite of cost, speed, reliability "
+                    "— the same ranking `packet` uses).</p></div>")
 
     creatives = db.creatives_for(pid)
     if creatives:
@@ -500,6 +531,60 @@ def page_million(db: Database, q: dict) -> str:
     return page("Road to $1M", "".join(body), "/million")
 
 
+def page_search(db: Database, q: dict) -> str:
+    query = (q.get("q") or [""])[0].strip()
+    cat = (q.get("category") or [""])[0].strip()
+    min_p = _f(q, "min_price", 0.0)
+    max_p = _f(q, "max_price", 0.0)
+
+    body = ["<h1>Search products</h1>",
+            "<div class=panel><form class=calc method=get action=/search>"
+            f"<label>Keyword<input name=q value='{esc(query)}'></label>"
+            f"<label>Category<input name=category value='{esc(cat)}'></label>"
+            f"<label>Min price $<input name=min_price value='{min_p:g}'></label>"
+            f"<label>Max price $<input name=max_price value='{max_p:g}'></label>"
+            "<button>Search</button></form>"
+            "<p class=mut>Searches everything in YOUR database — imported CSVs, manual "
+            "adds, and the sample feed. It does not (and by design will not) scrape "
+            "TikTok/Amazon live; feed it exports and it searches them.</p></div>"]
+
+    rows = []
+    for p in db.all_products():
+        if query and query.lower() not in p.name.lower() and query.lower() not in p.id.lower():
+            continue
+        if cat and p.category.lower() != cat.lower():
+            continue
+        metrics = db.metrics_for(p.id)
+        price = metrics[-1].price if metrics else None
+        if min_p and (price is None or price < min_p):
+            continue
+        if max_p and (price is None or price > max_p):
+            continue
+        score = db.latest_score(p.id)
+        sr = pipeline.score_stored(db, p.id) if metrics else None
+        units = [float(m.units) for m in metrics][-35:]
+        rows.append((score.total if score else -1, [
+            f"<a href='/product?id={esc(p.id)}'>{esc(p.id)}</a>",
+            esc(p.name), esc(p.category),
+            f"${price:.2f}" if price else "—",
+            f"{score.total:.0f}" if score else "—",
+            chip(verdict(score.gates_passed, score.total)) if score else "—",
+            stage_chip(sr.lifecycle.stage) if sr else "—",
+            sparkline(units, width=120, height=28) if len(units) >= 2 else "—",
+        ]))
+    rows.sort(key=lambda r: r[0], reverse=True)
+
+    body.append(f"<h2>{len(rows)} result(s)</h2><div class=panel>")
+    if rows:
+        body.append(table(["Product", "Name", "Category", "Price", "Score", "Verdict",
+                           "Lifecycle", "Trend"], [r for _, r in rows], num_cols={3, 4}))
+    else:
+        body.append("<p class=mut>Nothing matches — loosen the filters or import more "
+                    "data (<code>import-csv</code>).</p>")
+    body.append("</div>")
+    return page("Search", "".join(body), "/search")
+
+
 # ── HTTP plumbing ────────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
     db_path: str = CONFIG.db_path
@@ -532,6 +617,8 @@ class Handler(BaseHTTPRequestHandler):
                     html = page_creators(db)
                 elif url.path == "/million":
                     html = page_million(db, q)
+                elif url.path == "/search":
+                    html = page_search(db, q)
                 else:
                     return self._send(404, page("Not found", "<h1>404</h1>"))
             self._send(200, html)
