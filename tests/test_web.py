@@ -38,13 +38,13 @@ def test_overview_shows_board_and_next_steps(server):
     status, body = _get(server, "/")
     assert status == 200
     assert "Ranked board" in body and "What to do next" in body
-    assert "P-SCALPMASSAGER" in body
+    assert "P-SOURDOUGHLAME" in body
     assert 'class="chip TEST"' in body        # at least one TEST-ready product
     assert 'class="chip KILL"' in body        # and the gated ones show as KILL
 
 
 def test_product_page_renders_scorecard_and_next_step(server):
-    status, body = _get(server, "/product?id=P-SCALPMASSAGER")
+    status, body = _get(server, "/product?id=P-SOURDOUGHLAME")
     assert status == 200
     assert "Scorecard" in body and "break-even ROAS" in body
     assert "<b>Next:</b>" in body

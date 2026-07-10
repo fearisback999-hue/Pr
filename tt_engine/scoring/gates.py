@@ -4,8 +4,9 @@
   • any return-risk red flag
   • branded / trademarked item
   • restricted TikTok category
+  • commodity-saturated (already a crowded red ocean)
 
-A hot momentum score must never override an economic or compliance landmine.
+A hot momentum score must never override an economic, compliance, or saturation landmine.
 """
 
 from __future__ import annotations
@@ -16,6 +17,10 @@ from ..economics.calculator import MARGIN_FLOOR
 from .inputs import ScoringInputs
 
 RETURN_RISK_RED_FLAG = 0.10  # return rate at/above which the gate trips
+# Saturation index at/above which the opportunity is a crowded commodity — skip it without
+# a structural edge. Grounded in the common research rule of thumb: products scoring above
+# ~65% on a saturation scale are red-ocean and not worth entering cold (2026-07-09).
+COMMODITY_SATURATION_MAX = 65.0
 
 
 @dataclass
@@ -42,5 +47,11 @@ def check_gates(inp: ScoringInputs) -> GateResult:
         failures.append("branded / trademarked item")
     if inp.product.restricted:
         failures.append("restricted TikTok category")
+    sat_index = inp.trigger.saturation.index
+    if sat_index >= COMMODITY_SATURATION_MAX:
+        failures.append(
+            f"commodity-saturated (saturation {sat_index:.0f} ≥ {COMMODITY_SATURATION_MAX:.0f}) "
+            "— crowded red ocean; skip without a structural edge"
+        )
 
     return GateResult(passed=not failures, failures=failures)

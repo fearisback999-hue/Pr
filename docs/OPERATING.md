@@ -214,6 +214,18 @@ you run `recalibrate --apply` yourself.
   +8pts of expected return rate — enough to trip the 10% return-risk hard gate.
 - **Impulse price band.** $15–50 scores full marks in Economics; below ~$10 you can't
   buy the customer profitably, above ~$70 the scroll-buy reflex dies.
+- **Niche over commodity — the big one.** Generic me-too products (pimple patches,
+  tumblers, phone stands) are traps: competition floods in the moment they work and
+  there's no defensible edge. Two mechanisms reject them: (1) a **commodity-saturation
+  hard gate** — a crowded category (saturation index ≥ 65, the common research rule of
+  thumb) is disqualified regardless of momentum or margins, so a flooded product with
+  *great* economics still gets KILLED; and (2) a **differentiation** sub-score in
+  Competition Timing that pulls generic commodities below the 80 bar even while their
+  current competition is still low, computed from the category's inherent commodity-ness,
+  price position (a $6 race-to-the-bottom price is a tell), and commoditization language
+  in the reviews ("everyone sells this", "prices all over"). The winners that surface
+  instead are defensible niche demand — a hobby tool, a problem-specific pet product, an
+  aesthetic accessory — where the window is actually yours to own.
 
 ---
 

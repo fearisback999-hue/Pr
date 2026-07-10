@@ -15,23 +15,25 @@ def test_seed_and_daily_pipeline(tmp_path):
         assert n >= 5
         result = pipeline.daily(db)
         ids = {s.record.product.id for s in result.scored}
-        assert "P-SCALPMASSAGER" in ids
+        assert "P-SOURDOUGHLAME" in ids
 
         by_id = {s.record.product.id: s for s in result.scored}
 
-        # The clean beauty product should be an attack-ready candidate.
-        scalp = by_id["P-SCALPMASSAGER"].breakdown.score
-        assert scalp.gates_passed
-        assert scalp.total >= 80
-        assert any(c.record.product.id == "P-SCALPMASSAGER" for c in result.new_candidates)
+        # The defensible NICHE product should be an attack-ready candidate.
+        lame = by_id["P-SOURDOUGHLAME"].breakdown.score
+        assert lame.gates_passed
+        assert lame.total >= 80
+        assert any(c.record.product.id == "P-SOURDOUGHLAME" for c in result.new_candidates)
 
         # Each problem archetype trips its intended gate (or fails to trigger).
         assert not by_id["P-BRANDPLUSH"].breakdown.score.gates_passed     # branded
         assert not by_id["P-VAPEKIT"].breakdown.score.gates_passed        # restricted
         assert not by_id["P-CHEAPCABLE"].breakdown.score.gates_passed     # thin margin
-        # Cheap cable triggers on momentum but is blocked — momentum can't override economics.
-        assert by_id["P-CHEAPCABLE"].trigger.triggered
-        assert not by_id["P-CHEAPCABLE"].breakdown.recommended
+        # The generic commodity gets gated on saturation — the whole point: a crowded
+        # me-too product is disqualified regardless of momentum.
+        pimple = by_id["P-PIMPLEPATCH"].breakdown.score
+        assert not pimple.gates_passed
+        assert any("commodity-saturated" in f for f in pimple.gate_failures)
 
 
 def test_weekly_report_has_attack_packet(tmp_path):
@@ -57,9 +59,9 @@ def test_score_is_reproducible_from_stored_state(tmp_path):
         result = pipeline.daily(db)
         persisted = {s.record.product.id: s.breakdown.score.total for s in result.scored}
         # Reviews survived the DB round-trip.
-        assert db.get_product("P-SCALPMASSAGER").reviews
-        re = pipeline.score_stored(db, "P-SCALPMASSAGER")
-        assert abs(re.breakdown.score.total - persisted["P-SCALPMASSAGER"]) < 0.01
+        assert db.get_product("P-SOURDOUGHLAME").reviews
+        re = pipeline.score_stored(db, "P-SOURDOUGHLAME")
+        assert abs(re.breakdown.score.total - persisted["P-SOURDOUGHLAME"]) < 0.01
         assert re.breakdown.score.total >= 80  # still attack-ready when re-scored
 
 
@@ -68,7 +70,7 @@ def test_no_supplier_means_economics_refused_and_gated(tmp_path):
     placeholder guesses) and fail the margin gate as unverifiable."""
     with _db(tmp_path) as db:
         result = pipeline.daily(db)  # feed ingested, but NO suppliers seeded
-        sr = next(s for s in result.scored if s.record.product.id == "P-SCALPMASSAGER")
+        sr = next(s for s in result.scored if s.record.product.id == "P-SOURDOUGHLAME")
         assert not sr.economics.landed_known
         assert sr.breakdown.score.economics == 0.0
         assert not sr.breakdown.score.gates_passed

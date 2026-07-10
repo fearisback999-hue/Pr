@@ -1,16 +1,22 @@
 """A deterministic synthetic feed so the whole engine runs offline end-to-end.
 
-It hand-builds a spread of archetypes that exercise every branch of detection,
-scoring, and the hard gates:
+The archetypes are chosen to make one thing obvious: the engine surfaces DEFENSIBLE
+NICHE products and rejects generic commodities. Generic me-too products (pimple patches,
+tumblers, phone stands) don't work — competition floods in instantly and there's no edge
+— so here they are the ones that get GATED or scored down, while the winners are
+harder-to-copy niche finds with real runway.
 
-  • rising_star   — sales bending upward, saturation still low, fresh ads → should TRIGGER
-  • early_breakout— steep week-over-week growth, almost no competition yet → strong TRIGGER
-  • peaked        — high sales but flat/declining, crowded, stale ads → must NOT trigger
-                    (Appendix B's #1 beginner mistake: chasing products that already peaked)
-  • dud           — flat low sales, nothing happening
-  • thin_margin   — momentum looks fine but economics fail the margin hard gate
-  • branded       — trademarked item → hard-gate disqualified regardless of momentum
-  • restricted    — restricted TikTok category → hard-gate disqualified
+  Niche winners (should be ATTACK-ready — low saturation, differentiated, healthy margin):
+  • cowhide guitar strap   — musician + aesthetic niche, hard to commoditize
+  • dog calming vest        — problem-specific pet niche (thunderstorm anxiety)
+  • sourdough scoring lame  — hobby-baking niche, identity-driven
+
+  Commodity traps (should be rejected — the point of the whole exercise):
+  • pimple patches, 40oz tumbler, posture corrector — already crowded → COMMODITY gate
+  • generic phone stand, bargain USB cable          — commodity + thin margin gate
+
+  Compliance demos:
+  • licensed plush → branded gate · disposable vape → restricted gate
 
 The numbers are illustrative, not real market data. Replace with a live adapter.
 """
@@ -48,35 +54,76 @@ class _Archetype:
 
 
 _ARCHETYPES: list[_Archetype] = [
+    # ── NICHE WINNERS — defensible, low-competition, healthy margin → ATTACK ─────
     _Archetype(
-        pid="P-SCALPMASSAGER", name="Scalp Massager Pro", category="beauty",
-        base_units=40, early_growth=0.03, late_growth=0.14,
-        start_sellers=3, seller_growth=0.02, start_promo=4, promo_growth=0.04,
-        start_ads=2, ad_growth=0.05, avg_ad_age_today=6, price=24.99,
+        pid="P-COWHIDESTRAP", name="Cowhide Guitar Strap", category="accessories",
+        base_units=75, early_growth=0.03, late_growth=0.19,
+        start_sellers=3, seller_growth=0.015, start_promo=3, promo_growth=0.03,
+        start_ads=2, ad_growth=0.04, avg_ad_age_today=5, price=39.99,
         reviews=(
-            "OMG this melts my tension headaches away after work, I use it every night",
-            "bought it for stress and now my whole family fights over it",
-            "the tingles are insane, so relaxing, cannot believe how good it feels",
-            "helps me fall asleep, genuinely. wish I found it sooner",
-            "shipping was fast and it actually works, not a gimmick",
+            "I am OBSESSED, played my first open mic and everyone asked where I got it!",
+            "the cowhide is real and no two are the same, mine is gorgeous, I love it",
+            "cannot believe how much nicer this is than the generic nylon straps",
+            "bought it for my guitarist boyfriend and he is addicted, hasn't taken it off",
+            "the leather softened in a week and looks amazing, total head-turner on stage",
         ),
     ),
     _Archetype(
-        pid="P-LEDHOODIE", name="LED Light-Up Hoodie", category="apparel",
-        base_units=20, early_growth=0.02, late_growth=0.20,
-        start_sellers=2, seller_growth=0.015, start_promo=2, promo_growth=0.03,
-        start_ads=1, ad_growth=0.04, avg_ad_age_today=4, price=39.99,
+        pid="P-DOGCALMVEST", name="Calming Pressure Vest for Anxious Dogs", category="pet",
+        base_units=78, early_growth=0.025, late_growth=0.20,
+        start_sellers=4, seller_growth=0.02, start_promo=4, promo_growth=0.035,
+        start_ads=2, ad_growth=0.045, avg_ad_age_today=6, price=36.99,
         reviews=(
-            "wore this to a concert and everyone asked where I got it",
-            "the glow is way brighter than I expected, total head-turner",
-            "perfect for raves, festival season is gonna be crazy",
+            "my rescue finally slept through a thunderstorm, I actually cried, obsessed",
+            "cannot believe the difference, vet suggested a pressure wrap and this works",
+            "fireworks night was calm for the first time ever, this is amazing",
+            "everyone in my dog group asked what I used, I love this thing",
+            "cheaper than the anxiety meds and no groggy side effects, life-changing",
+        ),
+    ),
+    _Archetype(
+        pid="P-SOURDOUGHLAME", name="Sourdough Scoring Lame + Blades", category="hobby",
+        base_units=52, early_growth=0.025, late_growth=0.17,
+        start_sellers=3, seller_growth=0.02, start_promo=3, promo_growth=0.03,
+        start_ads=2, ad_growth=0.04, avg_ad_age_today=7, price=21.99,
+        reviews=(
+            "my scoring finally looks like the bakery loaves, the ear is insane, obsessed!",
+            "cannot believe the difference the curved blade made, I love it, wish I found it sooner",
+            "everyone in my sourdough group asked about it, perfect gift, amazing quality",
+            "comes with spare blades and a leather cover, feels so premium, addicted to scoring now",
+        ),
+    ),
+    # ── COMMODITY TRAPS — the point of the exercise: these get REJECTED ──────────
+    _Archetype(
+        # The headline example: real pimple-patch competition is enormous. Given a
+        # realistic seller/promo/ad load, the commodity-saturation gate disqualifies it
+        # regardless of momentum — exactly what should happen.
+        pid="P-PIMPLEPATCH", name="Hydrocolloid Pimple Patches", category="beauty",
+        base_units=180, early_growth=0.02, late_growth=0.06,
+        start_sellers=70, seller_growth=0.015, start_promo=150, promo_growth=0.02,
+        start_ads=48, ad_growth=0.015, avg_ad_age_today=35, price=16.99,
+        reviews=(
+            "they work but literally every shop on tiktok sells the exact same patches",
+            "saw identical ones on like 20 different stores, prices all over the place",
+            "fine product, nothing special, it's a race to the bottom now",
+        ),
+    ),
+    _Archetype(
+        pid="P-TRENDYTUMBLER", name="40oz Trendy Tumbler", category="home",
+        base_units=400, early_growth=0.0, late_growth=-0.01,
+        start_sellers=60, seller_growth=0.04, start_promo=200, promo_growth=0.05,
+        start_ads=90, ad_growth=0.04, avg_ad_age_today=50, price=34.99,
+        reviews=(
+            "cute but literally everyone has one now",
+            "saw it on every single shop, prices all over",
+            "it's fine, holds drinks, nothing special anymore",
         ),
     ),
     _Archetype(
         pid="P-POSTURECORR", name="Posture Corrector Belt", category="wellness",
         base_units=300, early_growth=0.00, late_growth=-0.02,
-        start_sellers=40, seller_growth=0.05, start_promo=120, promo_growth=0.06,
-        start_ads=60, ad_growth=0.05, avg_ad_age_today=55, price=21.99,
+        start_sellers=45, seller_growth=0.05, start_promo=130, promo_growth=0.06,
+        start_ads=65, ad_growth=0.05, avg_ad_age_today=55, price=21.99,
         reviews=(
             "does what it says but everyone and their mom is selling this now",
             "okay product, returned one because sizing was off",
@@ -88,7 +135,7 @@ _ARCHETYPES: list[_Archetype] = [
         base_units=12, early_growth=0.005, late_growth=0.004,
         start_sellers=80, seller_growth=0.0, start_promo=30, promo_growth=0.0,
         start_ads=10, ad_growth=0.0, avg_ad_age_today=90, price=8.99,
-        reviews=("it's a phone stand. it holds my phone.",),
+        reviews=("it's a phone stand. it holds my phone. everybody sells them.",),
     ),
     _Archetype(
         pid="P-CHEAPCABLE", name="Bargain USB Cable 3-pack", category="electronics",
@@ -97,6 +144,7 @@ _ARCHETYPES: list[_Archetype] = [
         start_ads=2, ad_growth=0.04, avg_ad_age_today=7, price=6.49,
         reviews=("works fine", "cheap and cheerful", "one stopped working after a month"),
     ),
+    # ── COMPLIANCE DEMOS — gated on brand / restricted category ──────────────────
     _Archetype(
         pid="P-BRANDPLUSH", name="Stitch Plush (licensed)", category="toys",
         base_units=90, early_growth=0.03, late_growth=0.16,
@@ -110,40 +158,6 @@ _ARCHETYPES: list[_Archetype] = [
         start_sellers=4, seller_growth=0.02, start_promo=3, promo_growth=0.03,
         start_ads=2, ad_growth=0.04, avg_ad_age_today=5, price=14.99, restricted=True,
         reviews=("great flavors",),
-    ),
-    _Archetype(
-        pid="P-PIMPLEPATCH", name="Hydrocolloid Pimple Patches", category="beauty",
-        base_units=80, early_growth=0.03, late_growth=0.15,
-        start_sellers=4, seller_growth=0.02, start_promo=5, promo_growth=0.04,
-        start_ads=3, ad_growth=0.05, avg_ad_age_today=6, price=16.99,
-        reviews=(
-            "these shrink my zits overnight, I'm obsessed",
-            "cannot believe how fast they work, skin cleared up",
-            "everyone asked what I did to my skin, amazing",
-            "I keep reordering these, they actually melt the spot away",
-        ),
-    ),
-    _Archetype(
-        pid="P-MAGSPRAY", name="Magnesium Sleep Spray", category="wellness",
-        base_units=50, early_growth=0.02, late_growth=0.15,
-        start_sellers=3, seller_growth=0.02, start_promo=4, promo_growth=0.035,
-        start_ads=2, ad_growth=0.045, avg_ad_age_today=7, price=22.99,
-        reviews=(
-            "I actually sleep through the night now, insane",
-            "this knocked me out, so relaxing, wish I found it sooner",
-            "spray it on and I'm out in minutes, reorder every month",
-        ),
-    ),
-    _Archetype(
-        pid="P-TRENDYTUMBLER", name="40oz Trendy Tumbler", category="home",
-        base_units=400, early_growth=0.0, late_growth=-0.01,
-        start_sellers=60, seller_growth=0.04, start_promo=200, promo_growth=0.05,
-        start_ads=90, ad_growth=0.04, avg_ad_age_today=50, price=34.99,
-        reviews=(
-            "cute but literally everyone has one now",
-            "saw it on every single shop, prices all over",
-            "it's fine, holds drinks, nothing special anymore",
-        ),
     ),
 ]
 

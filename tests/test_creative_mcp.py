@@ -136,7 +136,7 @@ def test_produce_creatives_gated_on_test_verdict(tmp_path):
         with pytest.raises(ValueError, match="not at TEST verdict"):
             pipeline.produce_creatives(db, "P-BRANDPLUSH")
         # TEST-verdict product → dry-run plan flows through.
-        kit, result = pipeline.produce_creatives(db, "P-SCALPMASSAGER",
+        kit, result = pipeline.produce_creatives(db, "P-SOURDOUGHLAME",
                                                  mcp=HiggsfieldMCP())
         assert result.dry_run and len(result.creatives) == 30
         assert kit.psych.spine  # psychology paragraph feeds the brief

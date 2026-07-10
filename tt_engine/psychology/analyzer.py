@@ -121,6 +121,30 @@ def complaint_signal(reviews: list[str]) -> float:
     return min(1.0, hits / max(len(reviews), 1))
 
 
+# Commoditization language — the tells that a product is a generic me-too everyone
+# already sells (a race to the bottom, not a defensible find). This is what separates a
+# niche winner from the pimple-patch/tumbler/phone-stand commodity trap.
+_COMMODITY_TOKENS = (
+    "everyone has", "everyone is selling", "everyone sells", "everyone and their mom",
+    "every shop", "every store", "on every", "so many sellers", "so many shops",
+    "same as everywhere", "same on every", "prices all over", "race to the bottom",
+    "nothing special", "generic", "saw it everywhere", "seen it everywhere",
+    "all over tiktok", "everybody sells", "everybody has",
+)
+
+
+def commodity_signal(reviews: list[str]) -> float:
+    """Commoditization density in 0..1 — how much the corpus reads like a flooded
+    me-too product ('everyone sells this', 'prices all over', 'nothing special').
+    Feeds the differentiation sub-score so generic commodities score below defensible
+    niche products even when their current competition is still low."""
+    if not reviews:
+        return 0.0
+    text = " ".join(reviews).lower()
+    hits = sum(text.count(t) for t in _COMMODITY_TOKENS)
+    return min(1.0, hits / max(len(reviews), 1))
+
+
 # ── deterministic fallback ─────────────────────────────────────────────────────
 _TRIGGER_KEYWORDS = {
     "relief": ["headache", "tension", "stress", "pain", "relax", "sleep", "sore"],

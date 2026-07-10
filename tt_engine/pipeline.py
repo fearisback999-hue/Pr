@@ -17,7 +17,13 @@ from .detection._stats import clamp
 from .economics import Economics, compute_economics, unknown_economics
 from .feeds import FeedRecord, get_feed
 from .llm import LLMClient
-from .psychology import PsychProfile, analyze, complaint_signal, emotion_signal
+from .psychology import (
+    PsychProfile,
+    analyze,
+    commodity_signal,
+    complaint_signal,
+    emotion_signal,
+)
 from .reports.opportunity import AttackPacket, OpportunityReport, render_report
 from .scoring import ContentSignals, ScoringInputs
 from .scoring.algorithm import ScoreBreakdown, score_product
@@ -27,6 +33,9 @@ from .sourcing import SupplierScore, rank_suppliers
 _RETURN_RATE = {
     "beauty": 0.04, "wellness": 0.04, "supplement": 0.05, "apparel": 0.12,
     "toys": 0.05, "electronics": 0.05, "home": 0.06,
+    # Niche categories: low returns — a guitar strap, a hobby tool, a fitted pet vest
+    # with a sizing guide don't come back the way apparel does.
+    "accessories": 0.05, "hobby": 0.04, "pet": 0.05,
 }
 
 
@@ -91,6 +100,9 @@ def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
     inputs = ScoringInputs(
         product=rec.product, trigger=trigger, economics=econ,
         search_trend_slope=trend_proxy, content=content,
+        # Commoditization read from the corpus feeds the differentiation sub-score, so a
+        # generic me-too product scores below a defensible niche find (Competition Timing).
+        commodity_signal=commodity_signal(rec.reviews),
     )
     breakdown = score_product(inputs)
     return ScoredRecord(record=rec, trigger=trigger, economics=econ, breakdown=breakdown)

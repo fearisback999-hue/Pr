@@ -32,6 +32,11 @@ class ScoringInputs:
     search_trend_slope: Optional[float] = None      # -1..1, upstream demand (Google Trends)
     category_momentum: Optional[float] = None       # 0..1, category-level demand trend
     urgency_signal: Optional[float] = None          # 0..1, urgency / repeat-purchase pull
+    # Niche defensibility (Competition Timing 3.3). 1 = a hard-to-copy niche find; 0 = a
+    # generic commodity anyone can source and undercut. None → derive a heuristic from the
+    # category, price positioning, and commoditization language in the reviews.
+    differentiation: Optional[float] = None
+    commodity_signal: float = 0.0                   # 0..1, commoditization language in reviews
     content: ContentSignals = None                  # type: ignore[assignment]
 
     def __post_init__(self):

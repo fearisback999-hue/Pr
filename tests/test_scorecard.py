@@ -19,7 +19,7 @@ def test_scorecard_for_attack_ready_product_shows_all_the_work(tmp_path):
     with _db(tmp_path) as db:
         seed.seed_sample(db)
         pipeline.daily(db)
-        sr = pipeline.score_stored(db, "P-SCALPMASSAGER")
+        sr = pipeline.score_stored(db, "P-SOURDOUGHLAME")
         text = render_scorecard(sr)
         assert "**Verdict:** **TEST**" in text
         # Every category appears with points, and the input data is shown.
@@ -47,7 +47,7 @@ def test_scorecard_kill_verdict_for_gated_product(tmp_path):
 def test_scorecard_refuses_economics_without_landed_cost(tmp_path):
     with _db(tmp_path) as db:
         pipeline.daily(db)  # no suppliers seeded
-        sr = pipeline.score_stored(db, "P-SCALPMASSAGER")
+        sr = pipeline.score_stored(db, "P-SOURDOUGHLAME")
         text = render_scorecard(sr)
         assert "**Verdict:** **KILL**" in text
         assert "NOT SCORED" in text and "no real landed cost" in text

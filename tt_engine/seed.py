@@ -18,25 +18,29 @@ from .feeds import MockFeed
 # Supplier rows tuned to control the demo's gate outcomes (see docstring).
 _SUPPLIERS = [
     # ref, product_id, name, cost, ship_cost, ship_days, moq, us_wh, rating, resp_hrs, notes
-    ("SUP-P-SCALPMASSAGER", "P-SCALPMASSAGER", "Shenzhen Relax Co", 6.0, 1.5, 4, 50, True, 4.7, 6,
-     "sample passed, custom/private label available"),
-    ("SUP-P-LEDHOODIE", "P-LEDHOODIE", "Glow Apparel Ltd", 12.0, 2.0, 6, 100, False, 4.3, 14,
-     "good quality, sizing runs small"),
+    # ── niche winners: healthy margin, sample passed ──
+    ("SUP-P-COWHIDESTRAP", "P-COWHIDESTRAP", "Andes Leather Goods", 9.0, 2.0, 6, 30, False, 4.7, 10,
+     "genuine cowhide, each piece unique — hard to commoditize, small-batch"),
+    ("SUP-P-DOGCALMVEST", "P-DOGCALMVEST", "PetCalm OEM", 8.0, 1.5, 5, 50, True, 4.6, 8,
+     "sample passed, adjustable sizing, private label available"),
+    ("SUP-P-SOURDOUGHLAME", "P-SOURDOUGHLAME", "Artisan Bake Tools", 4.0, 1.0, 5, 50, True, 4.8, 6,
+     "sample passed, spare blades + leather cover, gift-boxed"),
+    # ── commodity traps: economics are actually FINE — they're gated on saturation ──
+    ("SUP-P-PIMPLEPATCH", "P-PIMPLEPATCH", "ClearSkin OEM", 3.0, 1.0, 4, 100, True, 4.7, 8,
+     "margins fine, but the category is a flooded race to the bottom"),
+    ("SUP-P-TRENDYTUMBLER", "P-TRENDYTUMBLER", "Drinkware Factory", 9.0, 2.0, 6, 200, False, 4.0, 20,
+     "commoditized, everyone sells it"),
     ("SUP-P-POSTURECORR", "P-POSTURECORR", "Wellness OEM", 5.0, 1.0, 8, 200, False, 4.1, 20,
      "commoditized, many sellers"),
+    # ── commodity traps gated on thin margin ──
     ("SUP-P-PHONESTAND", "P-PHONESTAND", "Generic Accessories", 5.0, 0.5, 6, 500, False, 3.9, 30,
-     "cheap, low differentiation"),
+     "cheap, low differentiation, thin margin"),
     ("SUP-P-CHEAPCABLE", "P-CHEAPCABLE", "Cable Factory", 4.5, 0.3, 7, 300, False, 4.0, 18,
      "thin margins, some complaints about durability"),
+    # ── compliance demos ──
     ("SUP-P-BRANDPLUSH", "P-BRANDPLUSH", "Licensed Toys Inc", 7.0, 1.5, 5, 100, True, 4.6, 10,
      "licensed product"),
     ("SUP-P-VAPEKIT", "P-VAPEKIT", "Vapor Supply", 3.0, 0.5, 5, 100, True, 4.2, 12, "restricted category"),
-    ("SUP-P-PIMPLEPATCH", "P-PIMPLEPATCH", "ClearSkin OEM", 3.0, 1.0, 4, 100, True, 4.7, 8,
-     "sample passed, consumable — repeat purchase, private label available"),
-    ("SUP-P-MAGSPRAY", "P-MAGSPRAY", "Calm Labs", 4.5, 1.0, 4, 100, True, 4.6, 10,
-     "sample passed, consumable — repeat purchase"),
-    ("SUP-P-TRENDYTUMBLER", "P-TRENDYTUMBLER", "Drinkware Factory", 9.0, 2.0, 6, 200, False, 4.0, 20,
-     "commoditized, everyone sells it"),
 ]
 
 

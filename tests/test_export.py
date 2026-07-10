@@ -23,9 +23,9 @@ def test_board_rows_match_appendix_a_columns(tmp_path):
         assert totals == sorted(totals, reverse=True)
         assert rows[0]["verdict"] == "ATTACK"
         assert rows[0]["gates_passed"] == "Y"
-        # Clean winners surface as ATTACK rows.
+        # Defensible niche winners surface as ATTACK rows.
         attack_names = {r["name"] for r in rows if r["verdict"] == "ATTACK"}
-        assert "Scalp Massager Pro" in attack_names
+        assert "Sourdough Scoring Lame + Blades" in attack_names
 
 
 def test_gated_products_marked_n(tmp_path):

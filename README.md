@@ -27,9 +27,20 @@ design decision here.
 ```
 
 A product surfaces only if it scores **≥ 80/100 AND clears every hard gate**
-(margin floor, return-risk, no trademark, allowed category). For each survivor the
-engine emits a **window estimate** ("good product, ~18 days of runway") and, when
-configured, auto-builds the Higgsfield creative kit.
+(margin floor, return-risk, no trademark, allowed category, **not commodity-saturated**).
+For each survivor the engine emits a **window estimate** ("good product, ~18 days of
+runway") and, when configured, auto-builds the Higgsfield creative kit.
+
+> **Niche over commodity (by design).** Generic me-too products — pimple patches, 40oz
+> tumblers, phone stands — don't work: competition floods in the moment they pop and
+> there's no defensible edge. So the engine **rejects** them. A crowded category
+> (saturation ≥ 65) is a hard gate regardless of momentum or margins, and a
+> **differentiation** sub-score pulls generic commodities below the bar even while their
+> current competition is still low. What surfaces instead is defensible niche demand — a
+> hobby tool, a problem-specific pet product, an aesthetic accessory — where you can
+> actually own the window. In the sample feed, the pimple patches get KILLED as
+> commodity-saturated while a sourdough scoring lame and a cowhide guitar strap are the
+> ATTACK winners.
 
 ## Quick start
 

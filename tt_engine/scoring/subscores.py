@@ -19,8 +19,20 @@ _CATEGORY = {
     "toys":        (0.5, 0.8, 0.8, 0.6, 0.6, 0.6),
     "electronics": (0.3, 0.6, 0.6, 0.5, 0.5, 0.4),
     "home":        (0.5, 0.7, 0.7, 0.5, 0.6, 0.5),
+    "pet":         (0.6, 0.8, 0.7, 0.6, 0.7, 0.8),   # passionate niche audience
+    "hobby":       (0.5, 0.8, 0.7, 0.6, 0.7, 0.9),   # identity-driven, low competition
+    "accessories": (0.4, 0.8, 0.8, 0.6, 0.7, 0.8),   # aesthetic / self-expression
 }
 _DEFAULT_PROFILE = (0.5, 0.6, 0.6, 0.5, 0.5, 0.5)
+
+# How commodity a category is by nature — 1 = generic race-to-the-bottom (anyone sources
+# the same item from the same suppliers), 0 = inherently differentiable / niche. This is
+# the structural half of the differentiation score; the review language is the other half.
+_COMMODITY_PRIOR = {
+    "electronics": 0.75, "home": 0.55, "toys": 0.45, "apparel": 0.40, "beauty": 0.45,
+    "wellness": 0.40, "supplement": 0.35, "pet": 0.20, "hobby": 0.15, "accessories": 0.30,
+}
+_DEFAULT_COMMODITY_PRIOR = 0.5
 
 
 def _profile(category: str):
@@ -73,7 +85,29 @@ def market_demand(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     })
 
 
-# ── 3. Competition Timing (15): saturation⁻¹ 8, window 4, category momentum 3 ──
+# ── 3. Competition Timing (15): saturation⁻¹ 6, window 3, differentiation 4, cat-mom 2 ──
+def _differentiation(inp: ScoringInputs) -> float:
+    """How defensible / hard-to-copy the product is — the niche-vs-commodity axis.
+
+    A generic commodity (phone stand, USB cable, me-too tumbler) has low differentiation:
+    anyone sources the same item and races the price to the bottom, so even a currently
+    low-competition commodity gets flooded the moment it works. A niche find (a specific
+    hobby tool, a problem-specific pet product, an aesthetic accessory) is harder to copy
+    and holds its window. Distinct from saturation, which is only how crowded it is *now*.
+    """
+    if inp.differentiation is not None:
+        return clamp(inp.differentiation, 0, 1)
+    commodity_prior = _COMMODITY_PRIOR.get(inp.product.category.lower(),
+                                           _DEFAULT_COMMODITY_PRIOR)
+    # The corpus can override the category prior upward (reviews screaming 'everyone sells
+    # this') but not below it — commoditization language only ever makes it look more generic.
+    commodity = max(commodity_prior, clamp(inp.commodity_signal, 0, 1))
+    # Rock-bottom price is a race-to-the-bottom tell: <$12 strong, $25+ none.
+    price = inp.economics.sell_price
+    price_race = 1 - clamp((price - 12.0) / 13.0, 0, 1)
+    return clamp(1.0 - (0.6 * commodity + 0.4 * price_race), 0, 1)
+
+
 def competition_timing(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     sat = inp.trigger.saturation
     sat_inv = 1 - clamp(sat.index / 100, 0, 1)
@@ -81,9 +115,10 @@ def competition_timing(inp: ScoringInputs) -> tuple[float, dict[str, float]]:
     cat_mom = inp.category_momentum
     cat = cat_mom if cat_mom is not None else _profile(inp.product.category)[3]
     return _weighted({
-        "saturation_inv": (sat_inv, 8),
-        "window_freshness": (window, 4),
-        "category_momentum": (clamp(cat, 0, 1), 3),
+        "saturation_inv": (sat_inv, 6),
+        "window_freshness": (window, 3),
+        "differentiation": (_differentiation(inp), 4),
+        "category_momentum": (clamp(cat, 0, 1), 2),
     })
 
 
