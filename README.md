@@ -45,7 +45,9 @@ runway") and, when configured, auto-builds the Higgsfield creative kit.
 ## Quick start
 
 > Operating the engine day-to-day? Read **[`docs/OPERATING.md`](docs/OPERATING.md)** —
-> the plain-language Phase 1/Phase 2 runbook.
+> the plain-language Phase 1/Phase 2 runbook. For the full company-level operating
+> system (architecture, SOPs, decision trees, creator/ads/landing playbooks, compliance
+> checklists, the 90-day roadmap), read **[`docs/OPERATING_SYSTEM.md`](docs/OPERATING_SYSTEM.md)**.
 
 ```bash
 # 0. Brand new to this? The zero-to-hero checklist for the WHOLE business — entity/tax
@@ -185,6 +187,7 @@ scripts/             # cron wrappers
 tests/               # 109 tests across every part + end-to-end smoke + CLI workflow
 docs/THESIS.md       # Part 0 — the operating thesis (read first)
 docs/OPERATING.md    # the Phase 1/2 runbook — how to actually run this daily
+docs/OPERATING_SYSTEM.md  # the full company OS: SOPs, decision trees, creator/ads/LP playbooks
 ```
 
 ## Realistic expectations (Appendix D — reread when excited)
