@@ -610,6 +610,42 @@ def cmd_search(args) -> int:
     return 0
 
 
+def cmd_optimize(args) -> int:
+    from .economics import optimize_offer
+    with _db(args) as db:
+        product = db.get_product(args.product_id)
+        if product is None:
+            print(f"{args.product_id} not found")
+            return 1
+        suppliers = db.suppliers_for(args.product_id)
+        if not suppliers:
+            print("no real landed cost on file — the optimizer refuses to run on guesses "
+                  f"(add one: add-supplier {args.product_id} --cost X --ship-cost Y)")
+            return 1
+        best = min(suppliers, key=lambda s: s.cost + s.ship_cost)
+        metrics = db.metrics_for(args.product_id)
+        if not metrics:
+            print("no metrics — no price on record to optimize around")
+            return 1
+        from .pipeline import return_rate_for
+        report = optimize_offer(
+            args.product_id, sell_price=metrics[-1].price,
+            supplier_cost=best.cost, ship_cost=best.ship_cost,
+            payment_rate=args.payment, affiliate_rate=args.affiliate,
+            return_rate=return_rate_for(product.category, product.reviews),
+            tests=db.tests_for_product(args.product_id),
+        )
+        text = report.render()
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out}")
+        else:
+            print(text)
+    return 0
+
+
 def cmd_roadmap(args) -> int:
     from .roadmap import plan_million, render_roadmap
     try:
@@ -873,6 +909,16 @@ def main(argv=None) -> int:
     p.add_argument("--min-price", type=float, default=None)
     p.add_argument("--max-price", type=float, default=None)
     p.set_defaults(func=cmd_search)
+
+    p = sub.add_parser("optimize",
+                       help="profit optimizer: true fee stack + offer sweep + leak check")
+    p.add_argument("product_id")
+    p.add_argument("--affiliate", type=float, default=0.15,
+                   help="affiliate commission you set (default 0.15; 0 for pure paid/organic)")
+    p.add_argument("--payment", type=float, default=0.03,
+                   help="payment-processing rate (research default 3%%; use your real rate)")
+    p.add_argument("--out", default=None, help="write markdown to a file")
+    p.set_defaults(func=cmd_optimize)
 
     p = sub.add_parser("roadmap", help="the honest milestone math from $0 to $1M")
     p.add_argument("--goal", type=float, default=1_000_000.0, help="target $ (default 1,000,000)")

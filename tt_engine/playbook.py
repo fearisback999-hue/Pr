@@ -256,6 +256,16 @@ STEPS: list[PlaybookStep] = [
         "Get the actual unit + shipping cost from your supplier and enter it; this is "
         "what unlocks every downstream score.",
         "sourcing", command="add-supplier <id> --cost X --ship-cost Y", auto=_has_supplier),
+    PlaybookStep("sup-auto-fulfill", PHASES[3], "Connect official order-fulfillment automation",
+        "This engine never places supplier orders itself (its founding guardrail: no "
+        "automatic spending — and an order-placing bot is exactly that). The RIGHT way "
+        "to automate fulfillment is the supplier platform's own official TikTok Shop "
+        "integration: CJ Dropshipping, AutoDS, and Zendrop all auto-sync incoming TikTok "
+        "orders and fulfill them under authorization YOU grant at connection time, with "
+        "their infrastructure carrying the SLA risk (2 business days to 'In Transit', 6 "
+        "to 'Delivered'). Connect it, place the first few orders watching it work, then "
+        "let it run — and reconcile against payouts monthly (see `recon-monthly`).",
+        "sourcing"),
     PlaybookStep("sup-sample", PHASES[3], "Order a physical sample before scaling spend",
         "Photos lie. Order the product yourself, check real quality/fit/function, before "
         "you put ad budget behind it — this is the single most skipped step and the most "
