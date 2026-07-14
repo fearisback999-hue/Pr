@@ -76,8 +76,8 @@ ul { margin:6px 0; padding-left:22px; }
 .phasehead .n { color:var(--mut); font-size:13px; }
 """
 
-_NAV = [("Overview", "/"), ("Search", "/search"), ("Playbook", "/playbook"),
-        ("Advertising", "/advertising"), ("Budget", "/budget"),
+_NAV = [("Overview", "/"), ("Assistant", "/assistant"), ("Search", "/search"),
+        ("Playbook", "/playbook"), ("Advertising", "/advertising"), ("Budget", "/budget"),
         ("Creators", "/creators"), ("Road to $1M", "/million")]
 
 

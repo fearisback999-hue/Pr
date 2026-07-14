@@ -585,6 +585,48 @@ def page_search(db: Database, q: dict) -> str:
     return page("Search", "".join(body), "/search")
 
 
+_SUGGESTED_QUESTIONS = [
+    "What should I do next?",
+    "Which product should I test first and why?",
+    "What's my true profit after all fees?",
+    "Where do I source with fast shipping?",
+    "When do I kill a test?",
+    "How do I find products that will sell?",
+]
+
+
+def page_assistant(db: Database, q: dict) -> str:
+    from ..assistant import answer as assistant_answer
+
+    question = (q.get("q") or [""])[0].strip()
+    body = ["<h1>Assistant</h1>",
+            "<blockquote>Ask about YOUR live state (board, verdicts, next actions, "
+            "playbook) or how anything in the engine works. It answers from your real "
+            "data + the engine's knowledge — it never invents numbers, and it never "
+            "executes anything: every action it suggests is a command you run."
+            "</blockquote>",
+            "<div class=panel><form class=calc method=get action=/assistant>"
+            f"<label style='flex:1;min-width:320px'>Question"
+            f"<input name=q value='{esc(question)}' style='width:100%'></label>"
+            "<button>Ask</button></form>",
+            "<p class=mut>Try: "
+            + " · ".join(f"<a href='/assistant?q={esc(s.replace(' ', '+'))}'>{esc(s)}</a>"
+                         for s in _SUGGESTED_QUESTIONS)
+            + "</p></div>"]
+
+    if question:
+        result = assistant_answer(db, question)
+        mode = ("<span class='chip TEST'>LLM</span>" if result.mode == "llm"
+                else "<span class='chip info'>offline routing</span>")
+        body.append(f"<h2>Answer {mode}</h2>"
+                    f"<div class=panel>{md_to_html(result.text)}</div>")
+        if result.mode == "offline":
+            body.append("<p class=mut>Set <code>ANTHROPIC_API_KEY</code> in "
+                        "<code>.env</code> for conversational answers grounded in the "
+                        "same data.</p>")
+    return page("Assistant", "".join(body), "/assistant")
+
+
 # ── HTTP plumbing ────────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
     db_path: str = CONFIG.db_path
@@ -619,6 +661,8 @@ class Handler(BaseHTTPRequestHandler):
                     html = page_million(db, q)
                 elif url.path == "/search":
                     html = page_search(db, q)
+                elif url.path == "/assistant":
+                    html = page_assistant(db, q)
                 else:
                     return self._send(404, page("Not found", "<h1>404</h1>"))
             self._send(200, html)

@@ -610,6 +610,15 @@ def cmd_search(args) -> int:
     return 0
 
 
+def cmd_ask(args) -> int:
+    from .assistant import answer
+    with _db(args) as db:
+        result = answer(db, args.question)
+        print(f"[{result.mode}]")
+        print(result.text)
+    return 0
+
+
 def cmd_optimize(args) -> int:
     from .economics import optimize_offer
     with _db(args) as db:
@@ -909,6 +918,10 @@ def main(argv=None) -> int:
     p.add_argument("--min-price", type=float, default=None)
     p.add_argument("--max-price", type=float, default=None)
     p.set_defaults(func=cmd_search)
+
+    p = sub.add_parser("ask", help="ask the assistant about your live state or the engine")
+    p.add_argument("question")
+    p.set_defaults(func=cmd_ask)
 
     p = sub.add_parser("optimize",
                        help="profit optimizer: true fee stack + offer sweep + leak check")

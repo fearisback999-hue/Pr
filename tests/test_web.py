@@ -123,6 +123,18 @@ def test_search_page_filters_and_renders(server):
     assert "P-SOURDOUGHLAME" not in body             # $21.99 out of range
 
 
+def test_assistant_page_answers_grounded_in_live_data(server):
+    status, body = _get(server, "/assistant")
+    assert status == 200
+    assert "never invents numbers" in body            # the honesty contract, on-page
+
+    status, body = _get(server, "/assistant?q=is+P-PIMPLEPATCH+worth+testing")
+    assert status == 200
+    assert "offline routing" in body                  # mode labeled
+    assert "P-PIMPLEPATCH" in body
+    assert "commodity-saturated" in body              # the real gate, from live data
+
+
 def test_product_page_shows_lifecycle_confidence_and_chart(server):
     status, body = _get(server, "/product?id=P-SOURDOUGHLAME")
     assert status == 200
