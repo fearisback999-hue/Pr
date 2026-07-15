@@ -1,110 +1,176 @@
-"""Naturalism layer for Higgsfield prompts: make AI-generated UGC-style ads feel like
-a real phone video — natural light, handheld imperfection, human micro-behavior —
-instead of plastic, cinematic, obviously-synthetic output.
+"""Naturalism layer v2 for Higgsfield prompts: make LABELED AI-generated UGC look as
+real as a phone video can — coherent scenes, budgeted imperfections, human speech,
+persona continuity.
 
-The line this module holds (and won't help cross): naturalism is CRAFT — labeled AI
-content that feels native performs; over-polished content reads as an ad and dies.
-Deception is not the goal: TikTok requires disclosure of substantially AI-generated
-commerce content, the FTC treats AI content passed off as a real person's genuine
-experience as deceptive advertising, and this engine's export path already refuses
-assets missing the AIGC disclosure. Every prompt this module emits carries that
-reminder. Make it feel human; label it honestly. Those are compatible — that's the
-whole point.
+The deal (operator's own words): maximum realism, label on. That's the correct trade —
+TikTok requires disclosing substantially AI-generated commerce content and this
+engine's export path refuses assets missing the disclosure; meanwhile nothing about
+the label stops the content from *feeling* native. This module optimizes the feeling.
 
-No fake "realism score 0–100" here: nothing in this codebase pretends to measure what
-it can't. Instead: a deterministic prompt composer over researched naturalism layers,
-plus the human QA checklist to run on every generated asset before export.
+What v2 fixes over v1 (each was an AI tell):
+  • INCOHERENCE — v1 sampled lighting/clutter/audio independently, so "golden-hour car
+    window" could pair with "bedroom laundry". Real clips are one place, one time.
+    v2 picks ONE setting; light, clutter, sound, and plausible behavior all derive
+    from it.
+  • IMPERFECTION OVERLOAD — stacking shake + flare + focus-hunt + WB drift + noise in
+    one clip reads as a filter, not a phone. v2 budgets exactly TWO texture
+    imperfections per clip and keeps the rest clean.
+  • UNIFORM CAMERA — real people hold the phone differently to talk vs to demo. v2
+    assigns camera by beat: selfie arm-length for the hook/CTA, propped or second-hand
+    grip for the demo.
+  • PERFECT SPEECH — flawless delivery is synthetic. v2 directs one small disfluency
+    (a false start, a mid-sentence correction, a trailing "so… yeah") per clip.
+  • CAST DRIFT — a different face per ad breaks the store-persona strategy. v2 carries
+    the Soul ID / a consistent casting spec and a continuity block (same room, light,
+    outfit across beats).
+
+No fake 0–100 realism score — the honest instrument is the pre-export QA checklist,
+run on a phone screen, where the ad will actually live.
 """
 
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from typing import Optional
 
+from ..config import CONFIG
 from ..db import models
 from .compliance import DISCLOSURE
 from .scripts import UGCScript
 
-# ── the naturalism layers (curated, not exhaustive — one pick per layer per prompt) ──
-CAMERA = (
-    "handheld iPhone framing with tiny natural shakes and one small reframe mid-shot",
-    "casual phone camera hold, slight tilt, brief autofocus breathing when the product moves",
-    "front-camera selfie distance, arm-length wobble, imperfect headroom",
-    "propped-phone static shot that gets picked up mid-clip, natural stabilization wobble",
-    "walking handheld, gentle bounce, micro exposure shifts as the light changes",
+# ── coherent settings: light + clutter + sound + plausible behavior as ONE bundle ──
+SETTINGS: dict[str, dict[str, str | tuple[str, ...]]] = {
+    "bedroom-morning": {
+        "lighting": "morning sun through blinds, uneven stripes across the wall, no fill",
+        "environment": "lived-in bedroom: laundry on a chair, charger on the nightstand, "
+                       "slightly rumpled duvet",
+        "audio": "quiet room tone, birds faint outside, duvet rustle on the mic",
+        "behaviors": ("pushes hair back mid-sentence", "glances at the window once",
+                      "shifts sitting position on the bed"),
+    },
+    "kitchen-evening": {
+        "lighting": "warm ceiling light with a slight yellow cast, everyday dimness",
+        "environment": "real kitchen counter: mug, keys, a plant, yesterday's mail pushed aside",
+        "audio": "fridge hum, one distant clink, boomy phone-mic room echo",
+        "behaviors": ("takes a sip from the mug and sets it down off-frame",
+                      "leans a hip against the counter", "nudges the mail aside absently"),
+    },
+    "car-parked": {
+        "lighting": "daylight through the windshield, moving cloud shadows, mild HDR flatness",
+        "environment": "parked car interior, bag on the passenger seat, seatbelt hanging",
+        "audio": "muffled street noise, a car passing, seat creak, close boomy voice",
+        "behaviors": ("checks the rearview once out of habit", "rests an elbow on the wheel",
+                      "adjusts the phone against the dash"),
+    },
+    "desk-office": {
+        "lighting": "flat office fluorescent with a faint green cast, window daylight mixing in",
+        "environment": "messy desk: notebook, water bottle, tangled earbuds, sticky notes",
+        "audio": "keyboard clicks nearby, air-conditioner hum, chair squeak",
+        "behaviors": ("glances at the monitor once", "clicks a pen twice without noticing",
+                      "leans back and the chair creaks"),
+    },
+    "entryway": {
+        "lighting": "hallway light plus daylight spilling from the next room, uneven",
+        "environment": "front-door entryway: shoes in a pile, backpack against the wall, "
+                       "coats on hooks",
+        "audio": "hard-floor echo, keys jangling once, a door closing somewhere",
+        "behaviors": ("toes off a shoe mid-clip", "hangs keys on the hook without looking",
+                      "steps closer to the camera to make a point"),
+    },
+    "outside-walk": {
+        "lighting": "overcast daylight, soft and unglamorous, no golden-hour glow",
+        "environment": "ordinary sidewalk, parked cars, a hedge, nothing scenic",
+        "audio": "traffic wash, wind buffeting the mic once, footsteps",
+        "behaviors": ("steps aside for someone off-screen", "switches the phone to the "
+                      "other hand", "looks both ways crossing a driveway"),
+    },
+}
+
+# Camera by beat — people hold phones differently to talk vs to show.
+CAMERA_TALK = (
+    "front camera at arm's length, slight up-angle, imperfect headroom, elbow wobble",
+    "front camera resting against something, person leans in and out of frame a little",
 )
-LIGHTING = (
-    "morning bedroom sunlight through blinds, uneven across the frame",
-    "warm kitchen ceiling light, slight color cast, everyday dimness",
-    "cloudy daylight from a window to one side, soft and unglamorous",
-    "golden hour through a car window, moving shadows",
-    "ordinary office fluorescent, a bit flat and green-ish",
-    "store aisle lighting, mixed color temperature",
+CAMERA_DEMO = (
+    "rear camera in one hand while the other demonstrates, framing drifts and corrects",
+    "phone propped against an object for the demo, person's hands enter from the side, "
+    "slight tilt to the frame",
+    "over-the-shoulder POV of the hands using the product, close and a bit too tight",
 )
-SKIN_AND_FACE = (
-    "natural skin texture with visible pores and slight unevenness, no beauty-filter smoothing",
-    "real complexion: small blemish, fine facial hair, natural lip texture, tiny eye reflections",
-    "unretouched face, subtle under-eye shadows, asymmetric smile",
+
+# Texture imperfections — EXACTLY TWO per clip (more reads as a filter).
+TEXTURES = (
+    "brief autofocus hunt when the product comes close to the lens",
+    "one micro exposure shift as the framing moves past the light source",
+    "slight motion blur on the fastest hand movement",
+    "auto white balance drifting warmer for a moment mid-clip",
+    "tiny sensor noise visible in the darkest corner of the frame",
+    "one small accidental reframe that gets corrected",
+)
+
+SPEECH = (
+    "starts a sentence, abandons it, restarts simpler — like talking to a friend",
+    "one 'um' and a mid-sentence self-correction, otherwise fluent",
+    "trails off with 'so… yeah' before the last beat",
+    "talks slightly too fast at the start, settles down after the first line",
+)
+
+SKIN = (
+    "natural skin texture with visible pores and slight unevenness, no beauty-filter "
+    "smoothing, real lip texture, tiny catchlights in the eyes",
+    "unretouched face: small blemish, fine facial hair, subtle under-eye shadows, "
+    "asymmetric smile",
 )
 MOTION = (
-    "movement with real weight and momentum: natural pauses, blinking, breathing, small posture corrections",
-    "casual product handling — fingers adjust grip, a slight fumble, then a natural recovery",
-    "head and eye movement that wanders briefly before returning to the product",
+    "movement with weight and momentum: natural pauses, blinking at irregular intervals, "
+    "visible breathing, small posture corrections",
+    "hands re-grip and fidget slightly; head turns lead the eyes by a beat",
 )
-BEHAVIOR = (
-    "glances at phone once, then back",
-    "adjusts shirt and fixes hair briefly mid-sentence",
-    "takes a sip of coffee, sets the mug down out of frame",
-    "laughs slightly at their own reaction, small thinking pause",
-    "scratches cheek, looks away for a beat while talking",
+INTERACTION = (
+    "product handled like an owned object: opened imperfectly, rotated casually, set "
+    "down off-center with a real contact sound",
+    "product picked up from the clutter, grip adjusts once, never floating, never "
+    "centered like a hero shot",
 )
-ENVIRONMENT = (
-    "lived-in bedroom: laundry on a chair, charger cable on the nightstand, slightly rumpled bed",
-    "real kitchen counter clutter: mug, keys, a plant, yesterday's mail",
-    "messy desk with notebook, water bottle, tangled earbuds",
-    "car interior with a bag on the passenger seat, seatbelt visible",
-    "hallway by the front door: shoes, a backpack, coats on hooks",
-)
-AUDIO = (
-    "room echo with faint air-conditioner hum, natural breathing between phrases",
-    "outdoor ambience: distant traffic, a bird, clothing rustle on the mic",
-    "kitchen background: fridge hum, a clink, ordinary phone-mic compression",
-    "car interior road noise, turn-signal click, slightly boomy phone audio",
-)
-LENS = (
-    "smartphone HDR look, slight motion blur on fast moves, tiny sensor noise in shadows",
-    "auto white balance drifting slightly mid-clip, minor digital sharpening, compressed social-video texture",
-    "brief focus hunt when the product comes close to the lens, mild lens flare from the window",
-)
-PRODUCT_INTERACTION = (
-    "product handled like an owned object: opened imperfectly, rotated casually, set down off-center",
-    "product picked up from real clutter, fingerprints plausible, never floating or perfectly centered",
-    "product shown mid-use with natural grip changes and one small handling mistake",
+
+CASTING = (
+    "ordinary-looking person in their 20s–30s, everyday clothes, not model-attractive, "
+    "hair slightly imperfect",
+    "regular person you'd pass on the street, comfortable on camera but not polished, "
+    "wearing what they actually wore today",
 )
 
 NEGATIVE = (
-    "studio lighting, rim light, beauty lighting, cinematic grade, plastic airbrushed skin, "
-    "symmetrical frozen face, robotic motion, perfect posture, floating product, centered "
-    "hero shot, impossible shadows, CGI texture, influencer over-energy, over-editing"
+    "studio lighting, rim light, beauty lighting, cinematic color grade, plastic "
+    "airbrushed skin, perfect white teeth, symmetrical frozen face, robotic motion, "
+    "metronome blinking, perfect posture, floating product, centered hero shot, "
+    "impossible shadows, warped or morphing text and logos, extra fingers, jewelry "
+    "that changes between frames, CGI texture, influencer over-energy, over-editing, "
+    "stacked filter look"
 )
 
-# Human QA before export — generation artifacts a prompt can't fully prevent.
+# Pre-export QA — run on EVERY generated asset, on a phone screen.
 ARTIFACT_CHECKLIST = (
+    "watch it ON A PHONE at feed size — that's where tells show or vanish",
     "hands: five fingers, natural joints, no merging with the product",
-    "eyes: blinking present, gaze shifts, no dead-eye stare or metronome blinks",
-    "product: consistent shape/logo across frames, contact shadows where it touches surfaces",
+    "eyes: blinking present and irregular, gaze shifts, no dead-eye stare",
+    "product: consistent shape/label text across frames, contact shadows where it "
+    "touches surfaces",
     "skin: texture survives motion (no wax under movement)",
     "physics: hair/clothing move with the body; nothing floats or clips",
-    "background: text/objects stay stable frame-to-frame (no morphing clutter)",
-    "audio: lip-sync drift, breaths present, no uncanny silence between words",
+    "background: clutter and any text stay stable frame-to-frame (no morphing)",
+    "audio: lip-sync holds, breaths present, room tone continuous across cuts",
+    "speech: the disfluency sounds accidental, not performed",
+    "continuity: same room, light, and outfit across all beats",
     "the AIGC disclosure label is ON — non-negotiable; export refuses without it",
 )
 
 
 @dataclass
 class RealismPrompt:
-    scene: str                       # what happens (from the script beat)
-    prompt: str                      # the composed Higgsfield-ready prompt
+    scene: str
+    prompt: str
     negative: str = NEGATIVE
     disclosure_note: str = DISCLOSURE
     layers: dict = field(default_factory=dict)
@@ -117,8 +183,7 @@ class RealismPrompt:
         )
 
 
-def _pick(options: tuple, key: str, salt: int) -> str:
-    """Deterministic variety: same product+index always composes the same prompt."""
+def _pick(options, key: str, salt: int):
     h = int(hashlib.sha256(f"{key}:{salt}".encode()).hexdigest(), 16)
     return options[h % len(options)]
 
@@ -128,45 +193,88 @@ def enhance_prompt(
     scene: str,
     index: int = 0,
     setting: str = "",
+    soul_id: Optional[str] = None,
+    hook_beat: str = "",
+    demo_beat: str = "",
+    cta_beat: str = "",
 ) -> RealismPrompt:
-    """Compose a naturalism-enhanced Higgsfield prompt for one scene/beat.
+    """Compose one coherent, phone-real Higgsfield prompt.
 
-    `scene` is what happens (e.g. a script's demo beat); this wraps it in the phone-real
-    layers: camera, light, skin, motion, behavior, environment, audio, lens, handling.
+    Pass the three beats separately when you have them (timeline + per-beat camera);
+    `scene` alone works for a single-beat clip. One setting drives light/clutter/sound/
+    behavior together; exactly two texture imperfections; one speech disfluency; the
+    Soul ID (or a consistent casting spec) keeps the store persona stable across ads.
     """
     key = f"{product.id}:{scene[:40]}"
+    setting_name = setting if setting in SETTINGS else _pick(tuple(SETTINGS), key, index)
+    s = SETTINGS[setting_name]
+
+    # Exactly two distinct texture imperfections.
+    t1 = _pick(TEXTURES, key, index + 10)
+    t2 = _pick(tuple(t for t in TEXTURES if t != t1), key, index + 11)
+
+    soul = soul_id if soul_id is not None else CONFIG.higgsfield_soul_id
+    casting = (f"the store's recurring persona (Soul ID {soul}), consistent with every "
+               f"other ad" if soul else _pick(CASTING, key, index + 12))
+
     layers = {
-        "camera": _pick(CAMERA, key, index),
-        "lighting": _pick(LIGHTING, key, index + 1),
-        "skin": _pick(SKIN_AND_FACE, key, index + 2),
-        "motion": _pick(MOTION, key, index + 3),
-        "behavior": _pick(BEHAVIOR, key, index + 4),
-        "environment": setting or _pick(ENVIRONMENT, key, index + 5),
-        "audio": _pick(AUDIO, key, index + 6),
-        "lens": _pick(LENS, key, index + 7),
-        "interaction": _pick(PRODUCT_INTERACTION, key, index + 8),
+        "setting": setting_name,
+        "camera": _pick(CAMERA_TALK, key, index + 13),
+        "camera_demo": _pick(CAMERA_DEMO, key, index + 14),
+        "lighting": s["lighting"],
+        "environment": s["environment"],
+        "audio": s["audio"],
+        "behavior": _pick(s["behaviors"], key, index + 15),
+        "skin": _pick(SKIN, key, index + 16),
+        "motion": _pick(MOTION, key, index + 17),
+        "speech": _pick(SPEECH, key, index + 18),
+        "interaction": _pick(INTERACTION, key, index + 19),
+        "lens": f"{t1}; {t2}",
+        "casting": casting,
     }
+
+    if hook_beat or demo_beat or cta_beat:
+        timeline = (
+            f"TIMELINE — 0–3s (hook, camera: {layers['camera']}): {hook_beat or scene} · "
+            f"3–18s (demo, camera: {layers['camera_demo']}): {demo_beat} · "
+            f"final 3s (CTA, back to the talking camera): {cta_beat}"
+        )
+    else:
+        timeline = f"SCENE (camera: {layers['camera']}): {scene}"
+
     prompt = (
-        f"Vertical 9:16 phone video, UGC style, NOT cinematic. {scene} "
-        f"Camera: {layers['camera']}. Lighting: {layers['lighting']}. "
-        f"Person: {layers['skin']}; {layers['motion']}; incidental behavior: "
-        f"{layers['behavior']}. Setting: {layers['environment']}. "
-        f"Product: {layers['interaction']}. Audio feel: {layers['audio']}. "
-        f"Image character: {layers['lens']}. Pacing: natural pauses, real speech "
-        f"rhythm, no influencer over-energy, minimal editing."
+        f"Vertical 9:16 iPhone video, single-take UGC feel, NOT cinematic. "
+        f"CASTING: {casting}. "
+        f"SETTING ({setting_name}): {layers['environment']}. "
+        f"LIGHTING: {layers['lighting']}. "
+        f"{timeline} "
+        f"PERSON: {layers['skin']}; {layers['motion']}; incidental: {layers['behavior']}. "
+        f"SPEECH: {layers['speech']}. "
+        f"PRODUCT: {layers['interaction']}. "
+        f"AUDIO: {layers['audio']}; natural breathing between phrases. "
+        f"REALISM TEXTURE (exactly these two, keep everything else clean): {t1}; {t2}. "
+        f"CONTINUITY: same room, same light, same outfit across all beats. "
+        f"PACING: real speech rhythm, natural pauses, no influencer over-energy, "
+        f"minimal editing."
     )
     return RealismPrompt(scene=scene, prompt=prompt, layers=layers)
 
 
 def prompts_for_scripts(
-    product: models.Product, scripts: list[UGCScript], n: int = 5,
+    product: models.Product,
+    scripts: list[UGCScript],
+    n: int = 5,
+    soul_id: Optional[str] = None,
 ) -> list[RealismPrompt]:
-    """Naturalism-enhanced prompts for the first n scripts' demo beats."""
+    """Beat-structured prompts for the first n scripts (hook/demo/CTA timeline)."""
     out = []
     for i, s in enumerate(scripts[:n]):
         scene = (f"A regular person on camera: {s.first_3s} Then they demonstrate: "
                  f"{s.middle} They end naturally: {s.cta}")
-        out.append(enhance_prompt(product, scene, index=i))
+        out.append(enhance_prompt(
+            product, scene, index=i, soul_id=soul_id,
+            hook_beat=s.first_3s, demo_beat=s.middle, cta_beat=s.cta,
+        ))
     return out
 
 
@@ -174,5 +282,6 @@ def render_qa_checklist() -> str:
     lines = ["## Pre-export QA — run on EVERY generated asset", ""]
     lines += [f"- [ ] {item}" for item in ARTIFACT_CHECKLIST]
     lines += ["", "Fail any box → regenerate or discard. The disclosure box is not a "
-              "quality item — it's policy, and `export-creatives` enforces it."]
+              "quality item — it's policy, and `export-creatives` refuses assets "
+              "missing it."]
     return "\n".join(lines)
