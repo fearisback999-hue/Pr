@@ -11,6 +11,13 @@ creative kit and (when configured) pushes it into Higgsfield.
 from .brief import FORMATS, CreativeKit, build_kit
 from .compliance import DISCLOSURE, ComplianceReport, review_text
 from .concepts import CreativePack, UGCConcept, build_pack
+from .realism import (
+    ARTIFACT_CHECKLIST,
+    RealismPrompt,
+    enhance_prompt,
+    prompts_for_scripts,
+    render_qa_checklist,
+)
 from .higgsfield import HiggsfieldClient
 from .hooks import HOOK_TYPES, Hook, generate_hooks
 from .mcp_client import (
@@ -30,6 +37,8 @@ __all__ = [
     "ComplianceReport", "review_text", "DISCLOSURE",
     "CreativeKit", "build_kit", "FORMATS",
     "CreativePack", "build_pack", "UGCConcept",
+    "RealismPrompt", "enhance_prompt", "prompts_for_scripts", "render_qa_checklist",
+    "ARTIFACT_CHECKLIST",
     "HiggsfieldClient",
     "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",
     "GenerationResult", "ExportResult", "ConfirmationRequired",

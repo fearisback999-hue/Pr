@@ -217,6 +217,7 @@ class CreativePack:
     voiceover: list[str]
     broll: list[str]
     thumbnails: list[str]
+    realism_prompts: list = field(default_factory=list)   # RealismPrompt (naturalism layer)
     compliance: list[ComplianceReport] = field(default_factory=list)
 
     @property
@@ -246,6 +247,16 @@ class CreativePack:
             lines += [f"**Organic {i} — targets {s.emotion}**",
                       f"- 0–3s: {s.first_3s}", f"- middle: {s.middle}",
                       f"- CTA: {s.cta}", ""]
+        if self.realism_prompts:
+            lines += [f"## Higgsfield prompts — naturalism-enhanced "
+                      f"({len(self.realism_prompts)})", "",
+                      "Phone-real, not cinematic: labeled AI content that FEELS native "
+                      "performs; over-polish reads as an ad. The disclosure stays on — "
+                      "craft and honesty are compatible.", ""]
+            for i, rp in enumerate(self.realism_prompts, 1):
+                lines += [f"**Prompt {i}**", "```", rp.render(), "```", ""]
+            from .realism import render_qa_checklist
+            lines += [render_qa_checklist(), ""]
         lines += [
             f"## CTA variations ({len(self.ctas)})", "",
             *[f"- {c}" for c in self.ctas], "",
@@ -287,12 +298,14 @@ def build_pack(
     paid = generate_scripts(product.name, psych, hooks, n=n_scripts, llm=llm)
     organic = [_soften_for_organic(s, i) for i, s in enumerate(paid[:n_scripts])]
     concepts = ugc_concepts(product, psych, n=n_concepts)
+    from .realism import prompts_for_scripts
     pack = CreativePack(
         product=product, psych=psych, hooks=hooks, concepts=concepts,
         paid_scripts=paid, organic_scripts=organic, ctas=cta_variations(20),
         caption_list=captions(product, psych, 20), tag_list=hashtags(product),
         voiceover=voiceover_lines(product, psych), broll=broll_ideas(product),
         thumbnails=thumbnail_ideas(product),
+        realism_prompts=prompts_for_scripts(product, paid, n=5),
     )
     # Compliance sweep over every piece of copy that could ship.
     texts = ([h.text for h in hooks] + [c.text for c in concepts]
