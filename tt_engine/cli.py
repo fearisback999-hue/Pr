@@ -610,6 +610,23 @@ def cmd_search(args) -> int:
     return 0
 
 
+def cmd_month_one(args) -> int:
+    from .capital import plan_month_one
+    try:
+        plan = plan_month_one(
+            tests=args.tests, test_budget=args.test_budget,
+            samples=args.samples, sample_cost=args.sample_cost,
+            data_sub=args.data_sub, formation=args.formation,
+            winner_prob=args.winner_prob, true_margin=args.margin,
+        )
+    except ValueError as e:
+        print(f"error: {e}")
+        return 1
+    print("Month one: initial cash + expected profit (all knobs are flags — see --help)\n")
+    print(plan.summary)
+    return 0
+
+
 def cmd_ask(args) -> int:
     from .assistant import answer
     with _db(args) as db:
@@ -918,6 +935,18 @@ def main(argv=None) -> int:
     p.add_argument("--min-price", type=float, default=None)
     p.add_argument("--max-price", type=float, default=None)
     p.set_defaults(func=cmd_search)
+
+    p = sub.add_parser("month-one",
+                       help="initial cash needed + honest expected profit for month one")
+    p.add_argument("--tests", type=int, default=2, help="ad tests this month (default 2)")
+    p.add_argument("--test-budget", type=float, default=200.0, help="$ per test (150–300)")
+    p.add_argument("--samples", type=int, default=3)
+    p.add_argument("--sample-cost", type=float, default=18.0)
+    p.add_argument("--data-sub", type=float, default=40.0, help="Kalodata-class sub $/mo")
+    p.add_argument("--formation", type=float, default=0.0, help="LLC etc; sole-prop = 0")
+    p.add_argument("--winner-prob", type=float, default=0.20, help="per-test hit rate")
+    p.add_argument("--margin", type=float, default=0.50, help="true-stack contribution margin")
+    p.set_defaults(func=cmd_month_one)
 
     p = sub.add_parser("ask", help="ask the assistant about your live state or the engine")
     p.add_argument("question")

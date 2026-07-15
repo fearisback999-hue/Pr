@@ -368,6 +368,29 @@ def page_budget(db: Database, q: dict) -> str:
     body.append("<div class=kpis>" + kpi(f"${burn:,.0f}", "ad spend logged, last 7 days")
                 + "</div>")
 
+    # ── month one: initial cash + expected profit ──────────────────────────────
+    from ..capital import plan_month_one
+    m1_tests = _i(q, "m1_tests", 2)
+    m1_budget = _f(q, "m1_budget", 200.0)
+    m1_prob = _f(q, "m1_prob", 0.20)
+    m1_margin = _f(q, "m1_margin", 0.50)
+    body.append("<h2>Month one — initial cash & honest expected profit</h2>"
+                "<div class=panel><form class=calc method=get action=/budget>"
+                f"<label>Ad tests<input name=m1_tests value='{m1_tests}'></label>"
+                f"<label>$ per test<input name=m1_budget value='{m1_budget:g}'></label>"
+                f"<label>Winner prob (0–1)<input name=m1_prob value='{m1_prob:g}'></label>"
+                f"<label>True margin (0–1)<input name=m1_margin value='{m1_margin:g}'></label>"
+                "<button>Recalculate</button></form>")
+    try:
+        m1 = plan_month_one(tests=m1_tests, test_budget=m1_budget,
+                            winner_prob=m1_prob, true_margin=m1_margin)
+        body.append(f"<pre>{esc(m1.summary)}</pre>")
+    except ValueError as e:
+        body.append(f"<p class=bad>{esc(str(e))}</p>")
+    body.append("<p class=mut>The expected value is negative by design — month one buys "
+                "data, reps, and the option on a winner. Anyone promising month-one "
+                "profit is selling something.</p></div>")
+
     # ── capital / cash-flow calculator ─────────────────────────────────────────
     cap = _f(q, "capital", 5000.0)
     tb = _f(q, "test_budget", 300.0)

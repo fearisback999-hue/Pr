@@ -70,6 +70,16 @@ def test_budget_page_calculators_respond_to_params(server):
     assert "listing" in body
 
 
+def test_budget_page_month_one_section(server):
+    status, body = _get(server, "/budget?m1_tests=3&m1_budget=250")
+    assert status == 200
+    assert "Month one" in body
+    assert "INITIAL CASH NEEDED" in body
+    assert "ad tests (3 × $250)" in body       # recomputed from the form
+    assert "EXPECTED VALUE" in body
+    assert "negative by design" in body        # the honesty note stays on the page
+
+
 def test_creators_page_links_marketplaces(server):
     status, body = _get(server, "/creators")
     assert status == 200
