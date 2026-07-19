@@ -108,6 +108,19 @@ KNOWLEDGE: dict[str, str] = {
         "the item clears itself when the DB shows the work). Rejections stick until "
         "the product's stage changes. Everything is recorded as an audit trail."
     ),
+    "production": (
+        "The video production runbook (`production <id>`) is the keyframe-first "
+        "Seedance pipeline, filled in per scene: (1) generate the ACTOR image once "
+        "(iPhone-15-Pro framing, flaws on person + scene, never the word "
+        "'photorealism'); (2) per scene, a first-frame image of that actor in one "
+        "room (+ product photo when shown) — one room per ad; (3) animate each frame "
+        "in Seedance with the dialogue in the prompt (starting frames hold the "
+        "character); (4) ONE voice — ElevenLabs video-to-voice lip-syncs it onto "
+        "on-camera clips, text-to-voice (same voice) for narration; (5) assemble in "
+        "CapCut with auto-captions + real B-roll. It PLANS only — generation stays "
+        "the confirmed `creative`/autopilot `generate` step, and the AIGC label is "
+        "non-negotiable at export."
+    ),
     "ai_creator": (
         "The AI creator program: ONE labeled persona (Soul ID) posts ~2×/day; the "
         "best organic posts get Spark-boosted on the standard $200 test budget with "
@@ -151,6 +164,9 @@ _ROUTES = [
      "sourcing_products"),
     (("autopilot", "automate", "automatic", "approval", "approve", "hands-off",
       "auto mode"), "autopilot"),
+    (("production", "runbook", "seedance", "keyframe", "first frame", "actor image",
+      "capcut", "elevenlabs", "eleven labs", "lip sync", "lip-sync", "voice"),
+     "production"),
     (("ai creator", "persona", "soul", "spark", "ai fit", "ai-fit", "organic post",
       "boost"), "ai_creator"),
     (("expected value", " ev", "ceiling", "100k", "$100k", "queue", "which product",

@@ -294,7 +294,9 @@ def page_product(db: Database, pid: str) -> Optional[str]:
                         + "".join(f"<div class=mut>✋ never: {esc(n)}</div>"
                                   for n in sel.fit.never_for)
                         + f"<p class=mut><code>ai-plan {esc(pid)}</code> prints the "
-                        "persona's full advertising plan.</p>")
+                        "persona's full advertising plan; "
+                        f"<code>production {esc(pid)}</code> prints the step-by-step "
+                        "video runbook (actor → frames → animate → voice → assemble).</p>")
         body.append("<div class=panel><p><b>Selection math</b></p>"
                     f"<p>{esc(sel.ev.summary)}</p>"
                     f"<p class=mut>{esc(sel.ceiling.summary)}</p>"

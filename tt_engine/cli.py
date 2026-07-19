@@ -555,6 +555,32 @@ def cmd_creative_pack(args) -> int:
     return 0
 
 
+def cmd_production(args) -> int:
+    """The step-by-step production runbook: actor image → per-scene first-frames →
+    Seedance animate → ElevenLabs voice → CapCut assembly (keyframe-first pipeline)."""
+    from .creative import build_pack, build_runbook
+    from .psychology import analyze
+    llm = LLMClient()
+    with _db(args) as db:
+        product = db.get_product(args.product_id)
+        if product is None:
+            print(f"{args.product_id} not found")
+            return 1
+        psych = analyze(product.name, product.reviews, product.category, llm)
+        pack = build_pack(product, psych, llm=llm)
+        runbook = build_runbook(product, pack, n_ads=args.ads)
+        text = runbook.render()
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out} — {len(runbook.ads)} ad(s), "
+                  f"{sum(len(a.scenes) for a in runbook.ads)} scenes")
+        else:
+            print(text)
+    return 0
+
+
 def cmd_landing(args) -> int:
     from .psychology import analyze
     from .reports.landing import build_landing_page
@@ -1042,6 +1068,14 @@ def main(argv=None) -> int:
     p.add_argument("product_id")
     p.add_argument("--out", default=None, help="write markdown to a file")
     p.set_defaults(func=cmd_creative_pack)
+
+    p = sub.add_parser("production",
+                       help="step-by-step video production runbook (keyframe-first "
+                            "Seedance pipeline: actor → frames → animate → voice → assemble)")
+    p.add_argument("product_id")
+    p.add_argument("--ads", type=int, default=3, help="how many ad builds to detail")
+    p.add_argument("--out", default=None, help="write markdown to a file")
+    p.set_defaults(func=cmd_production)
 
     p = sub.add_parser("landing", help="landing-page copy (compliance-swept, honest slots)")
     p.add_argument("product_id")

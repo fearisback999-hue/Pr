@@ -189,6 +189,136 @@ def _pick(options, key: str, salt: int):
     return options[h % len(options)]
 
 
+# ── image prompts: the keyframe-first workflow ──────────────────────────────────
+# The practitioner pipeline (Eric @ericdoesecom, Seedance 2.0 workflow, captured
+# 2026-07-19): generate a still ACTOR image once, then a per-scene FIRST-FRAME image
+# (the same actor dropped into the scene, product attached), then ANIMATE each frame.
+# Starting frames are the #1 character-consistency lever — the video model is
+# constrained by the image instead of re-inventing the person. His three image rules,
+# encoded here: shoot "on an iPhone 15 Pro", add flaws to BOTH the character and the
+# scenery, and never use the word "photorealism" (it pushes the model toward the
+# plastic stock-photo look — the opposite of what UGC needs).
+IMAGE_NEGATIVE = (
+    "photorealism, hyperrealistic, 8k, ultra-detailed, magazine retouching, "
+    "airbrushed skin, perfect symmetry, studio lighting, stock-photo look, beauty "
+    "filter, plastic skin, flawless complexion, CGI render, over-sharpened, "
+    "professional headshot"
+)
+
+
+@dataclass
+class ImagePrompt:
+    kind: str                     # "actor" | "scene-frame"
+    prompt: str
+    negative: str = IMAGE_NEGATIVE
+    attach: str = ""              # what to attach in the image tool (refs, product photo)
+
+    def render(self) -> str:
+        lines = [f"PROMPT: {self.prompt}", f"NEGATIVE: {self.negative}"]
+        if self.attach:
+            lines.append(f"ATTACH: {self.attach}")
+        return "\n".join(lines)
+
+
+def actor_image_prompt(
+    persona: Optional[Persona] = None, index: int = 0
+) -> ImagePrompt:
+    """Step 1 — the base AI-actor portrait, generated ONCE and reused as the
+    reference for every scene frame (and as the seed for the Soul-ID training set)."""
+    if persona is None:
+        persona = load_persona()
+    if persona:
+        who = persona.master_description
+        if persona.forbidden:
+            who += " (never changes: " + "; ".join(persona.forbidden) + ")"
+        wardrobe = persona.outfit_for("actor-base")
+    else:
+        who = _pick(CASTING, "actor", index)
+        wardrobe = ""
+    prompt = (
+        "Vertical portrait selfie shot on an iPhone 15 Pro, front camera at arm's "
+        f"length, casual and candid. {who}. "
+        + (f"Wearing {wardrobe}. " if wardrobe else "")
+        + "Plain everyday room in the background, natural window light with uneven "
+        "exposure. Add real-world flaws to BOTH the person and the scene: slight "
+        "skin unevenness, a few stray hairs, faint sensor noise, minor background "
+        "clutter, imperfect framing. Looks like a real phone selfie a normal person "
+        "took today — not a professional shot."
+    )
+    return ImagePrompt(kind="actor", prompt=prompt,
+                       attach="(none — this IS the base actor; save the output as "
+                              "the reference for every scene)")
+
+
+def scene_frame_prompt(
+    product: models.Product,
+    scene_beat: str,
+    persona: Optional[Persona] = None,
+    setting: str = "",
+    index: int = 0,
+    needs_product: bool = True,
+) -> ImagePrompt:
+    """Steps 2–3 — the first-frame image for one scene: the SAME actor (attached
+    reference) dropped into one of her rooms, product attached when the beat needs it."""
+    if persona is None:
+        persona = load_persona()
+    setting_pool = tuple(SETTINGS)
+    if persona and persona.settings:
+        owned = tuple(s for s in persona.settings if s in SETTINGS)
+        setting_pool = owned or setting_pool
+    key = f"{product.id}:{scene_beat[:40]}"
+    setting_name = setting if setting in SETTINGS else _pick(setting_pool, key, index)
+    s = SETTINGS[setting_name]
+    who = persona.name if persona else "the same actor"
+    wardrobe = persona.outfit_for(product.id) if persona else ""
+    prompt = (
+        "First video frame, vertical 9:16, shot on an iPhone 15 Pro. The SAME actor "
+        f"from the attached reference image ({who}), "
+        + (f"wearing {wardrobe}, " if wardrobe else "")
+        + f"in this setting: {s['environment']}. Lighting: {s['lighting']}. "
+        f"Moment: {scene_beat}. "
+        + (f"The {product.name} is visible and held naturally, matched from the "
+           "attached product photo. " if needs_product else "")
+        + "Add flaws to the actor and the scenery so nothing looks too perfect: "
+        "imperfect framing, real phone-camera texture. Match the reference face "
+        "EXACTLY — same person, no drift."
+    )
+    attach = "actor reference image" + (
+        f" + {product.name} product photo" if needs_product else "")
+    return ImagePrompt(kind="scene-frame", prompt=prompt, attach=attach,
+                       negative=IMAGE_NEGATIVE)
+
+
+def scene_video_prompt(
+    product: models.Product,
+    motion_beat: str,
+    dialogue: str = "",
+    persona: Optional[Persona] = None,
+    index: int = 0,
+) -> str:
+    """Step 4 — the Seedance prompt to ANIMATE a starting frame (frame-first). The
+    frame already locks face/wardrobe/setting, so this stays focused on motion, the
+    spoken line (dialogue goes IN the prompt), and phone texture — and orders the
+    model to hold the frame's identity."""
+    if persona is None:
+        persona = load_persona()
+    key = f"{product.id}:{motion_beat[:40]}"
+    behavior = _pick(MOTION, key, index)
+    t1 = _pick(TEXTURES, key, index + 10)
+    speech_pool = (tuple(persona.speech_quirks)
+                   if persona and persona.speech_quirks else SPEECH)
+    speech = _pick(speech_pool, key, index + 18)
+    said = (f" The actor says, naturally: \"{dialogue.strip()}\" ({speech})."
+            if dialogue.strip() else "")
+    return (
+        "Animate the attached starting frame. Vertical 9:16, iPhone feel, single "
+        f"take, NOT cinematic. Motion: {motion_beat} {behavior}.{said} "
+        "Keep the face, wardrobe, and setting IDENTICAL to the starting frame — no "
+        f"drift, no morphing. Texture: {t1}. Natural pacing, real breathing between "
+        "phrases, minimal editing."
+    )
+
+
 def enhance_prompt(
     product: models.Product,
     scene: str,

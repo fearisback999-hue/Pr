@@ -70,9 +70,12 @@ rooms. Her videos never wander into places she doesn't own.)
   the nose when something amuses her
 - reference: assets/voice/maya-ref.wav
 
-(Record/generate ONE canonical ≤15s clip and never re-make it — feed it as the
-audio reference to every native-audio generation so the voice is pinned, the
-same way the Soul ID pins the face.)
+(ONE voice, forever — the audio equivalent of the Soul ID. Two ways to apply it,
+both fine: (a) feed this reference to Seedance's native-audio generation, or
+(b) the practitioner method — generate silent/temp-audio clips, then use
+ElevenLabs **video-to-voice** to lip-sync THIS voice onto the on-camera clips,
+and **text-to-voice** with the SAME voice for narration-only lines. Never mix
+voices across clips.)
 
 ## values
 
@@ -98,13 +101,19 @@ too few or too many both degrade the lock):
 
 ## workflow
 
-The consistency loop (keyframe-first — the single biggest anti-drift lever):
+The consistency loop (keyframe-first — the single biggest anti-drift lever).
+`python -m tt_engine.cli production <product-id>` prints this as a filled-in,
+per-scene runbook; the steps:
 
-1. Generate a STILL keyframe with the Soul ID + this file's master description
-   + the batch's one outfit, in one of her four rooms.
-2. Approve the keyframe against this file (mole, teeth, hair, outfit, jewelry).
-3. Animate the approved keyframe (image-to-video), passing the voice reference
-   clip for native audio — never text-to-video from scratch.
-4. Feed the approved frame back as context for the next clip in the batch.
-5. Run the pre-export QA checklist ON A PHONE; the AIGC label is non-negotiable
-   (export refuses without it).
+1. Generate the ACTOR once (still portrait, this file's master description, iPhone
+   framing, flaws on person + scene, NO "photorealism"). Save it as the reference.
+2. Per scene: ask for a first-frame description, then generate a first-frame image
+   of the actor (attached reference) in one of her four rooms — attach the product
+   photo when the beat shows it. One room per ad.
+3. Animate each approved frame in Seedance (image-to-video), dialogue in the
+   prompt — never text-to-video from scratch. The frame holds the character.
+4. Voice: ONE voice across everything — ElevenLabs video-to-voice lip-syncs it
+   onto on-camera clips; text-to-voice (same voice) for narration.
+5. Assemble in CapCut: cut, auto-captions, a little real B-roll.
+6. Run the pre-export QA checklist ON A PHONE; the AIGC label is non-negotiable
+   (export refuses without it). Outcome proof stays REAL footage.

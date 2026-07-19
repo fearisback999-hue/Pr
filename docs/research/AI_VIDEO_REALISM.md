@@ -84,6 +84,31 @@ the same craft.)
 - Caption test: if the persona's captions could belong to any account, the
   persona is too thin — iterate the bible until they could only be hers.
 
+## 6b. The practitioner end-to-end pipeline (Eric @ericdoesecom, Seedance 2.0)
+
+A working operator's step-by-step, captured 2026-07-19. It independently confirms
+the keyframe-first thesis and pins down the voice step. The engine encodes it as
+`tt_engine/creative/production.py` (`production <id>` prints the filled runbook):
+
+1. **Actor image** — generate ONE still of the AI actor (GPT Image / equivalent).
+   Realism rules he stresses: prompt "shot on an iPhone 15 Pro", add flaws to BOTH
+   the character AND the scenery, and do NOT use the word "photorealism".
+2. **Per-scene first frame** — for each scene, ask an LLM to describe what the
+   scene's first video frame looks like; then generate that frame as the SAME
+   actor (attach the actor reference) in the scene, attaching the product photo
+   when the scene shows it.
+3. **Animate** — in Seedance, generate each scene from its starting frame (this is
+   what holds character consistency). If the actor talks, put the dialogue in the
+   prompt. (Kling 3.0 works too; he uses Seedance because it's cheaper.)
+4. **Voice** — ONE consistent voice: put the clips through ElevenLabs
+   **video-to-voice** to lip-sync a single voice across the whole script;
+   **text-to-voice** with the SAME voice for narration-only lines.
+5. **Assemble** — CapCut: cut it together, auto-generate captions, add a little
+   real-life B-roll to push realism further.
+
+Our additions on top: the AIGC disclosure label stays on (he doesn't mention it),
+outcome proof stays real footage, and generation stays the approval-gated step.
+
 ## 7. The line that doesn't move
 
 The persona is openly an AI creator: every post carries the AIGC label, and she
@@ -93,6 +118,7 @@ that's the whole engine's thesis.
 
 ## Sources
 
+- Eric (@ericdoesecom), Instagram reel — end-to-end Seedance 2.0 UGC pipeline (transcript captured 2026-07-19)
 - https://higgsfield.ai/blog/sould-id-best-character-consistency
 - https://higgsfield.ai/blog/Soul-ID-AI-Character-Consistency
 - https://higgsfield.ai/blog/how-to-turn-photo-into-consistent-ai-persona-creator
