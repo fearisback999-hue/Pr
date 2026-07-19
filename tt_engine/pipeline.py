@@ -114,10 +114,11 @@ def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
     return ScoredRecord(
         record=rec, trigger=trigger, economics=econ, breakdown=breakdown,
         lifecycle=lifecycle, confidence=confidence,
-        # Selection math (ceiling + EV at the true fee stack) rides along on every
-        # score so the test queue can rank by expected dollars, not points.
+        # Selection math (ceiling + EV at the true fee stack + AI-creator fit) rides
+        # along on every score so the test queue can rank by expected dollars.
         selection=evaluate_candidate(metrics, trigger, econ, breakdown,
-                                     lifecycle, confidence),
+                                     lifecycle, confidence,
+                                     product=rec.product, reviews=rec.reviews),
     )
 
 

@@ -115,7 +115,9 @@ def page_overview(db: Database) -> str:
             if sel.ev.eligible:
                 ev_cell = f"<b>${sel.ev.ev:+,.0f}</b>"
                 p_cell = f"{sel.ev.p_win:.0%}"
-                note = "<span class=mut>fund in this order</span>"
+                fit_tag = (f" · AI-fit {sel.fit.score:.0%} ({sel.fit.band})"
+                           if sel.fit else "")
+                note = f"<span class=mut>fund in this order{esc(fit_tag)}</span>"
             else:
                 ev_cell, p_cell = "—", "—"
                 note = f"<span class=warn>{esc(sel.ev.reason)}</span>"
@@ -258,11 +260,19 @@ def page_product(db: Database, pid: str) -> Optional[str]:
                     + "</p></div>")
         # Selection math: what this product is WORTH funding, and what it can carry.
         sel = sr.selection
+        fit_html = ""
+        if sel.fit:
+            fit_html = (f"<p>{esc(sel.fit.summary)}</p>"
+                        + "".join(f"<div class=mut>✋ never: {esc(n)}</div>"
+                                  for n in sel.fit.never_for)
+                        + f"<p class=mut><code>ai-plan {esc(pid)}</code> prints the "
+                        "persona's full advertising plan.</p>")
         body.append("<div class=panel><p><b>Selection math</b></p>"
                     f"<p>{esc(sel.ev.summary)}</p>"
                     f"<p class=mut>{esc(sel.ceiling.summary)}</p>"
                     + "".join(f"<div class=mut>⚠ {esc(n)}</div>"
                               for n in sel.ceiling.notes)
+                    + fit_html
                     + "</div>")
         body.append(f"<div class=panel>{md_to_html(render_scorecard(sr))}</div>")
     else:
@@ -334,6 +344,28 @@ def page_advertising(db: Database) -> str:
                 f"Either way, generation always requires an explicit "
                 f"<code>creative &lt;id&gt; --confirm</code> in the terminal — the "
                 f"dashboard never spends money.</p></div>")
+
+    # ── AI creator program: the persona IS the ad engine ───────────────────────
+    from ..creative.ai_creator import BOOST_DAYS, BOOST_TOP_N, POSTS_PER_DAY
+    body.append("<h2>AI creator program — the persona is the ad engine</h2>"
+                "<div class=panel>"
+                f"<p>One labeled persona (Soul ID), ~{POSTS_PER_DAY} posts/day, and a "
+                "Spark loop: post organically for 48h, boost the top "
+                f"{BOOST_TOP_N} posts for {BOOST_DAYS} days on the standard test "
+                "budget, then let <code>validate</code>'s 48h kill timer decide. "
+                "Every persona-driven sale keeps the affiliate commission a UGC "
+                "creator would have earned.</p>"
+                "<p><b>The honesty line the program runs on:</b> the persona may "
+                "carry hooks, in-hand demos, styling, and replies — it may NEVER "
+                "fabricate outcome proof (a generated 'result' is fabricated "
+                "evidence; the AIGC label discloses the method, not that the "
+                "outcome never happened). Outcome products get real affiliate "
+                "footage; the persona frames it.</p>"
+                "<p class=mut>Every product's <b>AI-creator fit</b> is scored on its "
+                "page and folded into the EV test queue — the engine now selects "
+                "FOR this distribution. <code>ai-plan &lt;id&gt;</code> prints the "
+                "full per-product plan (fit, format mix, Spark loop, lane "
+                "economics).</p></div>")
 
     # ── Creative batches per product ───────────────────────────────────────────
     body.append("<h2>Creative batches</h2><div class=panel>")

@@ -177,6 +177,26 @@ def test_product_page_shows_selection_math(server):
     assert "no EV" in body
 
 
+def test_advertising_page_states_the_ai_creator_program(server):
+    status, body = _get(server, "/advertising")
+    assert status == 200
+    assert "AI creator program" in body
+    assert "fabricated" in body                        # the evidence rule, on-page
+    assert "ai-plan" in body                           # the per-product command
+
+
+def test_product_page_shows_ai_creator_fit(server):
+    status, body = _get(server, "/product?id=P-COWHIDESTRAP")
+    assert status == 200
+    assert "AI-creator fit" in body
+    assert "never:" in body                            # the may-never list renders
+
+    # An outcome-proof product carries the fabricated-evidence warning.
+    status, body = _get(server, "/product?id=P-DOGCALMVEST")
+    assert status == 200
+    assert "fabricated evidence" in body
+
+
 def test_million_page_itemizes_the_100k_month(server):
     status, body = _get(server, "/million")
     assert status == 200

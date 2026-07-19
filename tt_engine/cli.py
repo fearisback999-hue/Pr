@@ -698,6 +698,21 @@ def cmd_select(args) -> int:
     return 0
 
 
+def cmd_ai_plan(args) -> int:
+    """The persona's advertising plan for one product: fit (what it may/may never
+    carry), cadence, the Spark loop, and the lane economics."""
+    from .creative import build_creator_plan
+    with _db(args) as db:
+        sr = pipeline.score_stored(db, args.product_id)
+        if sr is None:
+            print(f"no stored metrics for {args.product_id} — import or add data first")
+            return 1
+        plan = build_creator_plan(sr.record.product, sr.economics,
+                                  reviews=sr.record.reviews)
+        print(plan.render())
+    return 0
+
+
 def cmd_scale(args) -> int:
     from .roadmap import plan_scale
     try:
@@ -1003,6 +1018,11 @@ def main(argv=None) -> int:
     p = sub.add_parser("select",
                        help="test queue ranked by expected dollars (EV), not points")
     p.set_defaults(func=cmd_select)
+
+    p = sub.add_parser("ai-plan",
+                       help="AI-persona advertising plan: fit, cadence, Spark loop, lanes")
+    p.add_argument("product_id")
+    p.set_defaults(func=cmd_ai_plan)
 
     p = sub.add_parser("scale", help="the $100k month itemized: capital, portfolio, cadence")
     p.add_argument("--revenue", type=float, default=100_000.0,

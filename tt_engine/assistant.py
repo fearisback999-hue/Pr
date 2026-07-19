@@ -97,6 +97,18 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "ai_creator": (
+        "The AI creator program: ONE labeled persona (Soul ID) posts ~2×/day; the "
+        "best organic posts get Spark-boosted on the standard $200 test budget with "
+        "the same 48h kill discipline. Every product gets an AI-CREATOR FIT score "
+        "(folded into the EV queue): handling products (accessories/hobby/home) the "
+        "persona can carry alone; outcome products (pet behavior, skin, supplements) "
+        "need REAL affiliate footage for proof — a generated 'result' is fabricated "
+        "evidence, and the AIGC label discloses the method, not that the outcome "
+        "happened. Every persona-driven sale keeps the ~15% affiliate cut. "
+        "`ai-plan <id>` prints the per-product plan; the AIGC label is on every "
+        "post, always — export refuses without it."
+    ),
     "selection": (
         "The test queue ranks by EXPECTED VALUE, not score: EV = p(win)·payoff − "
         "p(lose)·loss at the TRUE fee stack (referral + payment + affiliate). p(win) "
@@ -126,6 +138,8 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("ai creator", "persona", "soul", "spark", "ai fit", "ai-fit", "organic post",
+      "boost"), "ai_creator"),
     (("expected value", " ev", "ceiling", "100k", "$100k", "queue", "which product",
       "what to test", "capacity", "working capital"), "selection"),
     (("million", "1m", "revenue", "goal", "rich", "money"), "million"),

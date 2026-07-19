@@ -73,14 +73,18 @@ class EVResult:
     payoff_if_win: float = 0.0             # expected 90-day contribution if it works
     loss_if_lose: float = 0.0
     ev: Optional[float] = None             # p·payoff − (1−p)·loss ; None when ineligible
+    distribution_fit: Optional[float] = None   # AI-creator fit folded into p_win, if any
 
     @property
     def summary(self) -> str:
         if not self.eligible:
             return f"no EV — {self.reason}"
-        return (f"EV ${self.ev:+,.0f} on a ${self.test_budget:.0f} test "
+        head = (f"EV ${self.ev:+,.0f} on a ${self.test_budget:.0f} test "
                 f"(p(win) {self.p_win:.0%} × ${self.payoff_if_win:,.0f} payoff − "
                 f"{1 - self.p_win:.0%} × ${self.loss_if_lose:.0f} loss)")
+        if self.distribution_fit is not None:
+            head += f" · AI-creator fit {self.distribution_fit:.0%} folded in"
+        return head
 
 
 def expected_value(
@@ -90,7 +94,12 @@ def expected_value(
     ceiling: CeilingEstimate,
     landed_known: bool,
     test_budget: float = TEST_BUDGET,
+    distribution_fit: Optional[float] = None,
 ) -> EVResult:
+    """`distribution_fit` (0..1, from creative.ai_creator) tilts p(win) for an
+    AI-creator-led store: a product whose winning proof the persona cannot honestly
+    deliver converts worse THROUGH THIS DISTRIBUTION. Bounded to ×0.70–×1.00 so fit
+    tilts the queue — it never overrides score, gates, or economics."""
     s = breakdown.score
     if not s.gates_passed:
         return EVResult(eligible=False,
@@ -105,8 +114,11 @@ def expected_value(
                                "dollars without landed cost is fiction (`add-supplier`)")
 
     p = p_win(breakdown, confidence, lifecycle)
+    if distribution_fit is not None:
+        p = round(p * clamp(0.70 + 0.30 * distribution_fit, 0.70, 1.0), 3)
     payoff = round(ceiling.contribution_monthly * PAYOFF_CEILING_MONTHS, 2)
     loss = round(test_budget * LOSS_FRACTION, 2)
     ev = round(p * payoff - (1.0 - p) * loss, 2)
     return EVResult(eligible=True, p_win=p, test_budget=test_budget,
-                    payoff_if_win=payoff, loss_if_lose=loss, ev=ev)
+                    payoff_if_win=payoff, loss_if_lose=loss, ev=ev,
+                    distribution_fit=distribution_fit)

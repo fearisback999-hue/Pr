@@ -8,6 +8,7 @@ creative kit and (when configured) pushes it into Higgsfield.
   higgsfield — API adapter (Hermes Agent, AI Hook Generator, batch, export)
 """
 
+from .ai_creator import FitResult, ai_fit, build_creator_plan
 from .brief import FORMATS, CreativeKit, build_kit
 from .compliance import DISCLOSURE, ComplianceReport, review_text
 from .concepts import CreativePack, UGCConcept, build_pack
@@ -37,6 +38,7 @@ __all__ = [
     "ComplianceReport", "review_text", "DISCLOSURE",
     "CreativeKit", "build_kit", "FORMATS",
     "CreativePack", "build_pack", "UGCConcept",
+    "FitResult", "ai_fit", "build_creator_plan",
     "RealismPrompt", "enhance_prompt", "prompts_for_scripts", "render_qa_checklist",
     "ARTIFACT_CHECKLIST",
     "HiggsfieldClient",

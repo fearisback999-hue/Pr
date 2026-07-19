@@ -43,6 +43,7 @@ __all__ = [
 class SelectionResult:
     ceiling: CeilingEstimate
     ev: EVResult
+    fit: Optional[object] = None      # creative.ai_creator.FitResult when product known
 
     @property
     def summary(self) -> str:
@@ -57,11 +58,20 @@ def evaluate_candidate(
     lifecycle: LifecycleResult,
     confidence: ConfidenceResult,
     test_budget: float = TEST_BUDGET,
+    product: Optional[models.Product] = None,
+    reviews: Optional[Sequence[str]] = None,
 ) -> SelectionResult:
     ceiling = estimate_ceiling(metrics, trigger, lifecycle, economics)
+    # The store's distribution is an AI persona + Spark boosts, so selection tilts
+    # toward products the persona can honestly sell (creative.ai_creator).
+    fit = None
+    if product is not None:
+        from ..creative.ai_creator import ai_fit
+        fit = ai_fit(product, reviews)
     ev = expected_value(breakdown, confidence, lifecycle, ceiling,
-                        landed_known=economics.landed_known, test_budget=test_budget)
-    return SelectionResult(ceiling=ceiling, ev=ev)
+                        landed_known=economics.landed_known, test_budget=test_budget,
+                        distribution_fit=fit.score if fit else None)
+    return SelectionResult(ceiling=ceiling, ev=ev, fit=fit)
 
 
 def rank_for_test(scored: Sequence) -> list:
