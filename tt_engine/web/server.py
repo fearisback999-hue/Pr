@@ -347,9 +347,22 @@ def page_advertising(db: Database) -> str:
 
     # ── AI creator program: the persona IS the ad engine ───────────────────────
     from ..creative.ai_creator import BOOST_DAYS, BOOST_TOP_N, POSTS_PER_DAY
+    from ..creative.persona import load_persona, validate_persona
+    bible = load_persona()
+    bible_warn = validate_persona(bible)
     body.append("<h2>AI creator program — the persona is the ad engine</h2>"
-                "<div class=panel>"
-                f"<p>One labeled persona (Soul ID), ~{POSTS_PER_DAY} posts/day, and a "
+                "<div class=panel>")
+    if bible:
+        status = ("<span class=good>production-ready</span>" if not bible_warn
+                  else f"<span class=warn>{len(bible_warn)} gap(s) — run "
+                       "<code>persona</code></span>")
+    else:
+        status = ("<span class=warn>missing — the shipped template is "
+                  "<code>docs/persona/CREATOR.md</code></span>")
+    body.append("<p><b>Creator bible:</b> "
+                + (f"{esc(bible.name)} · {esc(bible.summary)} · " if bible else "")
+                + status + "</p>")
+    body.append(f"<p>One labeled persona (Soul ID), ~{POSTS_PER_DAY} posts/day, and a "
                 "Spark loop: post organically for 48h, boost the top "
                 f"{BOOST_TOP_N} posts for {BOOST_DAYS} days on the standard test "
                 "budget, then let <code>validate</code>'s 48h kill timer decide. "

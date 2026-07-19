@@ -713,6 +713,35 @@ def cmd_ai_plan(args) -> int:
     return 0
 
 
+def cmd_persona(args) -> int:
+    """Show the parsed creator bible + production-readiness warnings."""
+    from .creative.persona import load_persona, validate_persona
+    p = load_persona(args.path)
+    warnings = validate_persona(p)
+    if p is None:
+        print(warnings[0])
+        return 1
+    print(f"# Creator bible — parsed OK from {p.source_path}\n")
+    print(p.summary + "\n")
+    print("CASTING BLOCK (opens every prompt, verbatim):")
+    print(f"  {p.casting_spec(soul_id='<HIGGSFIELD_SOUL_ID>')}\n")
+    print("OUTFITS (one per product batch, itemized, repeated exactly):")
+    for slot, outfit in sorted(p.outfits.items()):
+        print(f"  {slot}: {outfit}")
+    print(f"\nSETTINGS (her rooms — prompts never leave them): {', '.join(p.settings)}")
+    print(f"SPEECH QUIRKS: {'; '.join(p.speech_quirks)}")
+    if p.voice_reference:
+        print(f"VOICE REF (pin it, feed it to every native-audio gen): {p.voice_reference}")
+    if warnings:
+        print("\n⚠ Not production-ready yet:")
+        for w in warnings:
+            print(f"  - {w}")
+    else:
+        print("\n✓ Production-ready. Train the Soul ID from the bible's photo "
+              "checklist, then set HIGGSFIELD_SOUL_ID.")
+    return 0
+
+
 def cmd_scale(args) -> int:
     from .roadmap import plan_scale
     try:
@@ -1023,6 +1052,10 @@ def main(argv=None) -> int:
                        help="AI-persona advertising plan: fit, cadence, Spark loop, lanes")
     p.add_argument("product_id")
     p.set_defaults(func=cmd_ai_plan)
+
+    p = sub.add_parser("persona", help="parse + validate the creator bible (docs/persona/CREATOR.md)")
+    p.add_argument("--path", default=None, help="override TT_PERSONA_PATH")
+    p.set_defaults(func=cmd_persona)
 
     p = sub.add_parser("scale", help="the $100k month itemized: capital, portfolio, cadence")
     p.add_argument("--revenue", type=float, default=100_000.0,

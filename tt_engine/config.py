@@ -72,6 +72,12 @@ class Config:
     #     `get_status`/`subscribe` to poll) — that sidesteps HIGGSFIELD_API_KEY entirely.
     higgsfield_api_key: str = field(default_factory=lambda: _get("HIGGSFIELD_API_KEY"))
     higgsfield_soul_id: str = field(default_factory=lambda: _get("HIGGSFIELD_SOUL_ID"))
+    # The creator bible: ONE persona per store, specified in a markdown file the
+    # engine parses (casting, wardrobe, settings, speech). See docs/persona/CREATOR.md.
+    persona_path: str = field(
+        default_factory=lambda: _get("TT_PERSONA_PATH",
+                                     str(ROOT / "docs" / "persona" / "CREATOR.md"))
+    )
     # Informational only — never dialed by this code. The real, verified endpoint for the
     # interactive-agent path above; printed as guidance, not POSTed to programmatically.
     higgsfield_mcp_url: str = field(

@@ -186,10 +186,19 @@ def build_creator_plan(
 ) -> CreatorPlan:
     fit = ai_fit(product, reviews)
     soul = soul_id or CONFIG.higgsfield_soul_id
-    persona = (f"the store's recurring persona (Soul ID {soul}) — same face, room, "
-               "wardrobe on every post" if soul else
-               "no Soul ID configured yet — set HIGGSFIELD_SOUL_ID so every post "
-               "carries the same persona (cast drift is an AI tell AND a brand leak)")
+    from .persona import load_persona
+    bible = load_persona()
+    if bible:
+        persona = (f"{bible.name} — the store's recurring persona"
+                   + (f" (Soul ID {soul})" if soul else " (Soul ID not set yet — "
+                      "train it from her bible's photo checklist)")
+                   + f"; bible: {bible.source_path} ({bible.summary})")
+    else:
+        persona = (f"the store's recurring persona (Soul ID {soul}) — same face, room, "
+                   "wardrobe on every post" if soul else
+                   "no creator bible or Soul ID yet — write docs/persona/CREATOR.md "
+                   "(shipped template) and train the Soul ID from its photo checklist; "
+                   "cast drift is an AI tell AND a brand leak")
 
     mix = [
         f"{POSTS_PER_DAY * 7 - 4} persona posts: hooks + in-hand demos from the "

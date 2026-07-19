@@ -37,6 +37,7 @@ from typing import Optional
 from ..config import CONFIG
 from ..db import models
 from .compliance import DISCLOSURE
+from .persona import Persona, load_persona
 from .scripts import UGCScript
 
 # ── coherent settings: light + clutter + sound + plausible behavior as ONE bundle ──
@@ -197,6 +198,7 @@ def enhance_prompt(
     hook_beat: str = "",
     demo_beat: str = "",
     cta_beat: str = "",
+    persona: Optional[Persona] = None,
 ) -> RealismPrompt:
     """Compose one coherent, phone-real Higgsfield prompt.
 
@@ -204,9 +206,18 @@ def enhance_prompt(
     `scene` alone works for a single-beat clip. One setting drives light/clutter/sound/
     behavior together; exactly two texture imperfections; one speech disfluency; the
     Soul ID (or a consistent casting spec) keeps the store persona stable across ads.
+
+    With a `persona` (the creator bible, docs/persona/CREATOR.md): her master
+    description opens the casting block verbatim, the setting is restricted to the
+    rooms she owns, the whole batch wears ONE itemized outfit, and her speech quirks
+    replace the generic disfluency pool — the research-backed anti-drift set.
     """
     key = f"{product.id}:{scene[:40]}"
-    setting_name = setting if setting in SETTINGS else _pick(tuple(SETTINGS), key, index)
+    setting_pool = tuple(SETTINGS)
+    if persona and persona.settings:
+        owned = tuple(s for s in persona.settings if s in SETTINGS)
+        setting_pool = owned or setting_pool
+    setting_name = setting if setting in SETTINGS else _pick(setting_pool, key, index)
     s = SETTINGS[setting_name]
 
     # Exactly two distinct texture imperfections.
@@ -214,8 +225,12 @@ def enhance_prompt(
     t2 = _pick(tuple(t for t in TEXTURES if t != t1), key, index + 11)
 
     soul = soul_id if soul_id is not None else CONFIG.higgsfield_soul_id
-    casting = (f"the store's recurring persona (Soul ID {soul}), consistent with every "
-               f"other ad" if soul else _pick(CASTING, key, index + 12))
+    if persona:
+        casting = persona.casting_spec(soul)
+    else:
+        casting = (f"the store's recurring persona (Soul ID {soul}), consistent with "
+                   f"every other ad" if soul else _pick(CASTING, key, index + 12))
+    wardrobe = persona.outfit_for(product.id) if persona else ""
 
     layers = {
         "setting": setting_name,
@@ -227,11 +242,15 @@ def enhance_prompt(
         "behavior": _pick(s["behaviors"], key, index + 15),
         "skin": _pick(SKIN, key, index + 16),
         "motion": _pick(MOTION, key, index + 17),
-        "speech": _pick(SPEECH, key, index + 18),
+        "speech": _pick(tuple(persona.speech_quirks), key, index + 18)
+                  if persona and persona.speech_quirks
+                  else _pick(SPEECH, key, index + 18),
         "interaction": _pick(INTERACTION, key, index + 19),
         "lens": f"{t1}; {t2}",
         "casting": casting,
     }
+    if wardrobe:
+        layers["wardrobe"] = wardrobe
 
     if hook_beat or demo_beat or cta_beat:
         timeline = (
@@ -242,9 +261,12 @@ def enhance_prompt(
     else:
         timeline = f"SCENE (camera: {layers['camera']}): {scene}"
 
+    wardrobe_block = (f"WARDROBE (exact, identical in every beat and every clip of "
+                      f"this batch): {wardrobe}. " if wardrobe else "")
     prompt = (
         f"Vertical 9:16 iPhone video, single-take UGC feel, NOT cinematic. "
         f"CASTING: {casting}. "
+        f"{wardrobe_block}"
         f"SETTING ({setting_name}): {layers['environment']}. "
         f"LIGHTING: {layers['lighting']}. "
         f"{timeline} "
@@ -265,8 +287,12 @@ def prompts_for_scripts(
     scripts: list[UGCScript],
     n: int = 5,
     soul_id: Optional[str] = None,
+    persona: Optional[Persona] = None,
 ) -> list[RealismPrompt]:
-    """Beat-structured prompts for the first n scripts (hook/demo/CTA timeline)."""
+    """Beat-structured prompts for the first n scripts (hook/demo/CTA timeline).
+    The creator bible auto-loads when present so every batch carries the persona."""
+    if persona is None:
+        persona = load_persona()
     out = []
     for i, s in enumerate(scripts[:n]):
         scene = (f"A regular person on camera: {s.first_3s} Then they demonstrate: "
@@ -274,6 +300,7 @@ def prompts_for_scripts(
         out.append(enhance_prompt(
             product, scene, index=i, soul_id=soul_id,
             hook_beat=s.first_3s, demo_beat=s.middle, cta_beat=s.cta,
+            persona=persona,
         ))
     return out
 
