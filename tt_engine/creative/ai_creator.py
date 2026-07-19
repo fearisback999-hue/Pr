@@ -207,6 +207,9 @@ def build_creator_plan(
         "2 slots for real affiliate UGC" + (
             " — REQUIRED here: this product's outcome proof must be real footage"
             if fit.band != "strong" else " (optional social proof on top)"),
+        "~21 slideshow carousels (3/day, `slideshows` command) — images cost ~10× "
+        "less than video, so carousels are the volume lever; face-covered "
+        "mirror-selfie style anchors slide 1",
     ]
     per_boost = TEST_BUDGET / (BOOST_TOP_N * BOOST_DAYS)
     spark = [

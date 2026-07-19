@@ -14,6 +14,7 @@ from .persona import Persona, load_persona, validate_persona
 from .compliance import DISCLOSURE, ComplianceReport, review_text
 from .concepts import CreativePack, UGCConcept, build_pack
 from .production import ProductionRunbook, build_runbook
+from .slideshow import SlideshowPlan, SlideshowPost, build_slideshows
 from .realism import (
     ARTIFACT_CHECKLIST,
     ImagePrompt,
@@ -50,6 +51,7 @@ __all__ = [
     "ARTIFACT_CHECKLIST",
     "ImagePrompt", "actor_image_prompt", "scene_frame_prompt", "scene_video_prompt",
     "ProductionRunbook", "build_runbook",
+    "SlideshowPlan", "SlideshowPost", "build_slideshows",
     "HiggsfieldClient",
     "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",
     "GenerationResult", "ExportResult", "ConfirmationRequired",

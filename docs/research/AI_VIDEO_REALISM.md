@@ -109,6 +109,27 @@ the keyframe-first thesis and pins down the voice step. The engine encodes it as
 Our additions on top: the AIGC disclosure label stays on (he doesn't mention it),
 outcome proof stays real footage, and generation stays the approval-gated step.
 
+## 6c. The volume format: slideshow carousels (practitioner, captured 2026-07-19)
+
+A second operator transcript, running AI slideshow carousels (TikTok photo mode)
+at agency scale — claimed 550 slideshow posts/day. Encoded as
+`tt_engine/creative/slideshow.py` (`slideshows <id>`):
+
+- **Why slideshows**: still images cost ~10× less than video to generate, so
+  carousels buy far more shots at the algorithm per dollar. Volume = more
+  lottery tickets; video carries the story, slideshows carry the volume.
+- **The face-covered tip**: have the model cover the face with the phone
+  (mirror-selfie style) — reads more candid AND converts better in his testing.
+  Quietly ideal for AI content: the face is where AI tells live, so hiding it
+  removes the hardest artifact class while wardrobe/jewelry/room still carry the
+  persona's continuity. The engine anchors slide 1 of every carousel with it.
+- **Reality check we added**: 550/day is a MULTI-BRAND total across many
+  accounts. One store posting like that reads as spam to the platform and to
+  people — the engine plans ~3/day per store alongside video.
+- **Coherence fix we added**: flat-lay and close-up slides have no person in
+  frame, so they carry no wardrobe description (describing an outfit in a
+  product-only shot is itself a tell).
+
 ## 7. The line that doesn't move
 
 The persona is openly an AI creator: every post carries the AIGC label, and she

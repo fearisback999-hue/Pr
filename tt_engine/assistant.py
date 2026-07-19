@@ -119,7 +119,10 @@ KNOWLEDGE: dict[str, str] = {
         "on-camera clips, text-to-voice (same voice) for narration; (5) assemble in "
         "CapCut with auto-captions + real B-roll. It PLANS only — generation stays "
         "the confirmed `creative`/autopilot `generate` step, and the AIGC label is "
-        "non-negotiable at export."
+        "non-negotiable at export. For volume, `slideshows <id>` plans photo-mode "
+        "carousels (~3/day per store; images cost ~10× less than video) — slide 1 "
+        "is the face-covered mirror-selfie style (fewer AI tells, converts better); "
+        "the '550/day' agency number is spread across many brands, not one account."
     ),
     "ai_creator": (
         "The AI creator program: ONE labeled persona (Soul ID) posts ~2×/day; the "
@@ -165,8 +168,8 @@ _ROUTES = [
     (("autopilot", "automate", "automatic", "approval", "approve", "hands-off",
       "auto mode"), "autopilot"),
     (("production", "runbook", "seedance", "keyframe", "first frame", "actor image",
-      "capcut", "elevenlabs", "eleven labs", "lip sync", "lip-sync", "voice"),
-     "production"),
+      "capcut", "elevenlabs", "eleven labs", "lip sync", "lip-sync", "voice",
+      "slideshow", "carousel", "photo mode"), "production"),
     (("ai creator", "persona", "soul", "spark", "ai fit", "ai-fit", "organic post",
       "boost"), "ai_creator"),
     (("expected value", " ev", "ceiling", "100k", "$100k", "queue", "which product",

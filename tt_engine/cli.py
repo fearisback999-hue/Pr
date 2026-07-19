@@ -581,6 +581,31 @@ def cmd_production(args) -> int:
     return 0
 
 
+def cmd_slideshows(args) -> int:
+    """Slideshow carousels (TikTok photo mode): the cheap-volume lever — image
+    prompts per slide, overlays, captions, one room per post."""
+    from .creative import build_slideshows
+    from .psychology import analyze
+    llm = LLMClient()
+    with _db(args) as db:
+        product = db.get_product(args.product_id)
+        if product is None:
+            print(f"{args.product_id} not found")
+            return 1
+        psych = analyze(product.name, product.reviews, product.category, llm)
+        plan = build_slideshows(product, psych, n=args.n)
+        text = plan.render()
+        if args.out:
+            from pathlib import Path
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(text)
+            print(f"wrote {args.out} — {len(plan.posts)} slideshow(s), "
+                  f"{sum(len(p.slides) for p in plan.posts)} slides")
+        else:
+            print(text)
+    return 0
+
+
 def cmd_landing(args) -> int:
     from .psychology import analyze
     from .reports.landing import build_landing_page
@@ -1068,6 +1093,13 @@ def main(argv=None) -> int:
     p.add_argument("product_id")
     p.add_argument("--out", default=None, help="write markdown to a file")
     p.set_defaults(func=cmd_creative_pack)
+
+    p = sub.add_parser("slideshows",
+                       help="slideshow carousels (photo mode): the cheap-volume lever")
+    p.add_argument("product_id")
+    p.add_argument("-n", type=int, default=3, help="posts to plan (default 3 = one day)")
+    p.add_argument("--out", default=None, help="write markdown to a file")
+    p.set_defaults(func=cmd_slideshows)
 
     p = sub.add_parser("production",
                        help="step-by-step video production runbook (keyframe-first "
