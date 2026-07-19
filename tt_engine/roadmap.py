@@ -227,6 +227,104 @@ def plan_million(
     )
 
 
+# ── the $100k month, itemized ───────────────────────────────────────────────────
+@dataclass
+class ScalePlan:
+    """What a target month actually costs to RUN — the working-capital and
+    operating-cadence view the milestone ladder doesn't show. Revenue is vanity;
+    this is the machine underneath it."""
+    monthly_revenue: float
+    aov: float
+    net_margin: float
+    monthly_profit: float
+    orders_per_day: float
+    winners_needed: int
+    monthly_ad_budget: float
+    affiliates_target: int
+    videos_per_week: int
+    cogs_float: float                 # COGS you front during the payout lag
+    contingency: float
+    working_capital: float            # ad budget + COGS float + contingency
+    notes: list[str] = field(default_factory=list)
+
+    def render(self) -> str:
+        lines = [
+            f"# The ${self.monthly_revenue:,.0f} month, itemized",
+            "",
+            f"  take-home at {self.net_margin*100:.0f}% blended net: "
+            f"~${self.monthly_profit:,.0f}/mo",
+            f"  volume: ~{self.orders_per_day:.0f} orders/day at ${self.aov:.0f} AOV",
+            f"  portfolio: ~{self.winners_needed} concurrent winners "
+            f"(one product ceilings ~${WINNER_CEILING_MO:,.0f}/mo — the engine's "
+            "ceiling estimate exists to pick products that can stack this high)",
+            f"  ads: ~${self.monthly_ad_budget:,.0f}/mo "
+            f"(at {TARGET_BLENDED_ROAS:.1f}× blended ROAS, "
+            f"{PAID_REVENUE_SHARE*100:.0f}% of revenue paid-driven)",
+            f"  affiliates: ~{self.affiliates_target}+ active "
+            "(the researched top-seller pattern: 3+ viral products, 50+ affiliates)",
+            f"  creative: ~{self.videos_per_week} videos/week across the portfolio "
+            "(Higgsfield batches + affiliate content; fatigue is the tax on scale)",
+            "",
+            "  WORKING CAPITAL TO RUN THIS MONTH:",
+            f"    ad budget (fronted)          ${self.monthly_ad_budget:>10,.0f}",
+            f"    COGS float (payout lag)      ${self.cogs_float:>10,.0f}",
+            f"    contingency (15%)            ${self.contingency:>10,.0f}",
+            f"    TOTAL                        ${self.working_capital:>10,.0f}",
+            "",
+        ]
+        lines += [f"  • {n}" for n in self.notes]
+        return "\n".join(lines) + "\n"
+
+
+def plan_scale(
+    monthly_revenue: float = 100_000.0,
+    aov: float = AOV_DEFAULT,
+    net_margin: float = BLENDED_MARGIN,
+    cogs_share: float = 0.35,
+) -> ScalePlan:
+    """The operating model for a target month (default: the $100k month).
+
+    plan_million answers "what does the GOAL take"; this answers "what does one
+    such MONTH cost to run" — cash fronted, portfolio shape, content cadence."""
+    if monthly_revenue <= 0 or aov <= 0:
+        raise ValueError("monthly_revenue and aov must be > 0")
+    if not 0 < net_margin <= 1:
+        raise ValueError("net_margin must be a fraction in (0, 1]")
+    if not 0 < cogs_share < 1:
+        raise ValueError("cogs_share must be a fraction in (0, 1)")
+
+    winners = max(1, math.ceil(monthly_revenue / WINNER_CEILING_MO))
+    ad_budget = monthly_revenue * PAID_REVENUE_SHARE / TARGET_BLENDED_ROAS
+    # You front COGS while TikTok holds payouts (~14 days) — imported from the
+    # month-one calculator so the two cash models can never drift apart.
+    from .capital.month_one import PAYOUT_LAG_DAYS
+    cogs_float = monthly_revenue * cogs_share * (PAYOUT_LAG_DAYS / 30.0)
+    contingency = 0.15 * (ad_budget + cogs_float)
+    working = ad_budget + cogs_float + contingency
+
+    notes = [
+        "sequence matters: this is the month-N machine, not month one — survive "
+        "the first profitable test, scale the first winner, THEN build the portfolio",
+        f"the profit lever is margin, not volume: at organic-first "
+        f"({ORGANIC_MARGIN*100:.0f}%) the same revenue takes home "
+        f"~${monthly_revenue*ORGANIC_MARGIN:,.0f} instead of "
+        f"~${monthly_revenue*net_margin:,.0f}",
+        "product selection is the constraint: the EV queue + ceiling check exist "
+        f"so the portfolio is {winners} products with ≥$25k ceilings, not ten "
+        "products that ceiling at $8k",
+    ]
+    return ScalePlan(
+        monthly_revenue=monthly_revenue, aov=aov, net_margin=net_margin,
+        monthly_profit=round(monthly_revenue * net_margin, 2),
+        orders_per_day=round(monthly_revenue / aov / 30.0, 1),
+        winners_needed=winners, monthly_ad_budget=round(ad_budget, 2),
+        affiliates_target=max(50, winners * 20),
+        videos_per_week=winners * 10,
+        cogs_float=round(cogs_float, 2), contingency=round(contingency, 2),
+        working_capital=round(working, 2), notes=notes,
+    )
+
+
 SOURCES = (
     "https://greyjournal.net/hustle/tiktok-shop-seller-profit-margins-2026/",
     "https://www.fastmoss.com/blog/tiktok-shop-profitability-q1-2026-top-10-us-sellers/",

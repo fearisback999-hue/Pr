@@ -672,6 +672,44 @@ def cmd_optimize(args) -> int:
     return 0
 
 
+def cmd_select(args) -> int:
+    """The test queue, ranked by expected dollars: EV = p(win)·payoff − p(lose)·loss
+    at the TRUE fee stack. Ineligible products (gates / threshold / unpriced) are
+    listed with their blocker — the refusal is information, not an error."""
+    from .selection import rank_for_test
+    with _db(args) as db:
+        products = db.all_products()
+        scored = [sr for sr in (pipeline.score_stored(db, p.id) for p in products) if sr]
+        if not scored:
+            print("no stored metrics — run `seed`/`daily`/`import-csv` first")
+            return 1
+        ranked = rank_for_test(scored)
+        print("# Test queue — ranked by expected value (not by score)\n")
+        for sr in ranked:
+            sel, s = sr.selection, sr.breakdown.score
+            print(f"{s.product_id}  ·  score {s.total:.0f}  ·  {sr.record.product.name}")
+            print(f"   {sel.ev.summary}")
+            print(f"   {sel.ceiling.summary}")
+            for note in sel.ceiling.notes:
+                print(f"   ⚠ {note}")
+            print()
+        print("EV is a prior for ORDERING the queue — the 48h kill timer decides "
+              "what happens after money moves. `scale` shows what these must stack to.")
+    return 0
+
+
+def cmd_scale(args) -> int:
+    from .roadmap import plan_scale
+    try:
+        plan = plan_scale(monthly_revenue=args.revenue, aov=args.aov,
+                          net_margin=args.margin, cogs_share=args.cogs)
+    except ValueError as e:
+        print(f"error: {e}")
+        return 1
+    print(plan.render())
+    return 0
+
+
 def cmd_roadmap(args) -> int:
     from .roadmap import plan_million, render_roadmap
     try:
@@ -961,6 +999,18 @@ def main(argv=None) -> int:
                    help="payment-processing rate (research default 3%%; use your real rate)")
     p.add_argument("--out", default=None, help="write markdown to a file")
     p.set_defaults(func=cmd_optimize)
+
+    p = sub.add_parser("select",
+                       help="test queue ranked by expected dollars (EV), not points")
+    p.set_defaults(func=cmd_select)
+
+    p = sub.add_parser("scale", help="the $100k month itemized: capital, portfolio, cadence")
+    p.add_argument("--revenue", type=float, default=100_000.0,
+                   help="target monthly revenue (default 100000)")
+    p.add_argument("--aov", type=float, default=45.0)
+    p.add_argument("--margin", type=float, default=0.16, help="blended net margin")
+    p.add_argument("--cogs", type=float, default=0.35, help="COGS share of revenue")
+    p.set_defaults(func=cmd_scale)
 
     p = sub.add_parser("roadmap", help="the honest milestone math from $0 to $1M")
     p.add_argument("--goal", type=float, default=1_000_000.0, help="target $ (default 1,000,000)")

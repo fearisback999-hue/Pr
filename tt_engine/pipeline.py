@@ -27,6 +27,7 @@ from .psychology import (
 from .reports.opportunity import AttackPacket, OpportunityReport, render_report
 from .scoring import ConfidenceResult, ContentSignals, ScoringInputs, compute_confidence
 from .scoring.algorithm import ScoreBreakdown, score_product
+from .selection import SelectionResult, evaluate_candidate, rank_for_test
 from .sourcing import SupplierScore, rank_suppliers
 
 # Category return-risk priors (Part 6: anything with sizing is a refund machine).
@@ -84,6 +85,7 @@ class ScoredRecord:
     breakdown: ScoreBreakdown
     lifecycle: LifecycleResult = None      # type: ignore[assignment]
     confidence: ConfidenceResult = None    # type: ignore[assignment]
+    selection: SelectionResult = None      # type: ignore[assignment]
 
 
 def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
@@ -107,10 +109,15 @@ def score_record(db: Database, rec: FeedRecord) -> ScoredRecord:
         commodity_signal=commodity_signal(rec.reviews),
     )
     breakdown = score_product(inputs)
+    lifecycle = classify_lifecycle(metrics, trigger)
+    confidence = compute_confidence(metrics, trigger, econ, rec.reviews)
     return ScoredRecord(
         record=rec, trigger=trigger, economics=econ, breakdown=breakdown,
-        lifecycle=classify_lifecycle(metrics, trigger),
-        confidence=compute_confidence(metrics, trigger, econ, rec.reviews),
+        lifecycle=lifecycle, confidence=confidence,
+        # Selection math (ceiling + EV at the true fee stack) rides along on every
+        # score so the test queue can rank by expected dollars, not points.
+        selection=evaluate_candidate(metrics, trigger, econ, breakdown,
+                                     lifecycle, confidence),
     )
 
 
@@ -154,7 +161,9 @@ def daily(db: Database, feed=None, lookback: int = 35) -> DailyResult:
         if sr.breakdown.score.gates_passed and sr.breakdown.score.total >= CONFIG.score_threshold:
             candidates.append(sr)
     scored.sort(key=lambda s: s.breakdown.score.total, reverse=True)
-    candidates.sort(key=lambda s: s.breakdown.score.total, reverse=True)
+    # The BOARD stays score-ordered (quality view). The TEST QUEUE is EV-ordered:
+    # two equal scores are rarely equal bets, and money follows expected dollars.
+    candidates[:] = rank_for_test(candidates)
     return DailyResult(date=today, scored=scored, new_candidates=candidates)
 
 

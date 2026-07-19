@@ -97,6 +97,18 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "selection": (
+        "The test queue ranks by EXPECTED VALUE, not score: EV = p(win)·payoff − "
+        "p(lose)·loss at the TRUE fee stack (referral + payment + affiliate). p(win) "
+        "anchors on the ~20% disciplined-beginner hit rate, shifted by score edge, "
+        "data confidence, and lifecycle — it orders the queue; the 48h kill timer "
+        "decides after money moves. Each product also gets a revenue CEILING (market "
+        "× capture × lifecycle headroom, capped at ~$40k/mo) and a '×N = $100k month' "
+        "count — a flawless product that ceilings at $8k is fine for reps, wrong for "
+        "scale. Gated, below-threshold, and unpriced products get refusals, never "
+        "numbers. `select` prints the queue; `scale` itemizes the $100k month "
+        "(~3 winners, ~$20k/mo ads, ~$42k working capital at defaults)."
+    ),
     "data_sources": (
         "Data sources: CSV exports + official APIs only. The engine will not scrape "
         "TikTok/Amazon/Meta/Reddit etc. — ToS-prohibited and it's the repo's founding "
@@ -114,6 +126,8 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("expected value", " ev", "ceiling", "100k", "$100k", "queue", "which product",
+      "what to test", "capacity", "working capital"), "selection"),
     (("million", "1m", "revenue", "goal", "rich", "money"), "million"),
     (("scrape", "scraping", "amazon", "reddit", "api", "data source"), "data_sources"),
     (("command", "cli", "how do i", "help", "start"), "commands"),

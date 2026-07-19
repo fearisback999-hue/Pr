@@ -155,6 +155,37 @@ def test_product_page_shows_lifecycle_confidence_and_chart(server):
     assert "★" in body
 
 
+def test_overview_ranks_the_test_queue_by_ev(server):
+    status, body = _get(server, "/")
+    assert status == 200
+    assert "Test queue — ranked by expected value" in body
+    assert "fund in this order" in body                # eligible rows say why they rank
+    assert "TRUE fee" in body                          # the money math is the true stack
+    assert "48h kill timer" in body                    # EV orders; the timer decides
+
+
+def test_product_page_shows_selection_math(server):
+    status, body = _get(server, "/product?id=P-SOURDOUGHLAME")
+    assert status == 200
+    assert "Selection math" in body
+    assert "ceiling" in body
+    assert "p(win)" in body
+
+    # A gated product shows the refusal, not a number.
+    status, body = _get(server, "/product?id=P-PIMPLEPATCH")
+    assert status == 200
+    assert "no EV" in body
+
+
+def test_million_page_itemizes_the_100k_month(server):
+    status, body = _get(server, "/million")
+    assert status == 200
+    assert "The $100k month, itemized" in body
+    assert "Working capital" in body
+    assert "COGS float" in body
+    assert "month-N machine, not month one" in body     # sequencing honesty on-page
+
+
 def test_overview_links_to_playbook(server):
     status, body = _get(server, "/")
     assert status == 200

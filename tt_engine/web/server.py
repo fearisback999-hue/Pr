@@ -103,6 +103,38 @@ def page_overview(db: Database) -> str:
                     f"{esc(s.action)}{cmd}</div>")
     body.append("</div>")
 
+    # ── Test queue: ranked by expected dollars, not points ─────────────────────
+    from ..selection import rank_for_test
+    srs = [sr for sr in (pipeline.score_stored(db, s.product_id) for s in scores) if sr]
+    if srs:
+        ranked = rank_for_test(srs)
+        body.append("<h2>Test queue — ranked by expected value</h2><div class=panel>")
+        rows = []
+        for sr in ranked[:8]:
+            sel, sid = sr.selection, sr.breakdown.score.product_id
+            if sel.ev.eligible:
+                ev_cell = f"<b>${sel.ev.ev:+,.0f}</b>"
+                p_cell = f"{sel.ev.p_win:.0%}"
+                note = "<span class=mut>fund in this order</span>"
+            else:
+                ev_cell, p_cell = "—", "—"
+                note = f"<span class=warn>{esc(sel.ev.reason)}</span>"
+            needed = sel.ceiling.products_needed_for_100k
+            rows.append([
+                f"<a href='/product?id={esc(sid)}'>{esc(sid)}</a>",
+                ev_cell, p_cell,
+                f"${sel.ceiling.ceiling_monthly:,.0f}",
+                f"×{needed}" if needed else "—",
+                note,
+            ])
+        body.append(table(["Product", "EV / $200 test", "p(win)", "Ceiling $/mo",
+                           "→ $100k mo", "Why / blocker"], rows, num_cols={1, 2, 3}))
+        body.append("<p class=mut>EV = p(win)·payoff − p(lose)·loss at the TRUE fee "
+                    "stack (referral + payment + affiliate). It orders the queue; the "
+                    "48h kill timer still decides what happens after money moves. "
+                    "<b>×N</b> = products of this ceiling needed for a $100k month "
+                    "(<code>scale</code> shows that month itemized).</p></div>")
+
     body.append("<h2>Ranked board</h2><div class=panel>")
     if scores:
         rows = []
@@ -224,6 +256,14 @@ def page_product(db: Database, pid: str) -> Optional[str]:
                                for r in sr.confidence.reasons) or
                        "<div class=mut>no data-quality gaps</div>")
                     + "</p></div>")
+        # Selection math: what this product is WORTH funding, and what it can carry.
+        sel = sr.selection
+        body.append("<div class=panel><p><b>Selection math</b></p>"
+                    f"<p>{esc(sel.ev.summary)}</p>"
+                    f"<p class=mut>{esc(sel.ceiling.summary)}</p>"
+                    + "".join(f"<div class=mut>⚠ {esc(n)}</div>"
+                              for n in sel.ceiling.notes)
+                    + "</div>")
         body.append(f"<div class=panel>{md_to_html(render_scorecard(sr))}</div>")
     else:
         body.append("<div class=panel><p class=mut>No metrics yet — nothing to score.</p></div>")
@@ -532,6 +572,36 @@ def page_million(db: Database, q: dict) -> str:
             f"<div class=mut><i>odds: {esc(m.odds)}</i></div></div>"
         )
     body.append("</div>")
+
+    # ── the $100k month, itemized ──────────────────────────────────────────────
+    from ..roadmap import plan_scale
+    scale_rev = _f(q, "scale_rev", 100_000.0)
+    body.append("<h2>The $100k month, itemized</h2>")
+    try:
+        sp = plan_scale(monthly_revenue=scale_rev, aov=aov, net_margin=margin)
+    except ValueError as e:
+        body.append(f"<p class=bad>{esc(str(e))}</p>")
+    else:
+        body.append("<div class=kpis>"
+                    + kpi(f"${sp.monthly_profit:,.0f}", "take-home / mo")
+                    + kpi(str(sp.winners_needed), "concurrent winners")
+                    + kpi(f"{sp.videos_per_week}", "videos / week")
+                    + kpi(f"${sp.working_capital:,.0f}", "working capital to run it")
+                    + "</div>")
+        body.append("<div class=panel>")
+        body.append(table(["Line item", "$/mo"], [
+            ["Ad budget (fronted at 3.0× blended ROAS)", f"${sp.monthly_ad_budget:,.0f}"],
+            ["COGS float (TikTok payout lag ~14d)", f"${sp.cogs_float:,.0f}"],
+            ["Contingency (15%)", f"${sp.contingency:,.0f}"],
+            ["<b>Working capital total</b>", f"<b>${sp.working_capital:,.0f}</b>"],
+        ], num_cols={1}))
+        body.append(f"<p class=mut>~{sp.orders_per_day:.0f} orders/day at "
+                    f"${sp.aov:.0f} AOV · ~{sp.affiliates_target}+ active affiliates "
+                    "(top-seller pattern). Change <code>scale_rev</code>, "
+                    "<code>aov</code> or <code>margin</code> in the form above to "
+                    "re-itemize.</p>")
+        body.append("<ul>" + "".join(f"<li>{esc(n)}</li>" for n in sp.notes) + "</ul>")
+        body.append("</div>")
 
     # the odds, plainly
     body.append("<h2>The odds, stated plainly</h2><div class=panel><ul>"
