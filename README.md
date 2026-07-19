@@ -104,6 +104,26 @@ python -m tt_engine.cli creative-pack P-CLOUD --out pack.md   # 50 hooks, 50 con
 python -m tt_engine.cli landing P-CLOUD --out landing.md      # compliance-swept page copy
 python -m tt_engine.cli search --q strap --min-price 20       # search your product DB
 
+# ⭐ Select by expected DOLLARS, not points — EV queue, revenue ceilings, $100k math
+python -m tt_engine.cli select                        # test queue ranked by EV at the TRUE fee stack
+python -m tt_engine.cli scale                         # the $100k month itemized: winners, ads, working capital
+python -m tt_engine.cli month-one                     # initial cash needed + honest expected P&L
+python -m tt_engine.cli optimize P-CLOUD --price 24.99 --cost 4.50   # true-stack offer sweep
+
+# ⭐ The AI creator program — ONE labeled persona is the ad engine
+python -m tt_engine.cli persona                       # parse + validate the creator bible (docs/persona/CREATOR.md)
+python -m tt_engine.cli ai-plan P-CLOUD               # fit, format mix, Spark loop, lane economics
+python -m tt_engine.cli production P-CLOUD            # step-by-step video runbook: actor → frames → animate → voice
+python -m tt_engine.cli slideshows P-CLOUD            # photo-mode carousels: the cheap-volume lever
+
+# ⭐ Autopilot — automated, but every step is approval-gated
+python -m tt_engine.cli autopilot run                 # propose every product's next step into a queue
+python -m tt_engine.cli autopilot approve 3           # approval executes it (spend steps are NEVER auto)
+python -m tt_engine.cli autopilot policy needs-score auto   # graduate a SAFE internal step to auto
+
+# Ask the assistant anything — answered from your live DB + the engine's knowledge
+python -m tt_engine.cli ask "which product should I fund first"
+
 # Reports & ops
 python -m tt_engine.cli weekly --out reports/out
 python -m tt_engine.cli board
@@ -168,7 +188,12 @@ tt_engine/
   psychology/        # LLM pass over reviews/comments                       — Part 4
   economics/         # landed cost, margin, break-even ROAS, max CAC, offer — Part 5
   sourcing/          # supplier scoring                                     — Part 6
+  selection/         # EV test queue, revenue ceilings, "can it carry $100k?" math
   creative/          # hooks, scripts, brief, compliance, Higgsfield        — Part 7
+                     #   + persona (creator bible parser), realism (naturalism v2 +
+                     #   image prompts), production (keyframe-first Seedance runbook),
+                     #   slideshow (photo-mode carousels), ai_creator (fit + Spark plan)
+  autopilot.py       # approval-gated automation: propose → approve → execute (audit trail)
   distribution/      # affiliate / creator outreach funnel                  — Part 8
   validation/        # 30-day framework, kill/scale thresholds              — Part 9
   account/           # Shop Performance Score proxy + throttle warnings     — Part 10
@@ -184,10 +209,12 @@ tt_engine/
   cli.py             # seed/daily/weekly/board/score/packet/validate/
                      #   recalibrate/plan/export/capital/health
 scripts/             # cron wrappers
-tests/               # 109 tests across every part + end-to-end smoke + CLI workflow
+tests/               # 296 tests across every part + end-to-end smoke + CLI workflow
 docs/THESIS.md       # Part 0 — the operating thesis (read first)
 docs/OPERATING.md    # the Phase 1/2 runbook — how to actually run this daily
 docs/OPERATING_SYSTEM.md  # the full company OS: SOPs, decision trees, creator/ads/LP playbooks
+docs/persona/CREATOR.md   # the creator bible ("Maya") — parsed into every prompt
+docs/research/AI_VIDEO_REALISM.md  # sourced research: Soul ID, keyframe-first, voice pinning
 ```
 
 ## Realistic expectations (Appendix D — reread when excited)
