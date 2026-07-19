@@ -103,6 +103,34 @@ def page_overview(db: Database) -> str:
                     f"{esc(s.action)}{cmd}</div>")
     body.append("</div>")
 
+    # ── Autopilot: the approval-gated automation queue ─────────────────────────
+    pending = db.autopilot_actions(status="pending")
+    body.append("<h2>Autopilot — automated, approval-gated</h2><div class=panel>")
+    body.append("<p><a href='/autopilot/run'>↻ refresh proposals</a> — the engine "
+                "proposes every next step; nothing runs until you approve it. "
+                "<span class=mut>Safe (internal) steps approve right here; anything "
+                "that spends money is CLI-only, always.</span></p>")
+    if pending:
+        rows = []
+        for i in pending:
+            if i["kind"] == "internal":
+                act = (f"<a href='/autopilot/approve?id={i['id']}'>approve ▶</a> · "
+                       f"<a href='/autopilot/reject?id={i['id']}'>reject</a>")
+            elif i["kind"] == "external":
+                act = (f"<span class=warn>spends money</span> — "
+                       f"<code>autopilot approve {i['id']}</code> (CLI only)")
+            else:
+                act = "<span class=mut>yours to do — clears itself when done</span>"
+            rows.append([f"#{i['id']}",
+                         (f"<a href='/product?id={esc(i['product_id'])}'>"
+                          f"{esc(i['product_id'])}</a>" if i["product_id"] else "—"),
+                         esc(i["stage"]), esc(i["description"][:90]), act])
+        body.append(table(["#", "Product", "Step", "What it does", "Decision"], rows))
+    else:
+        body.append("<p class=mut>Queue empty — hit refresh to propose next steps "
+                    "from the live state.</p>")
+    body.append("</div>")
+
     # ── Test queue: ranked by expected dollars, not points ─────────────────────
     from ..selection import rank_for_test
     srs = [sr for sr in (pipeline.score_stored(db, s.product_id) for s in scores) if sr]
@@ -789,6 +817,32 @@ class Handler(BaseHTTPRequestHandler):
                     done = (q.get("done") or ["1"])[0] == "1"
                     playbook_toggle(db, step_id, done)  # unknown/auto ids are a silent no-op
                     return self._redirect("/playbook")
+                elif url.path == "/autopilot/run":
+                    from .. import autopilot
+                    autopilot.run(db)               # propose + policy-auto only; no spend
+                    return self._redirect("/")
+                elif url.path == "/autopilot/approve":
+                    from .. import autopilot
+                    aid = (q.get("id") or ["0"])[0]
+                    item = db.autopilot_action(int(aid)) if aid.isdigit() else None
+                    # Browser approval is for INTERNAL steps only — anything that
+                    # spends money stays a deliberate CLI step (design invariant:
+                    # the dashboard never spends money).
+                    if item and item["kind"] == "internal" and item["status"] == "pending":
+                        try:
+                            autopilot.approve(db, item["id"])
+                        except ValueError:
+                            pass
+                    return self._redirect("/")
+                elif url.path == "/autopilot/reject":
+                    from .. import autopilot
+                    aid = (q.get("id") or ["0"])[0]
+                    if aid.isdigit():
+                        try:
+                            autopilot.reject(db, int(aid))
+                        except ValueError:
+                            pass
+                    return self._redirect("/")
                 elif url.path == "/advertising":
                     html = page_advertising(db)
                 elif url.path == "/budget":

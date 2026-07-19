@@ -155,6 +155,36 @@ def test_product_page_shows_lifecycle_confidence_and_chart(server):
     assert "★" in body
 
 
+def test_overview_shows_autopilot_and_run_proposes(server):
+    status, body = _get(server, "/")
+    assert status == 200
+    assert "Autopilot — automated, approval-gated" in body
+    assert "nothing runs until you approve" in body
+
+    status, _ = _get(server, "/autopilot/run")
+    assert status == 303                               # propose + redirect, no page spend
+
+    status, body = _get(server, "/")
+    assert "approve ▶" in body                         # internal steps approvable here
+    assert "clears itself when done" in body           # manual steps labeled
+
+
+def test_autopilot_web_approve_executes_internal_only(server):
+    _get(server, "/autopilot/run")
+    _, body = _get(server, "/")
+    import re
+    ids = re.findall(r"/autopilot/approve\?id=(\d+)", body)
+    assert ids                                         # at least one internal pending
+    status, _ = _get(server, f"/autopilot/approve?id={ids[0]}")
+    assert status == 303
+    _, body2 = _get(server, "/")
+    assert f"/autopilot/approve?id={ids[0]}" not in body2   # executed, gone from queue
+
+    # Garbage ids are a safe no-op redirect, never a 500.
+    status, _ = _get(server, "/autopilot/approve?id=zzz")
+    assert status == 303
+
+
 def test_overview_ranks_the_test_queue_by_ev(server):
     status, body = _get(server, "/")
     assert status == 200

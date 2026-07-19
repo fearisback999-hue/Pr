@@ -713,6 +713,43 @@ def cmd_ai_plan(args) -> int:
     return 0
 
 
+def cmd_autopilot(args) -> int:
+    """The approval-gated automation loop: run proposes, you approve, it executes."""
+    from . import autopilot
+    with _db(args) as db:
+        try:
+            if args.ap_action == "run":
+                report = autopilot.run(db)
+                print(report.headline + "\n")
+                print(autopilot.render_queue(db))
+            elif args.ap_action == "queue":
+                print(autopilot.render_queue(db))
+            elif args.ap_action in ("approve", "reject"):
+                if args.target is None or not args.target.isdigit():
+                    print(f"usage: autopilot {args.ap_action} <queue-item-id>")
+                    return 1
+                aid = int(args.target)
+                if args.ap_action == "approve":
+                    print(f"✓ executed: {autopilot.approve(db, aid)}")
+                else:
+                    autopilot.reject(db, aid, args.why or "")
+                    print(f"✗ rejected #{aid}")
+            elif args.ap_action == "policy":
+                if not args.target:
+                    from .autopilot import EXTERNAL_STAGES, INTERNAL_STAGES
+                    policy = db.autopilot_policy()
+                    for s in INTERNAL_STAGES:
+                        print(f"  {s:<16} {policy.get(s, 'approve')}")
+                    for s in EXTERNAL_STAGES:
+                        print(f"  {s:<16} approve (locked — spends money)")
+                else:
+                    print(autopilot.set_policy(db, args.target, args.mode or "approve"))
+        except ValueError as e:
+            print(f"error: {e}")
+            return 1
+    return 0
+
+
 def cmd_persona(args) -> int:
     """Show the parsed creator bible + production-readiness warnings."""
     from .creative.persona import load_persona, validate_persona
@@ -1052,6 +1089,16 @@ def main(argv=None) -> int:
                        help="AI-persona advertising plan: fit, cadence, Spark loop, lanes")
     p.add_argument("product_id")
     p.set_defaults(func=cmd_ai_plan)
+
+    p = sub.add_parser("autopilot",
+                       help="approval-gated automation: propose → approve → execute")
+    p.add_argument("ap_action", choices=("run", "queue", "approve", "reject", "policy"),
+                   help="run = propose+refresh; approve/reject <id>; policy [stage mode]")
+    p.add_argument("target", nargs="?", default=None,
+                   help="queue item id (approve/reject) or stage name (policy)")
+    p.add_argument("mode", nargs="?", default=None, choices=(None, "approve", "auto"))
+    p.add_argument("--why", default="", help="reason for a rejection")
+    p.set_defaults(func=cmd_autopilot)
 
     p = sub.add_parser("persona", help="parse + validate the creator bible (docs/persona/CREATOR.md)")
     p.add_argument("--path", default=None, help="override TT_PERSONA_PATH")

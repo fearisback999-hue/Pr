@@ -217,6 +217,53 @@ class Database:
         )
         self.conn.commit()
 
+    # ── autopilot (approval-gated automation queue) ────────────────────────────
+    def autopilot_actions(self, status: Optional[str] = None) -> list[dict]:
+        if status:
+            rows = self.conn.execute(
+                "SELECT * FROM autopilot_actions WHERE status=? ORDER BY id", (status,)
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM autopilot_actions ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+
+    def autopilot_action(self, action_id: int) -> Optional[dict]:
+        row = self.conn.execute(
+            "SELECT * FROM autopilot_actions WHERE id=?", (action_id,)).fetchone()
+        return dict(row) if row else None
+
+    def add_autopilot_action(self, product_id: str, stage: str, kind: str,
+                             description: str, command: str = "") -> int:
+        cur = self.conn.execute(
+            """INSERT INTO autopilot_actions(product_id, stage, kind, description, command)
+               VALUES(?,?,?,?,?)""",
+            (product_id, stage, kind, description, command),
+        )
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def set_autopilot_status(self, action_id: int, status: str, result: str = "") -> None:
+        from datetime import datetime
+        self.conn.execute(
+            """UPDATE autopilot_actions
+               SET status=?, result=?, decided_at=? WHERE id=?""",
+            (status, result, datetime.now().isoformat(timespec="seconds"), action_id),
+        )
+        self.conn.commit()
+
+    def autopilot_policy(self) -> dict[str, str]:
+        rows = self.conn.execute("SELECT * FROM autopilot_policy").fetchall()
+        return {r["stage"]: r["mode"] for r in rows}
+
+    def set_autopilot_policy(self, stage: str, mode: str) -> None:
+        self.conn.execute(
+            """INSERT INTO autopilot_policy(stage, mode) VALUES(?,?)
+               ON CONFLICT(stage) DO UPDATE SET mode=excluded.mode""",
+            (stage, mode),
+        )
+        self.conn.commit()
+
     # ── tests / results ────────────────────────────────────────────────────────
     def upsert_test(self, t: models.Test) -> None:
         self.conn.execute(

@@ -123,5 +123,26 @@ CREATE TABLE IF NOT EXISTS import_log (
     imported_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Autopilot: the approval-gated automation queue. The engine PROPOSES every step;
+-- nothing executes until approved. Internal steps may be flipped to 'auto' per
+-- stage once trust is earned; external steps (spend/publish/contact) can never be.
+CREATE TABLE IF NOT EXISTS autopilot_actions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id  TEXT NOT NULL DEFAULT '',
+    stage       TEXT NOT NULL,              -- guide stage this action came from
+    kind        TEXT NOT NULL,              -- internal | external | manual
+    description TEXT NOT NULL,
+    command     TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'pending', -- pending|executed|rejected|superseded
+    result      TEXT NOT NULL DEFAULT '',
+    proposed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    decided_at  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS autopilot_policy (
+    stage  TEXT PRIMARY KEY,
+    mode   TEXT NOT NULL DEFAULT 'approve'  -- 'approve' | 'auto' (internal stages only)
+);
+
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON product_daily_metrics(date);
 CREATE INDEX IF NOT EXISTS idx_scores_total ON scores(total);

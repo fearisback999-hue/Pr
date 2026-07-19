@@ -97,6 +97,17 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "autopilot": (
+        "Autopilot runs the loop with an approval gate on every step: `autopilot "
+        "run` proposes each product's next action into a queue; nothing executes "
+        "until you `autopilot approve <id>` (or click approve on the dashboard for "
+        "safe internal steps). Three kinds: INTERNAL (re-score, build pack, export, "
+        "record kill/scale — can be flipped to auto per stage via `autopilot policy "
+        "<stage> auto` once trusted), EXTERNAL (generation spends money — approval "
+        "required FOREVER, the founding guardrail), MANUAL (you do it off-engine; "
+        "the item clears itself when the DB shows the work). Rejections stick until "
+        "the product's stage changes. Everything is recorded as an audit trail."
+    ),
     "ai_creator": (
         "The AI creator program: ONE labeled persona (Soul ID) posts ~2×/day; the "
         "best organic posts get Spark-boosted on the standard $200 test budget with "
@@ -138,6 +149,8 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("autopilot", "automate", "automatic", "approval", "approve", "hands-off",
+      "auto mode"), "autopilot"),
     (("ai creator", "persona", "soul", "spark", "ai fit", "ai-fit", "organic post",
       "boost"), "ai_creator"),
     (("expected value", " ev", "ceiling", "100k", "$100k", "queue", "which product",
