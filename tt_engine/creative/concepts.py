@@ -294,7 +294,8 @@ def build_pack(
     n_scripts: int = 20,
 ) -> CreativePack:
     llm = llm or LLMClient()
-    hooks = generate_hooks(product.name, psych, n=n_hooks, llm=llm)
+    hooks = generate_hooks(product.name, psych, n=n_hooks, llm=llm,
+                           category=product.category)
     paid = generate_scripts(product.name, psych, hooks, n=n_scripts, llm=llm)
     organic = [_soften_for_organic(s, i) for i, s in enumerate(paid[:n_scripts])]
     concepts = ugc_concepts(product, psych, n=n_concepts)

@@ -78,7 +78,8 @@ def build_kit(
     llm: Optional[LLMClient] = None,
 ) -> CreativeKit:
     llm = llm or LLMClient()
-    hooks = generate_hooks(product.name, psych, n=20, llm=llm)
+    hooks = generate_hooks(product.name, psych, n=20, llm=llm,
+                           category=product.category)
     scripts = generate_scripts(product.name, psych, hooks, n=10, llm=llm)
 
     # Compliance sweep over every hook and script beat (full set kept; brief shows flags).

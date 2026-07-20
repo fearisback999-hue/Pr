@@ -117,13 +117,17 @@ def _slide_image(product: models.Product, persona: Optional[Persona],
                  style: str, setting: str, role: str, salt: int) -> ImagePrompt:
     s = SETTINGS[setting]
     face_covered = "phone covering the face" in style
-    # Flat-lays and close-ups have no person in frame — describing an outfit there
-    # is itself an incoherence tell. Only person-in-frame styles carry the persona.
-    personless = "flat-lay" in style or "close-up" in style
+    # Flat-lays, close-ups, top-downs, macros, and staged product shots have no
+    # person in frame — describing an outfit there is itself an incoherence tell.
+    # Only person-in-frame styles carry the persona. (Hand-only macros still skip
+    # the outfit; a hand with her ring is covered by the style text itself.)
+    personless = any(k in style for k in
+                     ("flat-lay", "close-up", "top-down", "macro", "staged with"))
     show_product = role in ("demo", "detail", "hook")
 
     if personless:
-        identity = "no person in frame — the product and the room do the talking"
+        identity = ("no face in frame — at most a hand; the product and the room "
+                    "do the talking")
         wardrobe = ""
     else:
         who = (f"{persona.name}, the store's recurring persona" if persona
@@ -131,7 +135,13 @@ def _slide_image(product: models.Product, persona: Optional[Persona],
         identity = (f"{who} — face hidden by the phone, identity carried by the "
                     "outfit and the room" if face_covered else
                     f"{who}, matched from the actor reference image")
-        wardrobe = persona.outfit_for(product.id) if persona else ""
+        from .category_styles import style_for
+        if style_for(product.category).wardrobe_rule == "product-is-outfit":
+            wardrobe = (f"the {product.name} itself — the product IS the outfit"
+                        + (f"; jewelry: {persona.jewelry}"
+                           if persona and persona.jewelry else ""))
+        else:
+            wardrobe = persona.outfit_for(product.id) if persona else ""
     prompt = (
         f"Casual photo shot on an iPhone 15 Pro, vertical 9:16, NOT professional. "
         f"Style: {style}. {identity}. "
@@ -157,7 +167,8 @@ def build_slideshows(
 ) -> SlideshowPlan:
     if persona is None:
         persona = load_persona()
-    hooks = generate_hooks(product.name, psych, n=max(n, 4))
+    hooks = generate_hooks(product.name, psych, n=max(n, 4),
+                           category=product.category)
     short = product.name.split("(")[0].strip()
 
     posts: list[SlideshowPost] = []
@@ -170,12 +181,20 @@ def build_slideshows(
         setting = _pick(pool, f"{product.id}:slideshow{i}", 0)
 
         # Slide arc: hook → context → demo → detail → CTA. The face-covered
-        # mirror-selfie anchors slide 1 (the practitioner tip: it converts).
+        # mirror-selfie anchors slide 1 (the practitioner tip: it converts), and the
+        # category's native lead style carries the demo slide — a try-on carousel
+        # and a gadget carousel must not look like the same account made them.
+        from .category_styles import style_for
+        cat = style_for(product.category)
         roles = ("hook", "context", "demo", "detail", "cta")
         slides = []
         for j, role in enumerate(roles):
-            style = STYLES[0] if role == "hook" else _pick(STYLES[1:],
-                                                           f"{product.id}:{i}", j)
+            if role == "hook":
+                style = STYLES[0]
+            elif role == "demo" and cat.slideshow_lead:
+                style = cat.slideshow_lead
+            else:
+                style = _pick(STYLES[1:], f"{product.id}:{i}", j)
             overlay = {
                 "hook": hook,
                 "context": _pick(_OVERLAYS["context"], f"{product.id}:{i}", j + 10),

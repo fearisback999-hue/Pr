@@ -118,17 +118,28 @@ def generate_hooks(
     psych: PsychProfile,
     n: int = 20,
     llm: Optional[LLMClient] = None,
+    category: str = "",
 ) -> list[Hook]:
+    """`category` pulls in the product-type's native hook angles (a fit check for
+    clothing, a settings reveal for gadgets) — a try-on hook on a gadget, or vice
+    versa, is exactly the sameness that makes feeds smell generated."""
     llm = llm or LLMClient()
     if llm.available:
         try:
+            from .category_styles import style_for
+            style = style_for(category)
+            cat_note = (f"Product type: {style.label}. Its native angles: "
+                        + "; ".join(t for _, t in style.hook_templates[:3])
+                        + "\n" if style.hook_templates else "")
             user = (
                 f"Product: {product_name}\n"
+                f"{cat_note}"
                 f"Psychological spine: {psych.spine}\n"
                 f"Primary trigger: {psych.emotional_trigger}\n"
                 f"Pain point: {psych.pain_point}\n\n"
                 f"Write exactly {n} hooks, balanced across the four types "
-                f"({', '.join(HOOK_TYPES)}). Each <= 10 words."
+                f"({', '.join(HOOK_TYPES)}). Each <= 10 words. Make them sound "
+                f"native to how this product type is actually filmed."
             )
             data = llm.complete_json(_SYSTEM, user, _SCHEMA, max_tokens=2500)
             hooks = [
@@ -140,27 +151,58 @@ def generate_hooks(
                 return hooks[:n]
         except LLMUnavailable:
             pass
-    return _offline_hooks(product_name, psych, n)
+    return _offline_hooks(product_name, psych, n, category)
 
 
-def _offline_hooks(product_name: str, psych: PsychProfile, n: int) -> list[Hook]:
+def _offline_hooks(product_name: str, psych: PsychProfile, n: int,
+                   category: str = "") -> list[Hook]:
     # short pain phrase for templates
     pain = psych.pain_point.split(",")[0].split(" they ")[0].strip().lower()
     if len(pain.split()) > 4:
         pain = " ".join(pain.split()[:4])
     short_name = product_name.split("(")[0].strip()
+
+    def _mk(tmpl: str, htype: str) -> Hook:
+        return Hook(text=_truncate_10(tmpl.format(name=short_name, pain=pain)),
+                    type=htype)
+
     hooks: list[Hook] = []
+    seen: set[str] = set()
+
+    def _add(h: Hook) -> None:
+        if h.text not in seen:
+            hooks.append(h)
+            seen.add(h.text)
+
+    # Category-native angles lead — they're what makes a clothing hook read like
+    # clothing and a gadget hook read like a gadget.
+    from .category_styles import style_for
+    for htype, tmpl in style_for(category).hook_templates:
+        if len(hooks) < n:
+            _add(_mk(tmpl, htype))
+
+    # Then the generic pool keeps every hook type represented and fills to n.
     per_type = max(1, n // len(HOOK_TYPES))
     for htype in HOOK_TYPES:
         for tmpl in _TEMPLATES[htype][:per_type]:
-            hooks.append(Hook(text=_truncate_10(tmpl.format(name=short_name, pain=pain)), type=htype))
-    # top up to n by cycling
-    i = 0
+            if len(hooks) < n:
+                _add(_mk(tmpl, htype))
     flat = [(t, tmpl) for t in HOOK_TYPES for tmpl in _TEMPLATES[t]]
+    i = 0
     while len(hooks) < n and i < len(flat):
         t, tmpl = flat[i]
-        h = Hook(text=_truncate_10(tmpl.format(name=short_name, pain=pain)), type=t)
-        if h.text not in {x.text for x in hooks}:
-            hooks.append(h)
+        _add(_mk(tmpl, t))
         i += 1
-    return hooks[:n]
+    result = hooks[:n]
+    # Category templates leading must never crowd a hook TYPE out entirely —
+    # swap tail slots until all four types are represented.
+    present = {h.type for h in result}
+    slot = len(result) - 1
+    for t in HOOK_TYPES:
+        if t not in present and slot >= 0:
+            h = _mk(_TEMPLATES[t][0], t)
+            if h.text not in {x.text for x in result}:
+                result[slot] = h
+                slot -= 1
+                present.add(t)
+    return result

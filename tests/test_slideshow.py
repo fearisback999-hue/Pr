@@ -43,9 +43,10 @@ def test_personless_styles_carry_no_wardrobe():
     plan = _plan(n=4)
     for post in plan.posts:
         for s in post.slides:
-            if "flat-lay" in s.style or "close-up" in s.style:
+            if any(k in s.style for k in ("flat-lay", "close-up", "top-down",
+                                          "macro", "staged with")):
                 assert "Wearing" not in s.image.prompt
-                assert "no person in frame" in s.image.prompt
+                assert "no face in frame" in s.image.prompt
                 assert "actor reference" not in s.image.attach
             elif "phone covering the face" not in s.style:
                 assert "actor reference image" in s.image.attach

@@ -302,6 +302,8 @@ def scene_video_prompt(
     model to hold the frame's identity."""
     if persona is None:
         persona = load_persona()
+    from .category_styles import style_for
+    style = style_for(product.category)
     key = f"{product.id}:{motion_beat[:40]}"
     behavior = _pick(MOTION, key, index)
     t1 = _pick(TEXTURES, key, index + 10)
@@ -310,9 +312,10 @@ def scene_video_prompt(
     speech = _pick(speech_pool, key, index + 18)
     said = (f" The actor says, naturally: \"{dialogue.strip()}\" ({speech})."
             if dialogue.strip() else "")
+    grammar = f" Demo grammar ({style.label}): {style.demo_grammar}."
     return (
         "Animate the attached starting frame. Vertical 9:16, iPhone feel, single "
-        f"take, NOT cinematic. Motion: {motion_beat} {behavior}.{said} "
+        f"take, NOT cinematic. Motion: {motion_beat} {behavior}.{said}{grammar} "
         "Keep the face, wardrobe, and setting IDENTICAL to the starting frame — no "
         f"drift, no morphing. Texture: {t1}. Natural pacing, real breathing between "
         "phrases, minimal editing."
@@ -342,11 +345,19 @@ def enhance_prompt(
     rooms she owns, the whole batch wears ONE itemized outfit, and her speech quirks
     replace the generic disfluency pool — the research-backed anti-drift set.
     """
+    from .category_styles import style_for
+    style = style_for(product.category)
+
     key = f"{product.id}:{scene[:40]}"
     setting_pool = tuple(SETTINGS)
     if persona and persona.settings:
         owned = tuple(s for s in persona.settings if s in SETTINGS)
         setting_pool = owned or setting_pool
+    # Category bias: a try-on lives in the bedroom, a gadget demo at the desk. The
+    # intersection with the persona's rooms wins; her rooms are still the boundary.
+    if style.setting_bias:
+        biased = tuple(s for s in setting_pool if s in style.setting_bias)
+        setting_pool = biased or setting_pool
     setting_name = setting if setting in SETTINGS else _pick(setting_pool, key, index)
     s = SETTINGS[setting_name]
 
@@ -360,12 +371,20 @@ def enhance_prompt(
     else:
         casting = (f"the store's recurring persona (Soul ID {soul}), consistent with "
                    f"every other ad" if soul else _pick(CASTING, key, index + 12))
-    wardrobe = persona.outfit_for(product.id) if persona else ""
+    # Apparel's special case: the product IS the outfit — pinning the persona's
+    # sweater over the garment being sold would be nonsense.
+    if style.wardrobe_rule == "product-is-outfit":
+        wardrobe = (f"the {product.name} itself — the product IS the outfit, styled "
+                    "casually with what she'd actually pair it with"
+                    + (f"; jewelry: {persona.jewelry}" if persona and persona.jewelry
+                       else ""))
+    else:
+        wardrobe = persona.outfit_for(product.id) if persona else ""
 
     layers = {
         "setting": setting_name,
         "camera": _pick(CAMERA_TALK, key, index + 13),
-        "camera_demo": _pick(CAMERA_DEMO, key, index + 14),
+        "camera_demo": style.camera_demo or _pick(CAMERA_DEMO, key, index + 14),
         "lighting": s["lighting"],
         "environment": s["environment"],
         "audio": s["audio"],
@@ -375,9 +394,10 @@ def enhance_prompt(
         "speech": _pick(tuple(persona.speech_quirks), key, index + 18)
                   if persona and persona.speech_quirks
                   else _pick(SPEECH, key, index + 18),
-        "interaction": _pick(INTERACTION, key, index + 19),
+        "interaction": style.interaction or _pick(INTERACTION, key, index + 19),
         "lens": f"{t1}; {t2}",
         "casting": casting,
+        "category_demo": style.demo_grammar,
     }
     if wardrobe:
         layers["wardrobe"] = wardrobe
@@ -403,6 +423,7 @@ def enhance_prompt(
         f"PERSON: {layers['skin']}; {layers['motion']}; incidental: {layers['behavior']}. "
         f"SPEECH: {layers['speech']}. "
         f"PRODUCT: {layers['interaction']}. "
+        f"DEMO GRAMMAR ({style.label}): {style.demo_grammar}. "
         f"AUDIO: {layers['audio']}; natural breathing between phrases. "
         f"REALISM TEXTURE (exactly these two, keep everything else clean): {t1}; {t2}. "
         f"CONTINUITY: same room, same light, same outfit across all beats. "

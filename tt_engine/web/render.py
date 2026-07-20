@@ -77,7 +77,8 @@ ul { margin:6px 0; padding-left:22px; }
 """
 
 _NAV = [("Overview", "/"), ("Assistant", "/assistant"), ("Search", "/search"),
-        ("Playbook", "/playbook"), ("Advertising", "/advertising"), ("Budget", "/budget"),
+        ("Playbook", "/playbook"), ("Advertising", "/advertising"),
+        ("Styles", "/styles"), ("Budget", "/budget"),
         ("Creators", "/creators"), ("Road to $1M", "/million")]
 
 

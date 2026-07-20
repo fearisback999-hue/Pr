@@ -344,6 +344,54 @@ def page_product(db: Database, pid: str) -> Optional[str]:
     return page(pid, "".join(body), "/")
 
 
+def page_styles(db: Database) -> str:
+    """One tab per product TYPE: how clothing, gadgets, beauty, pet, home, hobby,
+    accessories, toys, and wellness each get their own hooks, demo grammar, camera,
+    rooms, and slideshow lead — sameness across categories is an AI tell."""
+    from ..creative.category_styles import all_styles
+
+    products = db.all_products()
+    by_cat: dict[str, list] = {}
+    for p in products:
+        from ..creative.category_styles import style_for
+        by_cat.setdefault(style_for(p.category).key, []).append(p)
+
+    body = ["<h1>Category styles</h1>",
+            "<blockquote>Every product type films differently — a try-on, a gadget "
+            "demo, and a pet unboxing must not look like the same account made "
+            "them. These styles drive the hooks, video prompts, and slideshows "
+            "automatically: <code>creative-pack</code>, <code>production</code>, and "
+            "<code>slideshows</code> all read them from the product's category. The "
+            "AIGC label stays on every post regardless of style.</blockquote>"]
+
+    for st in all_styles():
+        mine = by_cat.get(st.key, [])
+        live = (" · ".join(f"<a href='/product?id={esc(p.id)}'>{esc(p.id)}</a>"
+                           for p in mine) if mine
+                else "<span class=mut>no products in this category yet</span>")
+        hook_samples = "".join(
+            f"<li>[{esc(t)}] {esc(tmpl.replace('{name}', 'product').replace('{pain}', 'the pain'))}</li>"
+            for t, tmpl in st.hook_templates[:4])
+        body.append(f"<h2>{esc(st.label)}</h2><div class=panel>")
+        body.append(f"<p><b>Your products:</b> {live}</p>")
+        body.append(table(["What", "This category's way"], [
+            ["Demo grammar", esc(st.demo_grammar)],
+            ["Demo camera", esc(st.camera_demo) or "<span class=mut>engine default</span>"],
+            ["Product handling", esc(st.interaction) or "<span class=mut>engine default</span>"],
+            ["Rooms", esc(", ".join(st.setting_bias)) or "<span class=mut>any of the persona's rooms</span>"],
+            ["Slideshow demo slide", esc(st.slideshow_lead) or "<span class=mut>rotating pool</span>"],
+            ["Honest proof", esc(st.proof)],
+        ]))
+        if st.wardrobe_rule == "product-is-outfit":
+            body.append("<p><b>Wardrobe rule:</b> the product IS the outfit — the "
+                        "persona's pinned wardrobe steps aside for the garment "
+                        "being sold (jewelry continuity stays).</p>")
+        if hook_samples:
+            body.append(f"<p><b>Native hook angles:</b></p><ul>{hook_samples}</ul>")
+        body.append("</div>")
+    return page("Category styles", "".join(body), "/styles")
+
+
 def page_advertising(db: Database) -> str:
     body = ["<h1>Advertising</h1>"]
 
@@ -847,6 +895,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._redirect("/")
                 elif url.path == "/advertising":
                     html = page_advertising(db)
+                elif url.path == "/styles":
+                    html = page_styles(db)
                 elif url.path == "/budget":
                     html = page_budget(db, q)
                 elif url.path == "/creators":
