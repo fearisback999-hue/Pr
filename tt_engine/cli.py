@@ -568,7 +568,11 @@ def cmd_production(args) -> int:
             return 1
         psych = analyze(product.name, product.reviews, product.category, llm)
         pack = build_pack(product, psych, llm=llm)
-        runbook = build_runbook(product, pack, n_ads=args.ads)
+        # Clothing routes to the fit-check runbook; pass economics so its break-even
+        # is computed from YOUR real margin, not a parroted "2–3 sales".
+        sr = pipeline.score_stored(db, args.product_id)
+        econ = sr.economics if sr else None
+        runbook = build_runbook(product, pack, n_ads=args.ads, economics=econ)
         text = runbook.render()
         if args.out:
             from pathlib import Path

@@ -182,11 +182,18 @@ def build_runbook(
     pack: CreativePack,
     persona: Optional[Persona] = None,
     n_ads: int = 3,
-) -> ProductionRunbook:
-    """Assemble the full production runbook from a creative pack. Uses the first
-    n_ads paid scripts (the ones the pack already naturalism-enhanced)."""
+    economics=None,
+):
+    """Assemble the production runbook from a creative pack. Uses the first n_ads
+    paid scripts. Clothing routes to the apparel-specific fit-check runbook (garment
+    swap, dedicated account, ~8s clips) — a try-on isn't a hook/demo/CTA video."""
     if persona is None:
         persona = load_persona()
+    from .category_styles import style_for
+    if style_for(product.category).garment_swap:
+        from .clothing import build_fit_check
+        return build_fit_check(product, pack.hooks, persona=persona,
+                               economics=economics, n_clips=n_ads)
     actor = actor_image_prompt(persona)
     ads = [
         AdBuild(index=i + 1, emotion=s.emotion,

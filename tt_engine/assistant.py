@@ -122,7 +122,13 @@ KNOWLEDGE: dict[str, str] = {
         "non-negotiable at export. For volume, `slideshows <id>` plans photo-mode "
         "carousels (~3/day per store; images cost ~10× less than video) — slide 1 "
         "is the face-covered mirror-selfie style (fewer AI tells, converts better); "
-        "the '550/day' agency number is spread across many brands, not one account."
+        "the '550/day' agency number is spread across many brands, not one account. "
+        "For CLOTHING, `production <id>` gives the fit-check runbook instead: post "
+        "from the persona's own creator account (not the brand — try-ons must read "
+        "organic), an aspirational model, and the GARMENT SWAP — upload your real "
+        "clothing photo(s) with front/back angles and the model is synthesized "
+        "wearing your EXACT garment in short ~8s clips. Break-even is computed from "
+        "your true margin (not a parroted '2–3 sales')."
     ),
     "ai_creator": (
         "The AI creator program: ONE labeled persona (Soul ID) posts ~2×/day; the "

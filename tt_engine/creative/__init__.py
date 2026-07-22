@@ -14,6 +14,7 @@ from .category_styles import CategoryStyle, all_styles, style_for
 from .persona import Persona, load_persona, validate_persona
 from .compliance import DISCLOSURE, ComplianceReport, review_text
 from .concepts import CreativePack, UGCConcept, build_pack
+from .clothing import FitCheckRunbook, build_fit_check
 from .production import ProductionRunbook, build_runbook
 from .slideshow import SlideshowPlan, SlideshowPost, build_slideshows
 from .realism import (
@@ -22,6 +23,7 @@ from .realism import (
     RealismPrompt,
     actor_image_prompt,
     enhance_prompt,
+    garment_swap_prompt,
     prompts_for_scripts,
     render_qa_checklist,
     scene_frame_prompt,
@@ -52,7 +54,9 @@ __all__ = [
     "RealismPrompt", "enhance_prompt", "prompts_for_scripts", "render_qa_checklist",
     "ARTIFACT_CHECKLIST",
     "ImagePrompt", "actor_image_prompt", "scene_frame_prompt", "scene_video_prompt",
+    "garment_swap_prompt",
     "ProductionRunbook", "build_runbook",
+    "FitCheckRunbook", "build_fit_check",
     "SlideshowPlan", "SlideshowPost", "build_slideshows",
     "HiggsfieldClient",
     "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",

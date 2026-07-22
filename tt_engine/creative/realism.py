@@ -221,10 +221,14 @@ class ImagePrompt:
 
 
 def actor_image_prompt(
-    persona: Optional[Persona] = None, index: int = 0
+    persona: Optional[Persona] = None, index: int = 0, avatar_note: str = ""
 ) -> ImagePrompt:
     """Step 1 — the base AI-actor portrait, generated ONCE and reused as the
-    reference for every scene frame (and as the seed for the Soul-ID training set)."""
+    reference for every scene frame (and as the seed for the Soul-ID training set).
+
+    `avatar_note` lets a category tune how the actor reads — clothing wants a
+    camera-confident, aspirational look that could pass as the first frame of a
+    TikTok (the practitioner's bar), while staying the same labeled persona."""
     if persona is None:
         persona = load_persona()
     if persona:
@@ -239,6 +243,7 @@ def actor_image_prompt(
         "Vertical portrait selfie shot on an iPhone 15 Pro, front camera at arm's "
         f"length, casual and candid. {who}. "
         + (f"Wearing {wardrobe}. " if wardrobe else "")
+        + (f"Read: {avatar_note}. " if avatar_note else "")
         + "Plain everyday room in the background, natural window light with uneven "
         "exposure. Add real-world flaws to BOTH the person and the scene: slight "
         "skin unevenness, a few stray hairs, faint sensor noise, minor background "
@@ -248,6 +253,47 @@ def actor_image_prompt(
     return ImagePrompt(kind="actor", prompt=prompt,
                        attach="(none — this IS the base actor; save the output as "
                               "the reference for every scene)")
+
+
+def garment_swap_prompt(
+    product: models.Product,
+    persona: Optional[Persona] = None,
+    setting: str = "",
+    index: int = 0,
+    garment_angles: tuple[str, ...] = ("front",),
+) -> ImagePrompt:
+    """Clothing fit-check core (practitioner method): synthesize the MODEL wearing the
+    operator's ACTUAL garment. The model comes from the actor reference; the garment
+    comes from uploaded product photo(s). Multiple angles (front/back of a tee) are
+    attached so the swap can render both — the model is real-consistent, the clothing
+    is the real product, not a hallucinated approximation."""
+    if persona is None:
+        persona = load_persona()
+    pool = tuple(SETTINGS)
+    if persona and persona.settings:
+        owned = tuple(s for s in persona.settings if s in SETTINGS)
+        pool = owned or pool
+    # Clothing lives in the try-on rooms.
+    biased = tuple(s for s in pool if s in ("bedroom-morning", "entryway"))
+    pool = biased or pool
+    key = f"{product.id}:garment"
+    setting_name = setting if setting in SETTINGS else _pick(pool, key, index)
+    s = SETTINGS[setting_name]
+    who = persona.name if persona else "the same model"
+    angles = ", ".join(garment_angles)
+    prompt = (
+        "Full-body try-on frame, vertical 9:16, shot on an iPhone 15 Pro, could be "
+        f"the first frame of a TikTok. The SAME model from the attached reference "
+        f"({who}) wearing the EXACT garment from the attached clothing photo(s) — "
+        f"match its cut, colour, pattern, print, and every detail precisely; do not "
+        f"redesign it. Angles provided: {angles}. Standing naturally in front of a "
+        f"mirror: {s['environment']}. Lighting: {s['lighting']}. Natural fit with "
+        "real fabric drape and honest wrinkles — not a smoothed mannequin. Add phone-"
+        "camera texture and imperfect framing. Keep the model's face EXACTLY as the "
+        "reference — same person, no drift."
+    )
+    attach = (f"model reference image + clothing photo(s): {angles}")
+    return ImagePrompt(kind="garment-swap", prompt=prompt, attach=attach)
 
 
 def scene_frame_prompt(

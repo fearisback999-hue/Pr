@@ -40,6 +40,9 @@ class CategoryStyle:
     slideshow_lead: str
     proof: str
     wardrobe_rule: str = ""          # "product-is-outfit" for apparel
+    garment_swap: bool = False       # apparel: synthesize the model wearing the upload
+    avatar_note: str = ""            # how the actor image should read for this category
+    dedicated_account: str = ""      # posting-strategy note (apparel: creator, not brand)
 
     @property
     def summary(self) -> str:
@@ -78,6 +81,14 @@ _register(CategoryStyle(
     slideshow_lead="mirror try-on, phone covering the face, full outfit visible",
     proof="fit and fabric ARE the proof — show them moving; sizing honesty beats hype",
     wardrobe_rule="product-is-outfit",
+    garment_swap=True,
+    avatar_note="camera-confident and stylish, aspirational the way real fashion "
+                "creators read — the frame should look like it could be the first "
+                "frame of a TikTok. Tasteful, never objectifying; still a labeled "
+                "AI persona with the bible's face pinned",
+    dedicated_account="post fit-checks from the PERSONA's own creator-style account, "
+                      "NOT the brand account — organic-looking try-ons underperform "
+                      "when they read as an ad. The store reposts/boosts winners",
 ), "clothing", "clothes", "fashion")
 
 _register(CategoryStyle(

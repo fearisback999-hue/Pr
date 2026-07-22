@@ -386,6 +386,14 @@ def page_styles(db: Database) -> str:
             body.append("<p><b>Wardrobe rule:</b> the product IS the outfit — the "
                         "persona's pinned wardrobe steps aside for the garment "
                         "being sold (jewelry continuity stays).</p>")
+        if st.garment_swap:
+            body.append("<p><b>Fit-check method:</b> upload your real clothing "
+                        "photo(s) — front/back angles — and the model is synthesized "
+                        "wearing your EXACT garment (not a hallucination), in short "
+                        "~8s try-on clips. <code>production &lt;id&gt;</code> on a "
+                        "clothing product prints the full fit-check runbook.</p>")
+        if st.dedicated_account:
+            body.append(f"<p><b>Posting:</b> {esc(st.dedicated_account)}.</p>")
         if hook_samples:
             body.append(f"<p><b>Native hook angles:</b></p><ul>{hook_samples}</ul>")
         body.append("</div>")
