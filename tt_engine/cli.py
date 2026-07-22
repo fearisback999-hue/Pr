@@ -834,6 +834,22 @@ def cmd_persona(args) -> int:
     return 0
 
 
+def cmd_account_safety(args) -> int:
+    """Account-health guidance: staying within TikTok's ToS so a labeled-AI shop
+    keeps its reach. Optional cadence check for a specific account."""
+    from . import account_safety
+    print(account_safety.render())
+    if args.account_age is not None or args.posts_per_day is not None:
+        adv = account_safety.cadence_advice(args.account_age or 60,
+                                            args.posts_per_day or 3)
+        print(f"\nCADENCE CHECK — {adv.planned_per_day} posts/day on a "
+              f"{adv.account_age_days}-day account (cap ~{adv.cap}/day): "
+              + ("✓ within human range" if adv.ok else "⚠ risky"))
+        for w in adv.warnings:
+            print(f"  - {w}")
+    return 0
+
+
 def cmd_scale(args) -> int:
     from .roadmap import plan_scale
     try:
@@ -1173,6 +1189,14 @@ def main(argv=None) -> int:
     p = sub.add_parser("persona", help="parse + validate the creator bible (docs/persona/CREATOR.md)")
     p.add_argument("--path", default=None, help="override TT_PERSONA_PATH")
     p.set_defaults(func=cmd_persona)
+
+    p = sub.add_parser("account-safety",
+                       help="TikTok account-health rules (avoid reduced reach); ToS-compliant")
+    p.add_argument("--account-age", type=int, default=None,
+                   help="account age in days (for the cadence check)")
+    p.add_argument("--posts-per-day", type=int, default=None,
+                   help="planned posts/day (for the cadence check)")
+    p.set_defaults(func=cmd_account_safety)
 
     p = sub.add_parser("scale", help="the $100k month itemized: capital, portfolio, cadence")
     p.add_argument("--revenue", type=float, default=100_000.0,

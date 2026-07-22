@@ -97,6 +97,18 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "account_safety": (
+        "Will a bot get us shadowbanned? Not for LABELED AI content — TikTok "
+        "requires the AIGC label (the engine enforces it) and does NOT restrict "
+        "reach for disclosed AI videos. What DOES get accounts reach-restricted is "
+        "automated account OPERATION: auto-posting via unofficial tools, bought/faked "
+        "engagement, engagement pods, inhuman cadence, aggressive follow/unfollow, "
+        "device farms. This engine never touches your account — it plans, YOU post "
+        "from the app. Safe cadence ~1–4 posts/day per account, warm new accounts "
+        "up, one persona per account, vary content, engage for real. `account-safety` "
+        "prints the full checklist + the recover-your-reach playbook. It's compliance, "
+        "not evasion — the fix is to not bot the risky parts, not to hide a bot."
+    ),
     "autopilot": (
         "Autopilot runs the loop with an approval gate on every step: `autopilot "
         "run` proposes each product's next action into a queue; nothing executes "
@@ -171,6 +183,9 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("shadowban", "shadow ban", "banned", "ban", "reduced reach", "flagged",
+      "account safety", "account health", "spam", "detected", "detection"),
+     "account_safety"),
     (("autopilot", "automate", "automatic", "approval", "approve", "hands-off",
       "auto mode"), "autopilot"),
     (("production", "runbook", "seedance", "keyframe", "first frame", "actor image",

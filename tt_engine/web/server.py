@@ -466,6 +466,24 @@ def page_advertising(db: Database) -> str:
                 "full per-product plan (fit, format mix, Spark loop, lane "
                 "economics).</p></div>")
 
+    # ── Account health / shadowban avoidance ────────────────────────────────────
+    from .. import account_safety
+    body.append("<h2>Account health — will a bot get us shadowbanned?</h2>"
+                "<div class=panel>")
+    body.append("<p><b>Not for LABELED AI content — but yes for automated account "
+                "operation.</b> TikTok restricts reach for auto-posting via unofficial "
+                "tools, bought/faked engagement, inhuman cadence, and coordinated "
+                "accounts — not for AI videos that carry the disclosure. This engine "
+                "never touches your account: it plans, <b>you</b> post from the app. "
+                "Keep the human operation inside these lines.</p>")
+    rows = [[esc(r.rule), esc(r.why)] for r in account_safety.RULES]
+    body.append(table(["Do this", "Why (the signal it avoids)"], rows))
+    body.append("<p class=mut><b>If reach suddenly drops:</b> "
+                + esc(" · ".join(account_safety.REDUCED_REACH_PLAYBOOK[:4]))
+                + f". Safe cadence ~1–{account_safety.SAFE_POSTS_PER_DAY} posts/day "
+                "per established account; warm new accounts up first. "
+                "<code>account-safety</code> prints the full guide.</p></div>")
+
     # ── Creative batches per product ───────────────────────────────────────────
     body.append("<h2>Creative batches</h2><div class=panel>")
     any_creatives = False

@@ -221,6 +221,8 @@ def build_slideshows(
         "one room per post, one outfit per product batch — continuity rules carry "
         "over from video",
         "face-covered slides need no actor reference; face-visible slides attach it",
+        "POST FROM THE APP, not an auto-poster — the engine plans, you publish; "
+        "automated posting is the actual shadowban trigger (see `account-safety`)",
     ]
     return SlideshowPlan(
         product_id=product.id, product_name=product.name,
