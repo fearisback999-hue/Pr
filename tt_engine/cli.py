@@ -779,6 +779,8 @@ def cmd_autopilot(args) -> int:
                 print(autopilot.render_queue(db))
             elif args.ap_action == "queue":
                 print(autopilot.render_queue(db))
+            elif args.ap_action == "preflight":
+                print(autopilot.preflight(db))
             elif args.ap_action in ("approve", "reject"):
                 if args.target is None or not args.target.isdigit():
                     print(f"usage: autopilot {args.ap_action} <queue-item-id>")
@@ -1178,7 +1180,8 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("autopilot",
                        help="approval-gated automation: propose → approve → execute")
-    p.add_argument("ap_action", choices=("run", "queue", "approve", "reject", "policy"),
+    p.add_argument("ap_action",
+                   choices=("run", "queue", "preflight", "approve", "reject", "policy"),
                    help="run = propose+refresh; approve/reject <id>; policy [stage mode]")
     p.add_argument("target", nargs="?", default=None,
                    help="queue item id (approve/reject) or stage name (policy)")

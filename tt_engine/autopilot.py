@@ -45,8 +45,16 @@ INTERNAL_STAGES = ("needs-score", "build-creative", "export", "kill-now", "scale
 EXTERNAL_STAGES = ("generate",)          # spends money — approval REQUIRED, forever
 _DONE_STAGES = ("concluded-kill", "concluded-scale")
 
+# Stages that pour effort/money into a specific product — they only run once you've
+# SELECTED that product into the pipeline. "Which products" stays your decision even
+# when every internal stage is flipped to auto.
+SELECT_GATED_STAGES = ("build-creative", "generate", "export")
+SELECT_STAGE = "select-product"          # the synthetic human decision that unlocks them
+
 
 def kind_for(stage: str) -> str:
+    if stage == SELECT_STAGE:
+        return "decision"                # the product pick — always yours, never auto
     if stage in INTERNAL_STAGES:
         return "internal"
     if stage in EXTERNAL_STAGES:
@@ -70,8 +78,11 @@ def _exec_build_creative(db: Database, pid: str) -> str:
     try:
         _kit, res = pipeline.produce_creatives(db, pid, confirm=False)
     except ConfirmationRequired:
-        return ("creative kit briefed — generation is configured and costs money, "
-                "so it stays a separate approval (the 'generate' step)")
+        # Higgsfield is configured, so generate_batch stops at the money gate — but
+        # the briefed plan is already persisted, so the pipeline advances to 'generate'.
+        n = len([c for c in db.creatives_for(pid) if c.format != "Manual"])
+        return (f"creative kit briefed ({n} asset(s)) — generation costs money, so it "
+                "stays a separate approval (the 'generate' step)")
     return f"creative kit planned: {len(res.creatives)} asset(s) briefed (no spend)"
 
 
@@ -125,12 +136,49 @@ class RunReport:
                 f"{len(self.pending)} awaiting your approval")
 
 
+def _select_context(db: Database, pid: str) -> str:
+    """The decision context for a 'select this product?' item — score + EV + ceiling."""
+    sr = pipeline.score_stored(db, pid)
+    if sr is None:
+        return f"Select {pid} into the pipeline?"
+    s = sr.breakdown.score
+    bits = [f"score {s.total:.0f}"]
+    if sr.selection and sr.selection.ev.eligible:
+        bits.append(sr.selection.ev.summary)
+    if sr.selection:
+        bits.append(sr.selection.ceiling.summary)
+    return (f"Select {pid} into the pipeline? " + " · ".join(bits) +
+            " — approve to start building creative; reject to pass on it.")
+
+
+def _effective_step(db: Database, step: Step):
+    """Map a guide step to what the autopilot should actually queue, applying the
+    product-selection gate. Returns (stage, kind, description, command) or None to skip.
+    A select-gated stage for an un-selected product becomes the select-product
+    decision; for a 'passed' product it's dropped entirely."""
+    if step.stage in SELECT_GATED_STAGES:
+        decision = db.product_decision(step.product_id)
+        if decision == "passed":
+            return None
+        if decision != "selected":
+            return (SELECT_STAGE, "decision", _select_context(db, step.product_id), "")
+    return (step.stage, kind_for(step.stage), step.action, step.command)
+
+
 def run(db: Database) -> RunReport:
     """One autopilot pass: supersede stale items, propose next steps, auto-execute
     only what policy explicitly allows. Idempotent — safe to run on a cron."""
     report = RunReport()
     steps: list[Step] = [s for s in all_steps(db) if s.stage not in _DONE_STAGES]
-    current = {(s.product_id, s.stage): s for s in steps}
+    # Apply the selection gate: (product_id, stage, kind, description, command).
+    effective = []
+    for s in steps:
+        if s.urgency < 1:
+            continue
+        eff = _effective_step(db, s)
+        if eff is not None:
+            effective.append((s.product_id, *eff))
+    current = {(pid, stage) for pid, stage, _k, _d, _c in effective}
     policy = db.autopilot_policy()
 
     # 1. Supersede pending items whose stage the world has moved past.
@@ -147,19 +195,18 @@ def run(db: Database) -> RunReport:
                  for i in db.autopilot_actions(status="pending")}
     open_keys |= {(i["product_id"], i["stage"])
                   for i in db.autopilot_actions(status="rejected")}
-    for step in steps:
-        if step.urgency < 1 or (step.product_id, step.stage) in open_keys:
+    for pid, stage, kind, description, command in effective:
+        if (pid, stage) in open_keys:
             continue
-        kind = kind_for(step.stage)
-        aid = db.add_autopilot_action(step.product_id, step.stage, kind,
-                                      step.action, step.command)
+        aid = db.add_autopilot_action(pid, stage, kind, description, command)
         item = db.autopilot_action(aid)
         report.proposed.append(item)
 
         # 3. Auto-execute ONLY internal stages the operator explicitly flipped.
-        if kind == "internal" and policy.get(step.stage) == "auto":
+        #    Decisions (product picks) and external (spend) NEVER auto — by design.
+        if kind == "internal" and policy.get(stage) == "auto":
             try:
-                result = _EXECUTORS[step.stage](db, step.product_id)
+                result = _EXECUTORS[stage](db, pid)
                 db.set_autopilot_status(aid, "executed", f"[auto] {result}")
                 report.auto_executed.append(db.autopilot_action(aid))
             except Exception as e:                     # noqa: BLE001 — audit, don't crash the pass
@@ -177,13 +224,27 @@ def approve(db: Database, action_id: int) -> str:
         raise ValueError(f"no queue item #{action_id}")
     if item["status"] != "pending":
         raise ValueError(f"#{action_id} is already {item['status']} — nothing to approve")
+    if item["stage"] == SELECT_STAGE:
+        # The product pick — approving SELECTS it into the pipeline; the creative
+        # chain (build → generate → export) unlocks on the next run.
+        db.set_product_decision(item["product_id"], "selected")
+        db.set_autopilot_status(action_id, "executed",
+                                f"selected {item['product_id']} — creative chain unlocked")
+        return f"selected {item['product_id']} into the pipeline"
     if item["kind"] == "manual":
         raise ValueError(
             f"#{action_id} ({item['stage']}) is performed by YOU, off-engine: "
             f"{item['description']}" + (f"\n  $ {item['command']}" if item["command"]
                                         else "") +
             "\nIt clears itself from the queue once the DB shows the work.")
-    result = _EXECUTORS[item["stage"]](db, item["product_id"])
+    try:
+        result = _EXECUTORS[item["stage"]](db, item["product_id"])
+    except Exception as e:                       # noqa: BLE001 — record, don't crash
+        # The step failed (e.g. generation not wired, or the score changed and it's no
+        # longer at TEST verdict). Leave it pending with the reason, and surface a clean
+        # error the CLI/web already handle — never a raw stack trace.
+        db.set_autopilot_status(action_id, "pending", f"approve failed: {e}")
+        raise ValueError(f"#{action_id} ({item['stage']}) could not run: {e}") from e
     db.set_autopilot_status(action_id, "executed", result)
     return result
 
@@ -192,6 +253,9 @@ def reject(db: Database, action_id: int, why: str = "") -> None:
     item = db.autopilot_action(action_id)
     if item is None or item["status"] != "pending":
         raise ValueError(f"no pending queue item #{action_id}")
+    if item["stage"] == SELECT_STAGE:
+        # Passing on a product records it so the gate stops re-proposing it.
+        db.set_product_decision(item["product_id"], "passed")
     db.set_autopilot_status(action_id, "rejected", why or "rejected by operator")
 
 
@@ -212,6 +276,79 @@ def set_policy(db: Database, stage: str, mode: str) -> str:
              else " — back to per-item approval"))
 
 
+def preflight(db: Database) -> str:
+    """Automation readiness: the honest map of what runs itself vs. what only YOU can
+    do, plus every current blocker. Answers 'where can this fail' for hands-off runs."""
+    from datetime import date as _d, timedelta
+
+    from .config import CONFIG
+    lines = ["# Autopilot preflight — what's automated, what needs you", ""]
+
+    # The fixed human touchpoints — these can never be automated away.
+    lines += [
+        "## Always your call (by design)",
+        "- **Which products** — the engine surfaces candidates; you `select` them "
+        "(the product pick is a decision, never auto).",
+        "- **Generation spend** — building the video costs money; `generate` always "
+        "needs your explicit approval.",
+        "- **The post button** — publishing is manual; the engine never touches your "
+        "account (that's also the shadowban-safe path).",
+        "- **Real-world inputs** — supplier landed-cost quotes and daily ad "
+        "spend/revenue logging are things only you can enter.",
+        "",
+        "## Blockers right now",
+    ]
+    blockers: list[str] = []
+
+    # Generation wiring — the money step that can't actually run yet.
+    if CONFIG.higgsfield_available:
+        blockers.append("Higgsfield key is set but the SDK submit/poll integration "
+                        "isn't wired — `generate` will plan+brief but can't produce "
+                        "for real yet (or run it from a Claude Code session with the "
+                        "Higgsfield MCP connected).")
+    else:
+        blockers.append("Higgsfield not configured — creative is planned/briefed only; "
+                        "set HIGGSFIELD_API_KEY + install higgsfield-client to generate.")
+
+    products = db.all_products()
+    today = _d.today()
+    for p in products:
+        s = db.latest_score(p.id)
+        if s is None:
+            continue
+        test_ready = s.gates_passed and s.total >= CONFIG.score_threshold
+        decision = db.product_decision(p.id)
+        if test_ready and decision is None:
+            blockers.append(f"{p.id}: at TEST verdict, awaiting YOUR product pick "
+                            f"(`autopilot` → select).")
+        if test_ready and not db.suppliers_for(p.id):
+            blockers.append(f"{p.id}: no real landed cost — economics can't score; "
+                            "add a supplier quote (only you can).")
+        # Live-test logging gap: the kill timer is blind without daily logs.
+        tests = db.tests_for_product(p.id)
+        if tests:
+            last = max(t.date for t in tests)
+            if last < (today - timedelta(days=1)).isoformat():
+                blockers.append(f"{p.id}: last ad log was {last} — the 48h kill timer "
+                                "goes blind without daily spend/revenue logging.")
+
+    lines += [f"- {b}" for b in blockers] if blockers else ["- none — clear to run."]
+
+    policy = db.autopilot_policy()
+    auto = [s for s in INTERNAL_STAGES if policy.get(s) == "auto"]
+    manual_internal = [s for s in INTERNAL_STAGES if s not in auto]
+    lines += [
+        "",
+        "## Automation level",
+        f"- auto (runs on sight): {', '.join(auto) if auto else '(none yet)'}",
+        f"- still asks each time: {', '.join(manual_internal) or '(none)'}",
+        "- To go maximally hands-off: `autopilot policy <stage> auto` for the "
+        "internal stages you trust (needs-score, build-creative, export, kill-now, "
+        "scale-now). You'll still pick products, approve spend, and post.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def render_queue(db: Database) -> str:
     items = db.autopilot_actions()
     policy = db.autopilot_policy()
@@ -220,7 +357,8 @@ def render_queue(db: Database) -> str:
     if pending:
         lines.append("## Awaiting your approval")
         for i in pending:
-            tag = {"internal": "safe — runs on approve",
+            tag = {"decision": "YOUR PRODUCT PICK — approve=select, reject=pass",
+                   "internal": "safe — runs on approve",
                    "external": "SPENDS MONEY — approve = explicit confirmation",
                    "manual": "yours to do off-engine; clears itself when done"}[i["kind"]]
             lines.append(f"  #{i['id']:<4} {i['product_id']:<16} [{i['stage']}] ({tag})")
@@ -228,7 +366,8 @@ def render_queue(db: Database) -> str:
             if i["command"]:
                 lines.append(f"        $ {i['command']}")
             if i["kind"] != "manual":
-                lines.append(f"        approve: python -m tt_engine.cli autopilot "
+                verb = "select" if i["kind"] == "decision" else "approve"
+                lines.append(f"        {verb}: python -m tt_engine.cli autopilot "
                              f"approve {i['id']}")
             lines.append("")
     else:

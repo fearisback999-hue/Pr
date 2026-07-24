@@ -113,7 +113,10 @@ def page_overview(db: Database) -> str:
     if pending:
         rows = []
         for i in pending:
-            if i["kind"] == "internal":
+            if i["kind"] == "decision":
+                act = (f"<a href='/autopilot/approve?id={i['id']}'><b>select ✓</b></a> · "
+                       f"<a href='/autopilot/reject?id={i['id']}'>pass</a>")
+            elif i["kind"] == "internal":
                 act = (f"<a href='/autopilot/approve?id={i['id']}'>approve ▶</a> · "
                        f"<a href='/autopilot/reject?id={i['id']}'>reject</a>")
             elif i["kind"] == "external":
@@ -901,10 +904,11 @@ class Handler(BaseHTTPRequestHandler):
                     from .. import autopilot
                     aid = (q.get("id") or ["0"])[0]
                     item = db.autopilot_action(int(aid)) if aid.isdigit() else None
-                    # Browser approval is for INTERNAL steps only — anything that
-                    # spends money stays a deliberate CLI step (design invariant:
-                    # the dashboard never spends money).
-                    if item and item["kind"] == "internal" and item["status"] == "pending":
+                    # Browser approval is for INTERNAL steps and product-selection
+                    # DECISIONS (both are free) — anything that spends money stays a
+                    # deliberate CLI step (design invariant: dashboard never spends).
+                    if (item and item["kind"] in ("internal", "decision")
+                            and item["status"] == "pending"):
                         try:
                             autopilot.approve(db, item["id"])
                         except ValueError:

@@ -110,15 +110,19 @@ KNOWLEDGE: dict[str, str] = {
         "not evasion — the fix is to not bot the risky parts, not to hide a bot."
     ),
     "autopilot": (
-        "Autopilot runs the loop with an approval gate on every step: `autopilot "
-        "run` proposes each product's next action into a queue; nothing executes "
-        "until you `autopilot approve <id>` (or click approve on the dashboard for "
-        "safe internal steps). Three kinds: INTERNAL (re-score, build pack, export, "
-        "record kill/scale — can be flipped to auto per stage via `autopilot policy "
-        "<stage> auto` once trusted), EXTERNAL (generation spends money — approval "
-        "required FOREVER, the founding guardrail), MANUAL (you do it off-engine; "
-        "the item clears itself when the DB shows the work). Rejections stick until "
-        "the product's stage changes. Everything is recorded as an audit trail."
+        "Autopilot runs the loop, but the KEY decisions stay yours. `autopilot run` "
+        "proposes each product's next action into a queue; `autopilot preflight` maps "
+        "what's automated vs. what needs you. Four kinds: DECISION (the product pick — "
+        "'which products' is always yours; approve=select, reject=pass; NEVER auto), "
+        "INTERNAL (re-score, build pack, export, record kill/scale — flip to auto per "
+        "stage via `autopilot policy <stage> auto` once trusted), EXTERNAL (generation "
+        "spends money — approval required FOREVER), MANUAL (you do it off-engine: "
+        "supplier quotes, daily ad logging, and the POST button; clears itself when "
+        "the DB shows the work). The product-selection GATE means the creative→"
+        "generate→export chain only runs for products you've selected — even with "
+        "internal stages on full-auto. So maximally hands-off = you pick products, "
+        "approve spend, hit post; the engine does the rest. Everything is an audit "
+        "trail; rejections stick until the world moves."
     ),
     "production": (
         "The video production runbook (`production <id>`) is the keyframe-first "

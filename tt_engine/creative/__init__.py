@@ -34,6 +34,7 @@ from .hooks import HOOK_TYPES, Hook, generate_hooks
 from .mcp_client import (
     ConfirmationRequired,
     ExportResult,
+    GenerationNotWired,
     GenerationResult,
     HiggsfieldMCP,
     export_creatives,
@@ -60,5 +61,5 @@ __all__ = [
     "SlideshowPlan", "SlideshowPost", "build_slideshows",
     "HiggsfieldClient",
     "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",
-    "GenerationResult", "ExportResult", "ConfirmationRequired",
+    "GenerationResult", "ExportResult", "ConfirmationRequired", "GenerationNotWired",
 ]

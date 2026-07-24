@@ -49,6 +49,13 @@ class ConfirmationRequired(RuntimeError):
     """Raised when generation is attempted without explicit operator confirmation."""
 
 
+class GenerationNotWired(RuntimeError):
+    """Raised when generation is confirmed and a key IS configured, but the
+    higgsfield_client SDK integration point (submit/poll) isn't wired yet — so the
+    engine can plan but not actually generate. A clean, catchable signal instead of a
+    raw NotImplementedError crashing the caller (CLI / autopilot)."""
+
+
 @dataclass
 class GenerationResult:
     creatives: list[models.Creative]
@@ -163,8 +170,13 @@ def generate_batch(
 
     planner = HiggsfieldClient()
     creatives = planner.plan(kit)
+    # Persist the briefed plan FIRST — planning is free and never spends. This must
+    # happen before the confirm gate so the build-creative step always advances the
+    # pipeline (otherwise, with a key configured, the plan is never saved and the
+    # loop re-proposes build-creative forever, never reaching generation).
     for c in creatives:
         c.meta = _asset_meta(c)
+        db.upsert_creative(c)
 
     if mcp.available and not confirm:
         raise ConfirmationRequired(
@@ -178,8 +190,6 @@ def generate_batch(
                      "exporting (see the brief).")
 
     if not mcp.available:
-        for c in creatives:
-            db.upsert_creative(c)
         notes.append("Set HIGGSFIELD_API_KEY (and install higgsfield-client) to generate "
                      "for real; the plan above is what would be submitted. Or, if you're "
                      "in a Claude Code session with the Higgsfield MCP connected, just "
@@ -189,7 +199,18 @@ def generate_batch(
 
     # ── Live path: submit every job, then poll to completion ──────────────────
     for c in creatives:
-        job_id = mcp.submit(kit, c)
+        try:
+            job_id = mcp.submit(kit, c)
+        except NotImplementedError as e:
+            # A key is configured but the SDK call isn't wired. Fail cleanly and
+            # LOUDLY — the plan is already persisted (briefed), so no work is lost.
+            raise GenerationNotWired(
+                "Higgsfield is configured but the higgsfield_client SDK integration "
+                "point isn't wired yet, so the engine can't actually generate. The "
+                f"batch is planned and saved as 'briefed'. Wire HiggsfieldMCP.submit/"
+                f"poll (see the integration-point comments), or run the batch from a "
+                f"Claude Code session with the Higgsfield MCP connected. ({e})"
+            ) from e
         c.status = "generating"
         c.meta["job_id"] = job_id
         db.upsert_creative(c)

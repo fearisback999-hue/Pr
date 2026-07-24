@@ -264,6 +264,30 @@ class Database:
         )
         self.conn.commit()
 
+    # ── product-selection gate (which products = a human decision) ─────────────
+    def product_decision(self, product_id: str) -> Optional[str]:
+        row = self.conn.execute(
+            "SELECT decision FROM product_pipeline WHERE product_id=?", (product_id,)
+        ).fetchone()
+        return row["decision"] if row else None
+
+    def product_pipeline(self) -> dict[str, str]:
+        rows = self.conn.execute("SELECT product_id, decision FROM product_pipeline").fetchall()
+        return {r["product_id"]: r["decision"] for r in rows}
+
+    def set_product_decision(self, product_id: str, decision: Optional[str]) -> None:
+        if decision is None:
+            self.conn.execute("DELETE FROM product_pipeline WHERE product_id=?",
+                              (product_id,))
+        else:
+            self.conn.execute(
+                """INSERT INTO product_pipeline(product_id, decision) VALUES(?,?)
+                   ON CONFLICT(product_id) DO UPDATE SET
+                     decision=excluded.decision, at=datetime('now')""",
+                (product_id, decision),
+            )
+        self.conn.commit()
+
     # ── tests / results ────────────────────────────────────────────────────────
     def upsert_test(self, t: models.Test) -> None:
         self.conn.execute(

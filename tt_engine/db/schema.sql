@@ -144,5 +144,14 @@ CREATE TABLE IF NOT EXISTS autopilot_policy (
     mode   TEXT NOT NULL DEFAULT 'approve'  -- 'approve' | 'auto' (internal stages only)
 );
 
+-- The product-selection gate: "which products" is always a HUMAN decision, even in
+-- full-auto mode. A product must be 'selected' before the creative→generate→export
+-- chain runs for it; 'passed' means skip it (don't re-propose).
+CREATE TABLE IF NOT EXISTS product_pipeline (
+    product_id TEXT PRIMARY KEY,
+    decision   TEXT NOT NULL,               -- selected | passed
+    at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON product_daily_metrics(date);
 CREATE INDEX IF NOT EXISTS idx_scores_total ON scores(total);

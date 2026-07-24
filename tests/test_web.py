@@ -165,20 +165,26 @@ def test_overview_shows_autopilot_and_run_proposes(server):
     assert status == 303                               # propose + redirect, no page spend
 
     status, body = _get(server, "/")
-    assert "approve ▶" in body                         # internal steps approvable here
-    assert "clears itself when done" in body           # manual steps labeled
+    # TEST products first surface as the human product pick (the selection gate).
+    assert "select ✓" in body                          # the product-pick decision
+    assert "YOUR PRODUCT PICK" not in body or "select" in body
 
 
-def test_autopilot_web_approve_executes_internal_only(server):
+def test_autopilot_web_select_then_approve_internal(server):
     _get(server, "/autopilot/run")
     _, body = _get(server, "/")
     import re
+    # First pending action is a product-selection decision — selecting it is free.
     ids = re.findall(r"/autopilot/approve\?id=(\d+)", body)
-    assert ids                                         # at least one internal pending
-    status, _ = _get(server, f"/autopilot/approve?id={ids[0]}")
+    assert ids
+    status, _ = _get(server, f"/autopilot/approve?id={ids[0]}")   # select a product
     assert status == 303
+    _get(server, "/autopilot/run")                     # refresh → build-creative appears
     _, body2 = _get(server, "/")
-    assert f"/autopilot/approve?id={ids[0]}" not in body2   # executed, gone from queue
+    assert "approve ▶" in body2                         # an internal step now approvable
+    ids2 = re.findall(r"/autopilot/approve\?id=(\d+)", body2)
+    status, _ = _get(server, f"/autopilot/approve?id={ids2[-1]}")
+    assert status == 303
 
     # Garbage ids are a safe no-op redirect, never a 500.
     status, _ = _get(server, "/autopilot/approve?id=zzz")

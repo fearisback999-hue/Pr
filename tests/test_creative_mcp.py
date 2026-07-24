@@ -90,6 +90,35 @@ def test_confirmed_generation_polls_to_ready(tmp_path):
             assert c.meta["aigc_disclosure"]
 
 
+def test_briefed_plan_persists_before_the_confirm_gate(tmp_path):
+    """With a key configured (available) but no confirm, generation must still SAVE
+    the briefed plan before raising — so build-creative advances the pipeline instead
+    of getting stuck re-proposing forever."""
+    from tt_engine.creative import ConfirmationRequired
+    with _db(tmp_path) as db:
+        db.upsert_product(models.Product(id="P-X", name="Scalp Massager Pro", category="beauty"))
+        with pytest.raises(ConfirmationRequired):
+            generate_batch(db, _kit(), confirm=False, mcp=FakeMCP())
+        stored = db.creatives_for("P-X")
+        assert len(stored) == 10                        # plan saved despite the raise
+        assert all(c.status == "briefed" for c in stored)
+
+
+def test_unwired_sdk_raises_clean_generation_not_wired(tmp_path):
+    """A real key + the honest NotImplementedError stub → a clean GenerationNotWired,
+    not a raw crash; the briefed plan is preserved."""
+    from tt_engine.creative import GenerationNotWired
+    from tt_engine.creative.mcp_client import HiggsfieldMCP
+    with _db(tmp_path) as db:
+        db.upsert_product(models.Product(id="P-X", name="Scalp Massager Pro", category="beauty"))
+        # Force 'available' without a real SDK by subclassing.
+        class _AvailMCP(HiggsfieldMCP):
+            available = property(lambda self: True)
+        with pytest.raises(GenerationNotWired):
+            generate_batch(db, _kit(), confirm=True, mcp=_AvailMCP(api_key="fake"))
+        assert all(c.status == "briefed" for c in db.creatives_for("P-X"))
+
+
 def test_soul_id_consistency_one_persona_per_store(tmp_path):
     with _db(tmp_path) as db:
         db.upsert_product(models.Product(id="P-X", name="X", category="beauty"))
