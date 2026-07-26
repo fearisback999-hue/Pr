@@ -153,5 +153,12 @@ CREATE TABLE IF NOT EXISTS product_pipeline (
     at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Runtime store settings (toggles the dashboard/CLI flip). e.g. shot_mode =
+-- full | face_light | faceless — the fallback ladder when AI struggles with faces.
+CREATE TABLE IF NOT EXISTS store_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON product_daily_metrics(date);
 CREATE INDEX IF NOT EXISTS idx_scores_total ON scores(total);

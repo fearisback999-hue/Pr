@@ -155,23 +155,28 @@ class ProductionRunbook:
 
 
 def _scenes_for_script(
-    product: models.Product, script: UGCScript, persona: Optional[Persona], ad_index: int
+    product: models.Product, script: UGCScript, persona: Optional[Persona],
+    ad_index: int, shot_mode: str = "full",
 ) -> list[Scene]:
     """Map a 3-beat script to three scenes: hook (talk), demo (show product),
-    CTA (talk). Beat text drives the frame moment and the spoken line."""
+    CTA (talk). Beat text drives the frame moment and the spoken line. A faceless
+    shot_mode crops the face out of all three (no talking head)."""
+    from .realism import shot_mode_spec
     base = ad_index * 3
     setting = _ad_setting(product, persona, ad_index)   # ONE room for the whole ad
+    face = shot_mode_spec(shot_mode)["face"]
     beats = [
-        ("hook (0–3s)", True, _spoken(script.first_3s), script.first_3s, False),
+        ("hook (0–3s)", face, _spoken(script.first_3s), script.first_3s, not face),
         ("demo", False, "", script.middle, True),
-        ("CTA (final)", True, _spoken(script.cta), script.cta, False),
+        ("CTA (final)", face, _spoken(script.cta), script.cta, not face),
     ]
     scenes: list[Scene] = []
     for i, (label, on_cam, dialogue, moment, shows) in enumerate(beats):
         frame = scene_frame_prompt(product, moment, persona=persona, setting=setting,
-                                   index=base + i, needs_product=shows)
+                                   index=base + i, needs_product=shows,
+                                   shot_mode=shot_mode)
         video = scene_video_prompt(product, moment, dialogue=dialogue,
-                                   persona=persona, index=base + i)
+                                   persona=persona, index=base + i, shot_mode=shot_mode)
         scenes.append(Scene(label=label, on_camera=on_cam, dialogue=dialogue,
                             shows_product=shows, frame=frame, video=video))
     return scenes
@@ -183,21 +188,25 @@ def build_runbook(
     persona: Optional[Persona] = None,
     n_ads: int = 3,
     economics=None,
+    shot_mode: str = "full",
 ):
     """Assemble the production runbook from a creative pack. Uses the first n_ads
     paid scripts. Clothing routes to the apparel-specific fit-check runbook (garment
-    swap, dedicated account, ~8s clips) — a try-on isn't a hook/demo/CTA video."""
+    swap, dedicated account, ~8s clips) — a try-on isn't a hook/demo/CTA video.
+
+    `shot_mode` is the fallback ladder (full / face_light / faceless) — pass it down
+    so a struggling operator can crop the face out across the whole runbook."""
     if persona is None:
         persona = load_persona()
     from .category_styles import style_for
     if style_for(product.category).garment_swap:
         from .clothing import build_fit_check
         return build_fit_check(product, pack.hooks, persona=persona,
-                               economics=economics, n_clips=n_ads)
+                               economics=economics, n_clips=n_ads, shot_mode=shot_mode)
     actor = actor_image_prompt(persona)
     ads = [
         AdBuild(index=i + 1, emotion=s.emotion,
-                scenes=_scenes_for_script(product, s, persona, i))
+                scenes=_scenes_for_script(product, s, persona, i, shot_mode=shot_mode))
         for i, s in enumerate(pack.paid_scripts[:n_ads])
     ]
     warnings = validate_persona(persona) if persona else validate_persona(None)

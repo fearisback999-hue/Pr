@@ -264,6 +264,20 @@ class Database:
         )
         self.conn.commit()
 
+    # ── store settings (runtime toggles) ──────────────────────────────────────
+    def get_setting(self, key: str, default: str = "") -> str:
+        row = self.conn.execute(
+            "SELECT value FROM store_settings WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
+
+    def set_setting(self, key: str, value: str) -> None:
+        self.conn.execute(
+            """INSERT INTO store_settings(key, value) VALUES(?,?)
+               ON CONFLICT(key) DO UPDATE SET value=excluded.value""",
+            (key, value),
+        )
+        self.conn.commit()
+
     # ── product-selection gate (which products = a human decision) ─────────────
     def product_decision(self, product_id: str) -> Optional[str]:
         row = self.conn.execute(

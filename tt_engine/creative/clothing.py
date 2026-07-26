@@ -70,17 +70,28 @@ class FitCheckRunbook:
     dedicated_account: str
     breakeven_note: str
     warnings: list[str] = field(default_factory=list)
+    shot_mode: str = "full"
 
     def render(self) -> str:
+        from .realism import shot_mode_spec
+        spec = shot_mode_spec(self.shot_mode)
+        mode_line = (f"**Shot mode: {spec['label']}.** " + (
+            "Face-free try-on — crops the face out, so there's nothing to drift "
+            "(the fallback when AI struggles with faces; often reads MORE real)."
+            if not spec["face"] else
+            "Full face + talking. If faces come out uncanny, switch: "
+            "`production <id> --mode faceless` for a chest-down try-on."))
         lines = [
             f"# Clothing fit-check runbook — {self.product_name} ({self.product_id})",
             "",
             f"> {DISCLOSURE}",
             "",
-            "The apparel try-on method: dedicated creator account, an aspirational "
-            "model, the garment SWAPPED from your real product photos, short ~8s "
-            "fit-check clips. Plans only — generation stays the confirmed step, and "
-            "sizing/fit honesty replaces any fabricated result.",
+            "The apparel try-on method: dedicated creator account, the garment "
+            "SWAPPED from your real product photos, short ~8s fit-check clips. Plans "
+            "only — generation stays the confirmed step, and sizing/fit honesty "
+            "replaces any fabricated result.",
+            "",
+            mode_line,
             "",
             "## Step 0 — Account", "",
             f"- {self.dedicated_account}",
@@ -145,30 +156,47 @@ def build_fit_check(
     economics: Optional[Economics] = None,
     n_clips: int = 3,
     garment_angles: tuple[str, ...] = ("front", "back"),
+    shot_mode: str = "full",
 ) -> FitCheckRunbook:
     """Build the clothing fit-check runbook. `hooks` are Hook objects (the pack's
     apparel-native hooks lead them). Each clip is a ~8s walk-in → turn → detail →
-    soft-CTA arc off one garment-swap frame."""
+    soft-CTA arc off one garment-swap frame.
+
+    `shot_mode='faceless'` is the fallback for when AI struggles with faces: a
+    chest-down / waist-down try-on that crops the face out — nothing to drift, so it
+    lands reliably (the operator's exact example: breathable shorts shown chest-down)."""
+    from .realism import shot_mode_spec
     if persona is None:
         persona = load_persona()
     style = style_for(product.category)
+    spec = shot_mode_spec(shot_mode)
+    # No face on screen → the model image is a body/garment reference, not a portrait.
     model = actor_image_prompt(persona, avatar_note=style.avatar_note)
 
     short = product.name.split("(")[0].strip()
     clips: list[FitCheckClip] = []
     for i in range(n_clips):
         hook = hooks[i % len(hooks)].text if hooks else f"{short} fit check"
-        beats = [
-            ("0–2s (walk in)", f"walk into mirror frame, {short} on, glance up — the hook"),
-            ("2–5s (turn)", "turn once so the fit and fabric move; show front, then back"),
-            ("5–7s (detail)", "handheld close on the waist/hem/fabric — honest fit note"),
-            ("7–8s (soft CTA)", "back to the mirror, a natural 'linked below' — no hard sell"),
-        ]
+        if spec["face"]:
+            beats = [
+                ("0–2s (walk in)", f"walk into mirror frame, {short} on, glance up — the hook"),
+                ("2–5s (turn)", "turn once so the fit and fabric move; show front, then back"),
+                ("5–7s (detail)", "handheld close on the waist/hem/fabric — honest fit note"),
+                ("7–8s (soft CTA)", "back to the mirror, a natural 'linked below' — no hard sell"),
+            ]
+        else:
+            beats = [
+                ("0–2s (reveal)", f"{spec['framing']} — the {short} on, framed body-only"),
+                ("2–5s (turn)", "turn so the fit and fabric move; front then back, face out of frame"),
+                ("5–7s (detail)", "close on the waist/hem/fabric — the honest fit detail"),
+                ("7–8s (CTA)", "voiceover 'linked below' over the fit — no face, no hard sell"),
+            ]
         frame = garment_swap_prompt(product, persona=persona, index=i,
-                                    garment_angles=garment_angles)
-        video = scene_video_prompt(product, "a full-body try-on: walk in, turn once "
-                                   "showing front and back, then a close fit detail",
-                                   dialogue=hook, persona=persona, index=i)
+                                    garment_angles=garment_angles, shot_mode=shot_mode)
+        video = scene_video_prompt(product, "a try-on: reveal the fit, turn once "
+                                   "showing front and back, then a close fabric detail",
+                                   dialogue=hook, persona=persona, index=i,
+                                   shot_mode=shot_mode)
         clips.append(FitCheckClip(index=i + 1, hook=hook, beats=beats,
                                   garment_frame=frame, video=video))
 
@@ -179,5 +207,5 @@ def build_fit_check(
         model=model, garment_angles=garment_angles, clips=clips,
         dedicated_account=style.dedicated_account,
         breakeven_note=_breakeven_note(product, economics),
-        warnings=warnings,
+        warnings=warnings, shot_mode=shot_mode,
     )

@@ -572,7 +572,10 @@ def cmd_production(args) -> int:
         # is computed from YOUR real margin, not a parroted "2–3 sales".
         sr = pipeline.score_stored(db, args.product_id)
         econ = sr.economics if sr else None
-        runbook = build_runbook(product, pack, n_ads=args.ads, economics=econ)
+        # Shot mode: the flag overrides the stored default (the fallback ladder).
+        mode = args.mode or db.get_setting("shot_mode", "full")
+        runbook = build_runbook(product, pack, n_ads=args.ads, economics=econ,
+                                shot_mode=mode)
         text = runbook.render()
         if args.out:
             from pathlib import Path
@@ -854,6 +857,30 @@ def cmd_authenticity(args) -> int:
     """How to make AI video look as authentic as possible — honest odds + the QA gate."""
     from .creative.realism import render_authenticity_guide
     print(render_authenticity_guide())
+    return 0
+
+
+def cmd_shot_mode(args) -> int:
+    """View or set the store's default shot mode — the fallback ladder for when AI
+    struggles with faces. faceless = chest-down / hands (most achievable)."""
+    from .creative.realism import SHOT_MODES, shot_mode_spec
+    with _db(args) as db:
+        if args.mode:
+            if args.mode not in SHOT_MODES:
+                print(f"mode must be one of: {', '.join(SHOT_MODES)}")
+                return 1
+            db.set_setting("shot_mode", args.mode)
+            print(f"shot mode → {args.mode}: {shot_mode_spec(args.mode)['label']}")
+        else:
+            cur = db.get_setting("shot_mode", "full")
+            print(f"current shot mode: {cur}\n")
+            for m in SHOT_MODES:
+                spec = shot_mode_spec(m)
+                mark = "→ " if m == cur else "  "
+                print(f"{mark}{m:<11} {spec['label']}")
+                print(f"             when: {spec['when']}")
+        print("\nSwitch anytime; `production <id>` and slideshows use it. The AIGC "
+              "label stays on in every mode.")
     return 0
 
 
@@ -1149,6 +1176,10 @@ def main(argv=None) -> int:
                             "Seedance pipeline: actor → frames → animate → voice → assemble)")
     p.add_argument("product_id")
     p.add_argument("--ads", type=int, default=3, help="how many ad builds to detail")
+    p.add_argument("--mode", default=None, choices=("full", "face_light", "faceless"),
+                   help="shot mode fallback: full (face+talk), face_light (face "
+                        "hidden), faceless (chest-down/hands — most achievable). "
+                        "Overrides the stored default (`shot-mode`).")
     p.add_argument("--out", default=None, help="write markdown to a file")
     p.set_defaults(func=cmd_production)
 
@@ -1223,6 +1254,13 @@ def main(argv=None) -> int:
     sub.add_parser("authenticity",
                    help="make AI video look as real as possible — honest odds + QA gate"
                    ).set_defaults(func=cmd_authenticity)
+
+    p = sub.add_parser("shot-mode",
+                       help="view/set the fallback shot mode (faceless = chest-down "
+                            "when AI struggles with faces)")
+    p.add_argument("mode", nargs="?", default=None,
+                   choices=(None, "full", "face_light", "faceless"))
+    p.set_defaults(func=cmd_shot_mode)
 
     p = sub.add_parser("account-safety",
                        help="TikTok account-health rules (avoid reduced reach); ToS-compliant")

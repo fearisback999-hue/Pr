@@ -212,6 +212,10 @@ def render_authenticity_guide() -> str:
         "- Favour shots that hide the hardest failures: hands out of frame or still, "
         "face-covered mirror selfies (a proven format AND fewer face tells), short 8s "
         "clips (less time to drift).",
+        "- **The fallback ladder (`shot-mode`):** if faces keep failing, drop a tier — "
+        "`face_light` (face hidden) then `faceless` (chest-down / hands / POV, "
+        "voiceover instead of lip-sync). Faceless deletes the two hardest classes "
+        "entirely and is often MORE realistic. e.g. shorts → a chest-down try-on.",
         "- Pin ONE voice (ElevenLabs video-to-voice / a reference clip) across every "
         "clip — a shifting voice is as obvious as a shifting face.",
         "- Outcome proof stays REAL footage — a generated 'result' is fabricated "
@@ -258,6 +262,50 @@ IMAGE_NEGATIVE = (
     "filter, plastic skin, flawless complexion, CGI render, over-sharpened, "
     "professional headshot"
 )
+
+# ── shot modes: the fallback ladder for when AI struggles ───────────────────────
+# The face is the #1 AI failure class and lip-sync the #2. If your generations look
+# off, you don't fight them — you shoot AROUND them. Each tier down removes a hard
+# failure class; the bottom tier is often MORE realistic, not less (a faceless
+# chest-down try-on has nothing to drift). Same product, same honesty, the AIGC
+# label stays on — you're just choosing framing you can reliably land.
+SHOT_MODES = ("full", "face_light", "faceless")
+
+_SHOT_MODE_SPEC = {
+    "full": {
+        "label": "Full — face + talking to camera (most sophisticated, hardest for AI)",
+        "face": True, "talks": True,
+        "framing": "",                       # category camera decides
+        "identity": "",                      # persona casting as normal
+        "voice": "lip-synced on camera",
+        "when": "use when your test generations already look clean",
+    },
+    "face_light": {
+        "label": "Face-light — face hidden by the phone / turned away",
+        "face": False, "talks": True,
+        "framing": "mirror-selfie or turned-away framing with the phone covering the "
+                   "face; the face is NOT clearly visible",
+        "identity": "identity carried by the outfit, hair, and room — face obscured, "
+                    "so no face reference needed",
+        "voice": "voiceover — face hidden, so lip-sync doesn't have to be perfect",
+        "when": "drop here first if faces come out uncanny but you still want a person",
+    },
+    "faceless": {
+        "label": "Faceless — chest-down / hands / POV (most achievable)",
+        "face": False, "talks": False,
+        "framing": "CROP ABOVE THE CHIN — no face in frame at all: chest-down, "
+                   "waist-down, hands-only, or POV over the shoulder",
+        "identity": "no face and no talking head — the body, the product, and the "
+                    "hands carry it; removes the two hardest AI classes (faces + "
+                    "lip-sync) entirely",
+        "voice": "text-to-voice narration only (no lip-sync needed — no face on screen)",
+        "when": "drop here when faces/lip-sync keep failing — often MORE realistic",
+    },
+}
+
+
+def shot_mode_spec(mode: str) -> dict:
+    return _SHOT_MODE_SPEC.get(mode, _SHOT_MODE_SPEC["full"])
 
 
 @dataclass
@@ -315,12 +363,17 @@ def garment_swap_prompt(
     setting: str = "",
     index: int = 0,
     garment_angles: tuple[str, ...] = ("front",),
+    shot_mode: str = "full",
 ) -> ImagePrompt:
     """Clothing fit-check core (practitioner method): synthesize the MODEL wearing the
     operator's ACTUAL garment. The model comes from the actor reference; the garment
     comes from uploaded product photo(s). Multiple angles (front/back of a tee) are
     attached so the swap can render both — the model is real-consistent, the clothing
-    is the real product, not a hallucinated approximation."""
+    is the real product, not a hallucinated approximation.
+
+    `shot_mode` is the fallback ladder: 'faceless' crops the face out (chest-down /
+    waist-down try-on) — no face to drift, so it lands reliably when full-face fails.
+    """
     if persona is None:
         persona = load_persona()
     pool = tuple(SETTINGS)
@@ -335,18 +388,33 @@ def garment_swap_prompt(
     s = SETTINGS[setting_name]
     who = persona.name if persona else "the same model"
     angles = ", ".join(garment_angles)
-    prompt = (
-        "Full-body try-on frame, vertical 9:16, shot on an iPhone 15 Pro, could be "
-        f"the first frame of a TikTok. The SAME model from the attached reference "
-        f"({who}) wearing the EXACT garment from the attached clothing photo(s) — "
-        f"match its cut, colour, pattern, print, and every detail precisely; do not "
-        f"redesign it. Angles provided: {angles}. Standing naturally in front of a "
-        f"mirror: {s['environment']}. Lighting: {s['lighting']}. Natural fit with "
-        "real fabric drape and honest wrinkles — not a smoothed mannequin. Add phone-"
-        "camera texture and imperfect framing. Keep the model's face EXACTLY as the "
-        "reference — same person, no drift."
+    spec = shot_mode_spec(shot_mode)
+
+    common = (
+        f"wearing the EXACT garment from the attached clothing photo(s) — match its "
+        f"cut, colour, pattern, print, and every detail precisely; do not redesign it. "
+        f"Angles provided: {angles}. In front of a mirror: {s['environment']}. "
+        f"Lighting: {s['lighting']}. Natural fit with real fabric drape and honest "
+        "wrinkles — not a smoothed mannequin. Add phone-camera texture and imperfect "
+        "framing."
     )
-    attach = (f"model reference image + clothing photo(s): {angles}")
+    if spec["face"]:
+        prompt = (
+            "Full-body try-on frame, vertical 9:16, shot on an iPhone 15 Pro, could "
+            f"be the first frame of a TikTok. The SAME model from the attached "
+            f"reference ({who}) {common} Keep the model's face EXACTLY as the "
+            "reference — same person, no drift."
+        )
+        attach = f"model reference image + clothing photo(s): {angles}"
+    else:
+        # Faceless / face-light: crop the face out — the garment on the body is the
+        # whole shot, and there's no face to drift. Often reads MORE real.
+        prompt = (
+            "Try-on frame, vertical 9:16, shot on an iPhone 15 Pro. "
+            f"FRAMING: {spec['framing']}. A person {common} "
+            "No face in frame — the fit and fabric are the subject."
+        )
+        attach = f"clothing photo(s): {angles}"
     return ImagePrompt(kind="garment-swap", prompt=prompt, attach=attach)
 
 
@@ -357,9 +425,11 @@ def scene_frame_prompt(
     setting: str = "",
     index: int = 0,
     needs_product: bool = True,
+    shot_mode: str = "full",
 ) -> ImagePrompt:
     """Steps 2–3 — the first-frame image for one scene: the SAME actor (attached
-    reference) dropped into one of her rooms, product attached when the beat needs it."""
+    reference) dropped into one of her rooms, product attached when the beat needs it.
+    A faceless `shot_mode` crops the face out (hands / POV / product focus)."""
     if persona is None:
         persona = load_persona()
     setting_pool = tuple(SETTINGS)
@@ -371,20 +441,29 @@ def scene_frame_prompt(
     s = SETTINGS[setting_name]
     who = persona.name if persona else "the same actor"
     wardrobe = persona.outfit_for(product.id) if persona else ""
-    prompt = (
-        "First video frame, vertical 9:16, shot on an iPhone 15 Pro. The SAME actor "
-        f"from the attached reference image ({who}), "
-        + (f"wearing {wardrobe}, " if wardrobe else "")
-        + f"in this setting: {s['environment']}. Lighting: {s['lighting']}. "
-        f"Moment: {scene_beat}. "
-        + (f"The {product.name} is visible and held naturally, matched from the "
-           "attached product photo. " if needs_product else "")
-        + "Add flaws to the actor and the scenery so nothing looks too perfect: "
-        "imperfect framing, real phone-camera texture. Match the reference face "
-        "EXACTLY — same person, no drift."
-    )
-    attach = "actor reference image" + (
-        f" + {product.name} product photo" if needs_product else "")
+    spec = shot_mode_spec(shot_mode)
+    scene = (f"in this setting: {s['environment']}. Lighting: {s['lighting']}. "
+             f"Moment: {scene_beat}. "
+             + (f"The {product.name} is visible and held naturally, matched from the "
+                "attached product photo. " if needs_product else ""))
+    if spec["face"]:
+        prompt = (
+            "First video frame, vertical 9:16, shot on an iPhone 15 Pro. The SAME "
+            f"actor from the attached reference image ({who}), "
+            + (f"wearing {wardrobe}, " if wardrobe else "")
+            + scene
+            + "Add flaws to the actor and the scenery so nothing looks too perfect: "
+            "imperfect framing, real phone-camera texture. Match the reference face "
+            "EXACTLY — same person, no drift.")
+        attach = "actor reference image" + (
+            f" + {product.name} product photo" if needs_product else "")
+    else:
+        prompt = (
+            "First video frame, vertical 9:16, shot on an iPhone 15 Pro. "
+            f"FRAMING: {spec['framing']} — NO face in frame. " + scene
+            + "Real phone-camera texture, imperfect framing; the hands, product, and "
+            "setting carry the shot.")
+        attach = (f"{product.name} product photo" if needs_product else "(none)")
     return ImagePrompt(kind="scene-frame", prompt=prompt, attach=attach,
                        negative=IMAGE_NEGATIVE)
 
@@ -395,30 +474,45 @@ def scene_video_prompt(
     dialogue: str = "",
     persona: Optional[Persona] = None,
     index: int = 0,
+    shot_mode: str = "full",
 ) -> str:
     """Step 4 — the Seedance prompt to ANIMATE a starting frame (frame-first). The
     frame already locks face/wardrobe/setting, so this stays focused on motion, the
     spoken line (dialogue goes IN the prompt), and phone texture — and orders the
-    model to hold the frame's identity."""
+    model to hold the frame's identity.
+
+    In a faceless `shot_mode` there's no talking head on screen, so dialogue becomes
+    voiceover (no on-camera lip-sync to fail) and the 'keep the face' clause drops."""
     if persona is None:
         persona = load_persona()
     from .category_styles import style_for
     style = style_for(product.category)
+    spec = shot_mode_spec(shot_mode)
     key = f"{product.id}:{motion_beat[:40]}"
     behavior = _pick(MOTION, key, index)
     t1 = _pick(TEXTURES, key, index + 10)
     speech_pool = (tuple(persona.speech_quirks)
                    if persona and persona.speech_quirks else SPEECH)
     speech = _pick(speech_pool, key, index + 18)
-    said = (f" The actor says, naturally: \"{dialogue.strip()}\" ({speech})."
-            if dialogue.strip() else "")
     grammar = f" Demo grammar ({style.label}): {style.demo_grammar}."
+    if spec["face"]:
+        said = (f" The actor says, naturally: \"{dialogue.strip()}\" ({speech})."
+                if dialogue.strip() else "")
+        hold = ("Keep the face, wardrobe, and setting IDENTICAL to the starting "
+                "frame — no drift, no morphing.")
+        framing = ""
+    else:
+        # No face on screen → the line is voiceover, and there's no face to hold.
+        said = (f" VOICEOVER (not on camera): \"{dialogue.strip()}\"."
+                if dialogue.strip() else "")
+        hold = ("Keep the wardrobe, product, and setting IDENTICAL to the starting "
+                "frame; NO face enters the frame.")
+        framing = f" FRAMING: {spec['framing']}."
     return (
         "Animate the attached starting frame. Vertical 9:16, iPhone feel, single "
-        f"take, NOT cinematic. Motion: {motion_beat} {behavior}.{said}{grammar} "
-        "Keep the face, wardrobe, and setting IDENTICAL to the starting frame — no "
-        f"drift, no morphing. Texture: {t1}. Natural pacing, real breathing between "
-        "phrases, minimal editing."
+        f"take, NOT cinematic.{framing} Motion: {motion_beat} {behavior}.{said}"
+        f"{grammar} {hold} Texture: {t1}. Natural pacing, real breathing, minimal "
+        "editing."
     )
 
 

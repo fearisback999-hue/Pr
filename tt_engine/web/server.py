@@ -501,6 +501,26 @@ def page_advertising(db: Database) -> str:
                 "full per-product plan (fit, format mix, Spark loop, lane "
                 "economics).</p></div>")
 
+    # ── Shot mode: the fallback ladder for when AI struggles ────────────────────
+    from ..creative.realism import SHOT_MODES, shot_mode_spec
+    cur_mode = db.get_setting("shot_mode", "full")
+    body.append("<h2>Shot mode — the fallback when AI struggles</h2><div class=panel>"
+                "<p>The face is the #1 AI failure and lip-sync the #2. If your "
+                "generations look off, don't fight them — drop a tier and shoot "
+                "AROUND them. Faceless (chest-down / hands / POV) removes both hard "
+                "classes and often reads MORE real. Same product, label still on.</p>")
+    rows = []
+    for m in SHOT_MODES:
+        spec = shot_mode_spec(m)
+        on = (m == cur_mode)
+        pick = (f"<b>current ✓</b>" if on
+                else f"<a href='/shot-mode?set={m}'>use this</a>")
+        rows.append([esc(spec["label"]), esc(spec["when"]), pick])
+    body.append(table(["Mode", "When to use it", ""], rows))
+    body.append("<p class=mut>Applies to <code>production</code> and fit-check "
+                "runbooks; override per-run with <code>--mode</code>. Every mode "
+                "keeps the AIGC label.</p></div>")
+
     # ── Account health / shadowban avoidance ────────────────────────────────────
     from .. import account_safety
     body.append("<h2>Account health — will a bot get us shadowbanned?</h2>"
@@ -957,6 +977,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._redirect("/")
                 elif url.path == "/advertising":
                     html = page_advertising(db)
+                elif url.path == "/shot-mode":
+                    from ..creative.realism import SHOT_MODES
+                    m = (q.get("set") or [""])[0]
+                    if m in SHOT_MODES:
+                        db.set_setting("shot_mode", m)     # free toggle, no spend
+                    return self._redirect("/advertising")
                 elif url.path == "/ideas":
                     html = page_ideas(db)
                 elif url.path == "/organic":

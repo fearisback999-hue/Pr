@@ -130,7 +130,12 @@ KNOWLEDGE: dict[str, str] = {
         "tells on a PHONE at feed size: hands, dead eyes, morphing text, floating "
         "product, lip-sync, continuity. Favour shots that hide hard failures (hands "
         "still/out of frame, face-covered mirror selfies, short 8s clips). Outcome "
-        "proof stays REAL footage. `authenticity` prints the full guide."
+        "proof stays REAL footage. If faces keep failing, use the FALLBACK LADDER "
+        "(`shot-mode`): full → face_light (face hidden) → faceless (chest-down / "
+        "hands / POV, voiceover not lip-sync). Faceless deletes the two hardest "
+        "classes and often looks MORE real — e.g. shorts as a chest-down try-on. "
+        "`production <id> --mode faceless` or set the store default. Label stays on. "
+        "`authenticity` prints the full guide."
     ),
     "account_safety": (
         "Will a bot get us shadowbanned? Not for LABELED AI content — TikTok "
