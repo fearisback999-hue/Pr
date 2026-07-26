@@ -79,6 +79,37 @@ RULES: tuple[Rule, ...] = (
          "action the engine deliberately leaves to you."),
 )
 
+# Running MULTIPLE accounts (a roster of distinct personas) — the legitimate way.
+# You don't need to "beat" a limit: multiple accounts are allowed. What gets clusters
+# of accounts banned is HIDING the coordination with evasion tooling — the opposite
+# of safe.
+MULTI_ACCOUNT: tuple[Rule, ...] = (
+    Rule("Multiple accounts are ALLOWED — you don't need to get around anything. "
+         "TikTok lets you run several and switch between them; a roster of distinct "
+         "persona-accounts for different niches is legitimate.",
+         "the risk was never 'more than one account' — it's coordinated accounts "
+         "concealed to look independent."),
+    Rule("Make each account a GENUINELY distinct creator: different persona, voice, "
+         "look, niche, and content. That real distinctness IS the legitimacy.",
+         "near-identical content across accounts, or one persona spread thin, reads "
+         "as a spam network; distinct creators read as distinct creators."),
+    Rule("Do NOT use a VPN, antidetect browser, or device farm to mask that one "
+         "operator runs the roster. The engine will not set this up.",
+         "spoofing to hide coordination is the single clearest coordinated-inauthentic-"
+         "behavior fingerprint — it gets whole clusters banned at once, and "
+         "ban-evasion is explicitly against ToS."),
+    Rule("Want hard separation? Use separate REAL devices / logins, not spoofing "
+         "software.",
+         "genuine separation is fine; faked separation is the flag."),
+    Rule("Never cross-bot your own accounts (liking/commenting/following between "
+         "them) or buy engagement to prop them up.",
+         "inter-account engagement rings are a textbook takedown trigger."),
+    Rule("Add an account only when you can actually FEED it 1–3 human-paced posts/day. "
+         "Grow the roster one persona at a time.",
+         "ten thin, half-dead accounts perform worse and look more automated than one "
+         "genuinely active one."),
+)
+
 # What to do if reach collapses — DIAGNOSE, don't evade.
 REDUCED_REACH_PLAYBOOK: tuple[str, ...] = (
     "Check the app's account status / Community Guideline strikes; appeal anything "
@@ -139,6 +170,13 @@ def render() -> str:
         "",
     ]
     for r in RULES:
+        lines += [f"- **{r.rule}**", f"  - why: {r.why}"]
+    lines += ["", "## Running MANY accounts (a persona roster) — the legitimate way", "",
+              "You don't need to get past a limit: multiple accounts are ALLOWED. The "
+              "way to run a roster safely is to genuinely BE several distinct creators, "
+              "not to hide with a VPN/antidetect browser (that's what gets clusters "
+              "banned).", ""]
+    for r in MULTI_ACCOUNT:
         lines += [f"- **{r.rule}**", f"  - why: {r.why}"]
     lines += ["", "## If reach suddenly drops", ""]
     lines += [f"- {step}" for step in REDUCED_REACH_PLAYBOOK]

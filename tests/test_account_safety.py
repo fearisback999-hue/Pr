@@ -53,6 +53,22 @@ def test_cadence_flags_blasting_and_fresh_accounts():
     assert fine.ok and not fine.warnings
 
 
+def test_multi_account_guidance_is_allowed_but_declines_evasion():
+    from tt_engine.account_safety import MULTI_ACCOUNT
+    text = render()
+    low = text.lower()
+    # Multiple accounts are allowed — you don't need to "beat" a limit.
+    assert "allowed" in low and "multiple account" in low
+    # And it explicitly declines the evasion path.
+    assert "vpn" in low and "antidetect" in low
+    assert "will not set this up" in low or "won't set" in low or "not set this up" in low
+    rules = " ".join(r.rule.lower() for r in MULTI_ACCOUNT)
+    assert "distinct" in rules                          # each account a real creator
+    assert "real device" in rules or "separate real" in rules
+    # No "how to spoof" framing anywhere.
+    assert "spoof" not in low or "not " in low          # spoofing only named as the thing to avoid
+
+
 def test_reduced_reach_playbook_diagnoses_not_evades():
     steps = " ".join(account_safety.REDUCED_REACH_PLAYBOOK).lower()
     assert "account status" in steps or "strikes" in steps

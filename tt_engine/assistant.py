@@ -200,7 +200,14 @@ KNOWLEDGE: dict[str, str] = {
         "from the app. Safe cadence ~1–4 posts/day per account, warm new accounts "
         "up, one persona per account, vary content, engage for real. `account-safety` "
         "prints the full checklist + the recover-your-reach playbook. It's compliance, "
-        "not evasion — the fix is to not bot the risky parts, not to hide a bot."
+        "not evasion — the fix is to not bot the risky parts, not to hide a bot. "
+        "MULTIPLE ACCOUNTS are ALLOWED — you don't need a VPN or antidetect browser to "
+        "run a roster, and those are exactly what get clusters banned (they mask "
+        "coordination = the inauthentic-behavior fingerprint). Run each as a genuinely "
+        "distinct creator (different persona/voice/niche), post from the app, use "
+        "separate REAL devices if you want hard separation, never cross-bot your own "
+        "accounts, and add one only when you can feed it. The engine won't set up "
+        "evasion tooling."
     ),
     "autopilot": (
         "Autopilot runs the loop, but the KEY decisions stay yours. `autopilot run` "
@@ -298,8 +305,9 @@ _ROUTES = [
     (("authentic", "look real", "realistic", "look fake", "uncanny", "identical",
       "usable rate", "discard", "tells", "quality of the video"), "authenticity"),
     (("shadowban", "shadow ban", "banned", "ban", "reduced reach", "flagged",
-      "account safety", "account health", "spam", "detected", "detection"),
-     "account_safety"),
+      "account safety", "account health", "spam", "detected", "detection",
+      "vpn", "antidetect", "anti-detect", "multiple account", "many account",
+      "one account per", "per computer", "per device"), "account_safety"),
     (("autopilot", "automate", "automatic", "approval", "approve", "hands-off",
       "auto mode"), "autopilot"),
     (("production", "runbook", "seedance", "keyframe", "first frame", "actor image",

@@ -52,6 +52,22 @@ SOURCES: tuple[Source, ...] = (
            "how you find a defensible niche BEFORE it's saturated on TikTok."),
 )
 
+# What "niche" actually means — so it doesn't collapse into random mashups.
+NICHE_PRINCIPLE: tuple[str, ...] = (
+    "A niche is a real AUDIENCE with a real shared NEED — not a random combination "
+    "of demographics. 'Sourdough bakers' is a niche. 'Single-mom dog-lovers who play "
+    "guitar' is not — it's three unrelated traits stapled together, with no shared "
+    "need and nowhere those people actually gather.",
+    "The test: can you name WHERE this audience already congregates — a subreddit, a "
+    "hashtag, a Facebook group, a shelf in a store? If yes, it's a niche. If you have "
+    "to invent the group to justify the product, it's a guess, not a niche.",
+    "Go one level deep, not three. 'Guitarists' → too broad; 'gigging guitarists who "
+    "hate strap slippage' → a real, nameable need. 'Left-handed vegan gigging "
+    "guitarists' → over-specified, tiny, and probably imaginary.",
+    "The product solves the need; the audience is why it spreads. If you can't say "
+    "the need in one plain sentence, it's random.",
+)
+
 # The niche-with-demand bar (researched) — what a real find must show.
 CRITERIA: tuple[str, ...] = (
     "DEMAND is real (3 signals, not one viral video): repeat creators posting it, "
@@ -137,7 +153,11 @@ def render() -> str:
                   f"- **The read:** {s.read}",
                   f"- **Your angle:** {s.angle}",
                   f"- **AI-creator fit:** {s.ai_fit}", ""]
-    lines += ["## What a real 'niche with demand' find must show", ""]
+    lines += ["## What 'niche' means (so it's not random)", "",
+              "Niche means a real audience with a real need — not a mashup of "
+              "demographics. Get this right first, or the finds are noise:", ""]
+    lines += [f"- {n}" for n in NICHE_PRINCIPLE]
+    lines += ["", "## What a real 'niche with demand' find must show", ""]
     lines += [f"- {c}" for c in CRITERIA]
     lines += [
         "",

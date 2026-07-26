@@ -44,6 +44,20 @@ def test_scout_is_honest_it_cant_do_it_for_you():
     assert "can't do it for you" in low or "cannot do it for you" in low
 
 
+def test_niche_principle_rejects_random_mashups():
+    from tt_engine.discovery import NICHE_PRINCIPLE
+    text = discovery.render()
+    low = text.lower()
+    # A niche is an audience with a need, not a demographic mashup.
+    assert "audience" in low and "need" in low
+    assert "mashup" in low or "random" in low
+    # The operator's own anti-example is encoded.
+    joined = " ".join(NICHE_PRINCIPLE).lower()
+    assert "sourdough" in joined                          # a real niche
+    assert "guitar" in joined                             # the over-specified anti-example
+    assert "subreddit" in joined or "hashtag" in joined   # the 'where do they gather' test
+
+
 def test_scroll_types_map_the_lanes_with_honest_reads():
     from tt_engine.discovery import SCROLL_TYPES
     text = discovery.render()
