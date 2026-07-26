@@ -327,6 +327,32 @@ def page_product(db: Database, pid: str) -> Optional[str]:
         body.append("<p class=mut>★ = recommended (composite of cost, speed, reliability "
                     "— the same ranking `packet` uses).</p></div>")
 
+    # ── Video specs: the 3 editable parts, reviewed before any spend ────────────
+    specs = db.video_specs(pid)
+    body.append("<h2>Video specs — edit before you generate</h2><div class=panel>")
+    body.append("<p class=mut>Every generation is 3 separately-editable parts — "
+                "actor · product · prompt. Fix any part here (via the shown command) "
+                "and review the assembled result BEFORE generating, so a bad prompt "
+                "costs no credits. New: <code>draft new " + esc(pid)
+                + " --actor &lt;slug&gt;</code></p>")
+    if specs:
+        from ..creative import resolve_actor
+        rows = []
+        for sp in specs:
+            actor = resolve_actor(sp["actor_slug"])
+            rows.append([f"#{sp['id']}",
+                         esc(actor.name if actor else sp["actor_slug"] or "(default)"),
+                         esc(sp["shot_mode"]), esc(sp["status"]),
+                         esc(sp["prompt"][:70] + ("…" if len(sp["prompt"]) > 70 else ""))])
+        body.append(table(["Spec", "Actor", "Mode", "Status", "Prompt (editable)"], rows))
+        body.append("<p class=mut>Edit: <code>draft set &lt;id&gt; --prompt \"...\"</code> "
+                    "(or <code>--actor</code> / <code>--mode</code>) · review: "
+                    "<code>draft show &lt;id&gt;</code> · then <code>draft approve "
+                    "&lt;id&gt;</code>.</p>")
+    else:
+        body.append("<p class=mut>No specs yet for this product.</p>")
+    body.append("</div>")
+
     creatives = db.creatives_for(pid)
     if creatives:
         body.append("<h2>Creatives</h2><div class=panel>")
@@ -500,6 +526,24 @@ def page_advertising(db: Database) -> str:
                 "FOR this distribution. <code>ai-plan &lt;id&gt;</code> prints the "
                 "full per-product plan (fit, format mix, Spark loop, lane "
                 "economics).</p></div>")
+
+    # ── Actor roster: multiple actors, one account each ─────────────────────────
+    from ..creative.persona import load_personas, validate_persona
+    roster = load_personas()
+    body.append("<h2>Actor roster — one account each</h2><div class=panel>")
+    body.append(f"<p>{len(roster)} actor(s). Run a roster of ~10–12 personas, each "
+                "posting from its OWN dedicated account — that multiplies shots at "
+                "reach AND spreads the posting cadence so no single account looks "
+                "automated. Add actors as <code>docs/persona/*.md</code> files.</p>")
+    if roster:
+        rows = [[esc(p.slug), esc(p.name), esc(p.account or "(no account set)"),
+                 "<span class=good>ready</span>" if not validate_persona(p)
+                 else f"<span class=warn>{len(validate_persona(p))} gap(s)</span>"]
+                for p in roster]
+        body.append(table(["Slug", "Name", "Account", "Bible"], rows))
+        body.append("<p class=mut>Reference an actor in a video spec: "
+                    "<code>draft new &lt;product&gt; --actor &lt;slug&gt;</code>.</p>")
+    body.append("</div>")
 
     # ── Shot mode: the fallback ladder for when AI struggles ────────────────────
     from ..creative.realism import SHOT_MODES, shot_mode_spec

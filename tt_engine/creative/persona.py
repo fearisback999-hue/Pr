@@ -38,7 +38,14 @@ class Persona:
     voice_description: str = ""
     voice_reference: str = ""               # canonical clip fed to native-audio gen
     forbidden: list[str] = field(default_factory=list)      # must-never-change list
+    account: str = ""                       # the dedicated account this actor posts from
     source_path: str = ""
+
+    @property
+    def slug(self) -> str:
+        """A stable short id (lowercased name, filename-safe) used to reference this
+        actor in generation specs and on accounts."""
+        return re.sub(r"[^a-z0-9]+", "-", self.name.lower()).strip("-")
 
     def casting_spec(self, soul_id: str = "") -> str:
         """The casting block for a prompt: Soul ID (when set) + the master
@@ -147,8 +154,33 @@ def load_persona(path: Optional[str] = None) -> Optional[Persona]:
         jewelry=wardrobe.get("jewelry", ""), settings=items("settings"),
         speech_quirks=quirks, voice_description=voice.get("description", ""),
         voice_reference=voice.get("reference", ""), forbidden=forbidden,
-        source_path=str(p),
+        account=identity.get("account", ""), source_path=str(p),
     )
+
+
+def load_personas(directory: Optional[str] = None) -> list[Persona]:
+    """The ROSTER — every creator bible in the persona directory, one actor each.
+    Ten or twelve actors, each on its own account, is the scale model: more accounts
+    spread the posting cadence (shadowban-safe) and multiply shots at reach."""
+    root = Path(directory) if directory else Path(CONFIG.persona_path).parent
+    if not root.exists():
+        one = load_persona()
+        return [one] if one else []
+    out: list[Persona] = []
+    for f in sorted(root.glob("*.md")):
+        p = load_persona(str(f))
+        if p is not None:
+            out.append(p)
+    return out
+
+
+def persona_by_slug(slug: str, directory: Optional[str] = None) -> Optional[Persona]:
+    """Look up one actor from the roster by slug (or name)."""
+    want = re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")
+    for p in load_personas(directory):
+        if p.slug == want or p.name.lower() == slug.lower():
+            return p
+    return None
 
 
 def validate_persona(persona: Optional[Persona]) -> list[str]:

@@ -160,5 +160,19 @@ CREATE TABLE IF NOT EXISTS store_settings (
     value TEXT NOT NULL
 );
 
+-- Composable video specs: every generation is 3 SEPARATELY-EDITABLE parts — actor,
+-- product, prompt (+ shot mode). Edit any part and review the assembled result
+-- BEFORE generating, so a bad prompt is fixed on the page, not after burning credits.
+CREATE TABLE IF NOT EXISTS video_specs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id TEXT NOT NULL,
+    actor_slug TEXT NOT NULL DEFAULT '',      -- which roster actor (persona)
+    prompt     TEXT NOT NULL DEFAULT '',      -- the editable instruction
+    shot_mode  TEXT NOT NULL DEFAULT 'full',
+    status     TEXT NOT NULL DEFAULT 'draft', -- draft | approved | generated
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON product_daily_metrics(date);
 CREATE INDEX IF NOT EXISTS idx_scores_total ON scores(total);

@@ -17,6 +17,7 @@ small fixed set of rooms, one voice reference clip forever.
 - name: Maya
 - age: 27
 - pronouns: she/her
+- account: @maya.tries (her own dedicated creator account — NOT the brand)
 - vibe: the practical friend who tries things before you waste your money —
   warm, a little dry, never salesy
 

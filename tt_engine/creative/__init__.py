@@ -11,7 +11,21 @@ creative kit and (when configured) pushes it into Higgsfield.
 from .ai_creator import FitResult, ai_fit, build_creator_plan
 from .brief import FORMATS, CreativeKit, build_kit
 from .category_styles import CategoryStyle, all_styles, style_for
-from .persona import Persona, load_persona, validate_persona
+from .persona import (
+    Persona,
+    load_persona,
+    load_personas,
+    persona_by_slug,
+    validate_persona,
+)
+from .video_spec import (
+    assemble,
+    create_spec,
+    default_prompt,
+    render_spec,
+    render_spec_list,
+    resolve_actor,
+)
 from .compliance import DISCLOSURE, ComplianceReport, review_text
 from .concepts import CreativePack, UGCConcept, build_pack
 from .clothing import FitCheckRunbook, build_fit_check
@@ -50,7 +64,9 @@ __all__ = [
     "CreativeKit", "build_kit", "FORMATS",
     "CreativePack", "build_pack", "UGCConcept",
     "FitResult", "ai_fit", "build_creator_plan",
-    "Persona", "load_persona", "validate_persona",
+    "Persona", "load_persona", "load_personas", "persona_by_slug", "validate_persona",
+    "create_spec", "render_spec", "render_spec_list", "assemble", "resolve_actor",
+    "default_prompt",
     "CategoryStyle", "style_for", "all_styles",
     "RealismPrompt", "enhance_prompt", "prompts_for_scripts", "render_qa_checklist",
     "ARTIFACT_CHECKLIST",

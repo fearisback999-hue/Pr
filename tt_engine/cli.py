@@ -860,6 +860,94 @@ def cmd_authenticity(args) -> int:
     return 0
 
 
+def cmd_personas(args) -> int:
+    """The actor ROSTER — every creator bible in docs/persona/, each on its own account."""
+    from .creative.persona import load_personas, validate_persona
+    roster = load_personas()
+    if not roster:
+        print("no actors yet — add creator bibles to docs/persona/*.md (CREATOR.md "
+              "is a complete template).")
+        return 1
+    print(f"# Actor roster — {len(roster)} actor(s)\n")
+    for p in roster:
+        warns = validate_persona(p)
+        status = "✓ ready" if not warns else f"⚠ {len(warns)} gap(s)"
+        print(f"  {p.slug:<12} {p.name:<10} {p.account or '(no account)':<28} {status}")
+    print("\nEach actor posts from its OWN account (spreads cadence, shadowban-safe). "
+          "Reference an actor by slug in a video spec: `draft new <product> --actor <slug>`.")
+    return 0
+
+
+def cmd_draft(args) -> int:
+    """Composable video specs: 3 separately-editable parts (actor / product / prompt),
+    reviewed and fixed BEFORE generation spends credits."""
+    from .creative import create_spec, render_spec, render_spec_list
+    with _db(args) as db:
+        act = args.draft_action
+        target = args.target
+
+        def _sid() -> Optional[int]:
+            if target is None or not str(target).isdigit():
+                return None
+            spec = db.video_spec(int(target))
+            return int(target) if spec else None
+
+        if act == "new":
+            if not target:
+                print("usage: draft new <product-id> [--actor <slug>] [--prompt ...]")
+                return 1
+            sid = create_spec(db, target, actor_slug=args.actor or "",
+                              prompt=args.prompt or "", shot_mode=args.mode or "")
+            if sid is None:
+                print(f"{target} not found")
+                return 1
+            print(f"created spec #{sid}\n")
+            print(render_spec(db, db.video_spec(sid)))
+        elif act == "list":
+            print(render_spec_list(db, db.video_specs(target)))
+        elif act == "show":
+            sid = _sid()
+            if sid is None:
+                print("usage: draft show <spec-id>")
+                return 1
+            print(render_spec(db, db.video_spec(sid)))
+        elif act == "set":
+            sid = _sid()
+            if sid is None:
+                print("usage: draft set <spec-id> [--actor|--product|--prompt|--mode ...]")
+                return 1
+            fields = {}
+            if args.actor is not None:
+                fields["actor_slug"] = args.actor
+            if args.product_id_opt is not None:
+                fields["product_id"] = args.product_id_opt
+            if args.prompt is not None:
+                fields["prompt"] = args.prompt
+            if args.mode is not None:
+                fields["shot_mode"] = args.mode
+            if not fields:
+                print("nothing to change — pass --actor / --product / --prompt / --mode")
+                return 1
+            db.update_video_spec(sid, **fields)
+            print(f"updated spec #{sid} ({', '.join(fields)}) — other parts untouched\n")
+            print(render_spec(db, db.video_spec(sid)))
+        elif act == "approve":
+            sid = _sid()
+            if sid is None:
+                print("usage: draft approve <spec-id>")
+                return 1
+            db.update_video_spec(sid, status="approved")
+            print(f"spec #{sid} approved — ready to generate (the confirmed spend step).")
+        elif act == "delete":
+            sid = _sid()
+            if sid is None:
+                print("usage: draft delete <spec-id>")
+                return 1
+            db.delete_video_spec(sid)
+            print(f"deleted spec #{sid}")
+    return 0
+
+
 def cmd_shot_mode(args) -> int:
     """View or set the store's default shot mode — the fallback ladder for when AI
     struggles with faces. faceless = chest-down / hands (most achievable)."""
@@ -1254,6 +1342,25 @@ def main(argv=None) -> int:
     sub.add_parser("authenticity",
                    help="make AI video look as real as possible — honest odds + QA gate"
                    ).set_defaults(func=cmd_authenticity)
+
+    sub.add_parser("personas",
+                   help="the actor roster — every creator bible, each on its own account"
+                   ).set_defaults(func=cmd_personas)
+
+    p = sub.add_parser("draft",
+                       help="composable video specs: edit actor/product/prompt "
+                            "separately, review before spending credits")
+    p.add_argument("draft_action",
+                   choices=("new", "list", "show", "set", "approve", "delete"))
+    p.add_argument("target", nargs="?", default=None,
+                   help="product id (new/list) or spec id (show/set/approve/delete)")
+    p.add_argument("--actor", default=None, help="roster actor slug (the ACTOR part)")
+    p.add_argument("--product", dest="product_id_opt", default=None,
+                   help="change the PRODUCT part (set)")
+    p.add_argument("--prompt", default=None, help="the PROMPT part text")
+    p.add_argument("--mode", default=None,
+                   choices=(None, "full", "face_light", "faceless"))
+    p.set_defaults(func=cmd_draft)
 
     p = sub.add_parser("shot-mode",
                        help="view/set the fallback shot mode (faceless = chest-down "

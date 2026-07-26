@@ -278,6 +278,49 @@ class Database:
         )
         self.conn.commit()
 
+    # ── video specs (composable, editable-before-generate) ─────────────────────
+    def create_video_spec(self, product_id: str, actor_slug: str, prompt: str,
+                          shot_mode: str = "full") -> int:
+        cur = self.conn.execute(
+            """INSERT INTO video_specs(product_id, actor_slug, prompt, shot_mode)
+               VALUES(?,?,?,?)""",
+            (product_id, actor_slug, prompt, shot_mode),
+        )
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def video_spec(self, spec_id: int) -> Optional[dict]:
+        row = self.conn.execute(
+            "SELECT * FROM video_specs WHERE id=?", (spec_id,)).fetchone()
+        return dict(row) if row else None
+
+    def video_specs(self, product_id: Optional[str] = None) -> list[dict]:
+        if product_id:
+            rows = self.conn.execute(
+                "SELECT * FROM video_specs WHERE product_id=? ORDER BY id", (product_id,)
+            ).fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM video_specs ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+
+    def update_video_spec(self, spec_id: int, **fields) -> None:
+        """Edit ONE or more parts (actor_slug, prompt, shot_mode, status, product_id)
+        — the others are untouched, so changing the prompt never disturbs the actor."""
+        allowed = {"actor_slug", "prompt", "shot_mode", "status", "product_id"}
+        sets = {k: v for k, v in fields.items() if k in allowed}
+        if not sets:
+            return
+        cols = ", ".join(f"{k}=?" for k in sets)
+        self.conn.execute(
+            f"UPDATE video_specs SET {cols}, updated_at=datetime('now') WHERE id=?",
+            (*sets.values(), spec_id),
+        )
+        self.conn.commit()
+
+    def delete_video_spec(self, spec_id: int) -> None:
+        self.conn.execute("DELETE FROM video_specs WHERE id=?", (spec_id,))
+        self.conn.commit()
+
     # ── product-selection gate (which products = a human decision) ─────────────
     def product_decision(self, product_id: str) -> Optional[str]:
         row = self.conn.execute(

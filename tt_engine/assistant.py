@@ -97,6 +97,25 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "roster": (
+        "The actor roster: run ~10–12 personas, each a creator bible in "
+        "docs/persona/*.md, each posting from its OWN dedicated account. More "
+        "accounts = more shots at reach AND a spread-out cadence that stays "
+        "shadowban-safe (no one account looks automated). `personas` lists the "
+        "roster; each actor has a slug you reference in a video spec. One persona per "
+        "account, consistent — the opposite of a spam signal."
+    ),
+    "video_spec": (
+        "Composable video specs: every generation is THREE separately-editable parts "
+        "— ACTOR (a roster persona), PRODUCT, and PROMPT (+ shot mode). Edit any one "
+        "without disturbing the others, review the assembled result, and fix it "
+        "BEFORE generating — so a bad prompt is corrected on the page, not after "
+        "burning credits. `draft new <product> --actor <slug>` creates one (seeds the "
+        "prompt); `draft set <id> --prompt \"...\"` edits just the prompt; `draft "
+        "show <id>` reviews the three parts + assembled preview; `draft approve <id>` "
+        "marks it ready. Generation stays the separate confirmed spend step — you "
+        "only ever pay for a spec you've already reviewed."
+    ),
     "organic": (
         "Organic marketing (free views) is the cheapest lever. The 2026 algorithm "
         "weights completion rate (~70% is the reach threshold), watch time, shares, "
@@ -227,6 +246,11 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("roster", "actors", "multiple actor", "10 actor", "12 actor", "different "
+      "account", "many account", "personas"), "roster"),
+    (("video spec", "draft", "editable", "edit the prompt", "three part", "3 part",
+      "three section", "before generating", "waste credit", "waste the credit",
+      "before we generate", "composable"), "video_spec"),
     (("organic", "free views", "algorithm", "watch time", "completion", "for you",
       "fyp", "views", "grow", "reach", "hashtag", "trending sound", "seo"), "organic"),
     (("idea", "ideas", "what to sell", "what should i sell", "options", "product "
