@@ -112,6 +112,80 @@ def render_spec(db: Database, spec: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def generate_from_spec(db: Database, spec_id: int, confirm: bool = False, mcp=None):
+    """Generate the ONE video this spec describes — from the actor + product + the
+    PROMPT you already edited and reviewed. Closes the loop: you fix the spec, approve
+    it, then generate exactly that. Same guardrails as every generation:
+
+      • must be APPROVED first (you reviewed it — no generating an unreviewed draft)
+      • the briefed plan is saved before the money gate (never lost)
+      • with a key configured, nothing generates without confirm=True
+      • the AIGC disclosure is written into the asset metadata
+      • an unwired SDK fails cleanly (GenerationNotWired), never a raw crash
+    """
+    from .compliance import DISCLOSURE
+    from .mcp_client import (
+        ConfirmationRequired,
+        GenerationNotWired,
+        GenerationResult,
+        HiggsfieldMCP,
+    )
+    from ..config import CONFIG
+
+    spec = db.video_spec(spec_id)
+    if spec is None:
+        raise ValueError(f"no video spec #{spec_id}")
+    if spec["status"] not in ("approved", "generated"):
+        raise ValueError(
+            f"spec #{spec_id} is '{spec['status']}' — review and `draft approve "
+            f"{spec_id}` first. You only ever generate a spec you've looked at.")
+    product = db.get_product(spec["product_id"])
+    if product is None:
+        raise ValueError(f"spec #{spec_id}: product '{spec['product_id']}' is gone — "
+                         "fix the PRODUCT part before generating.")
+    persona = resolve_actor(spec["actor_slug"])
+    prompt = assemble(product, persona, spec["prompt"], spec["shot_mode"])
+    soul = (CONFIG.higgsfield_soul_id or (persona.slug if persona else "")) or ""
+
+    creative = models.Creative(
+        id=f"SPEC-{spec_id}", product_id=product.id, format="Spec",
+        hook=spec["prompt"][:80], hook_type="spec", soul_id=soul, asset_url=None,
+        status="briefed",
+        meta={"aigc_disclosure": DISCLOSURE, "prompt": prompt,
+              "actor": spec["actor_slug"], "shot_mode": spec["shot_mode"]},
+    )
+    db.upsert_creative(creative)                        # persist the plan FIRST (free)
+
+    mcp = mcp or HiggsfieldMCP()
+    if mcp.available and not confirm:
+        raise ConfirmationRequired(
+            f"spec #{spec_id} is ready and Higgsfield is configured. Generation spends "
+            "credits — re-run with --confirm to actually generate this video.")
+
+    if not mcp.available:
+        return GenerationResult(
+            creatives=[creative], dry_run=True,
+            notes=[f"spec #{spec_id} planned (dry-run) — the assembled prompt is saved. "
+                   "Set HIGGSFIELD_API_KEY (+ higgsfield-client) to generate for real, "
+                   "or run it from a Claude Code session with the Higgsfield MCP."])
+
+    # Live path: one job. The assembled prompt lives on creative.meta["prompt"] — an
+    # SDK wiring reads it there. Until then submit() raises → clean GenerationNotWired.
+    try:
+        job_id = mcp.submit(None, creative)             # type: ignore[arg-type]
+    except NotImplementedError as e:
+        raise GenerationNotWired(
+            f"spec #{spec_id}: Higgsfield is configured but submit/poll isn't wired — "
+            "the assembled prompt is saved as 'briefed'. Wire HiggsfieldMCP.submit/poll "
+            f"(it reads creative.meta['prompt']), or generate from a connected MCP. ({e})"
+        ) from e
+    creative.status, creative.meta["job_id"] = "generating", job_id
+    db.upsert_creative(creative)
+    db.update_video_spec(spec_id, status="generated")
+    return GenerationResult(creatives=[creative], dry_run=False,
+                            notes=[f"spec #{spec_id} submitted (job {job_id})."])
+
+
 def render_spec_list(db: Database, specs: list[dict]) -> str:
     if not specs:
         return "No video specs yet. Create one: `draft new <product-id> [--actor <slug>]`\n"

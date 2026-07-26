@@ -347,8 +347,10 @@ def page_product(db: Database, pid: str) -> Optional[str]:
         body.append(table(["Spec", "Actor", "Mode", "Status", "Prompt (editable)"], rows))
         body.append("<p class=mut>Edit: <code>draft set &lt;id&gt; --prompt \"...\"</code> "
                     "(or <code>--actor</code> / <code>--mode</code>) · review: "
-                    "<code>draft show &lt;id&gt;</code> · then <code>draft approve "
-                    "&lt;id&gt;</code>.</p>")
+                    "<code>draft show &lt;id&gt;</code> · approve: <code>draft approve "
+                    "&lt;id&gt;</code> · then generate the fixed version: "
+                    "<code>draft generate &lt;id&gt; --confirm</code> (the only step "
+                    "that spends credits).</p>")
     else:
         body.append("<p class=mut>No specs yet for this product.</p>")
     body.append("</div>")

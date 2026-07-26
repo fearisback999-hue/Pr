@@ -881,7 +881,13 @@ def cmd_personas(args) -> int:
 def cmd_draft(args) -> int:
     """Composable video specs: 3 separately-editable parts (actor / product / prompt),
     reviewed and fixed BEFORE generation spends credits."""
-    from .creative import create_spec, render_spec, render_spec_list
+    from .creative import (
+        create_spec,
+        generate_from_spec,
+        render_spec,
+        render_spec_list,
+    )
+    from .creative.mcp_client import ConfirmationRequired, GenerationNotWired
     with _db(args) as db:
         act = args.draft_action
         target = args.target
@@ -945,6 +951,22 @@ def cmd_draft(args) -> int:
                 return 1
             db.delete_video_spec(sid)
             print(f"deleted spec #{sid}")
+        elif act == "generate":
+            sid = _sid()
+            if sid is None:
+                print("usage: draft generate <spec-id> [--confirm]")
+                return 1
+            try:
+                res = generate_from_spec(db, sid, confirm=args.confirm)
+                print(res.summary if hasattr(res, "summary") else "done")
+                for n in res.notes:
+                    print(f"  - {n}")
+            except ConfirmationRequired as e:
+                print(f"⚠ {e}\n  → re-run with --confirm to spend credits.")
+                return 1
+            except (GenerationNotWired, ValueError) as e:
+                print(f"error: {e}")
+                return 1
     return 0
 
 
@@ -1351,15 +1373,18 @@ def main(argv=None) -> int:
                        help="composable video specs: edit actor/product/prompt "
                             "separately, review before spending credits")
     p.add_argument("draft_action",
-                   choices=("new", "list", "show", "set", "approve", "delete"))
+                   choices=("new", "list", "show", "set", "approve", "generate",
+                            "delete"))
     p.add_argument("target", nargs="?", default=None,
-                   help="product id (new/list) or spec id (show/set/approve/delete)")
+                   help="product id (new/list) or spec id (show/set/approve/generate/delete)")
     p.add_argument("--actor", default=None, help="roster actor slug (the ACTOR part)")
     p.add_argument("--product", dest="product_id_opt", default=None,
                    help="change the PRODUCT part (set)")
     p.add_argument("--prompt", default=None, help="the PROMPT part text")
     p.add_argument("--mode", default=None,
                    choices=(None, "full", "face_light", "faceless"))
+    p.add_argument("--confirm", action="store_true",
+                   help="generate: actually spend credits (else refuses when a key is set)")
     p.set_defaults(func=cmd_draft)
 
     p = sub.add_parser("shot-mode",

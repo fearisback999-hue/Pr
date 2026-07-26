@@ -117,12 +117,61 @@ def test_create_spec_refuses_unknown_product(db):
     assert create_spec(db, "P-NOPE") is None
 
 
-# ── it never generates (the credit-safety point) ────────────────────────────────
+# ── it never generates until you approve (the credit-safety point) ──────────────
 def test_drafts_do_not_create_creatives(db):
     create_spec(db, "P-LAME", actor_slug="maya")
     create_spec(db, "P-STRAP", actor_slug="jordan")
     assert not db.creatives_for("P-LAME")             # a draft is not a generation
     assert not db.creatives_for("P-STRAP")
+
+
+def test_generate_refuses_unapproved_spec(db):
+    from tt_engine.creative import generate_from_spec
+    sid = create_spec(db, "P-LAME", actor_slug="maya")     # still 'draft'
+    with pytest.raises(ValueError, match="approve"):
+        generate_from_spec(db, sid)
+    assert not db.creatives_for("P-LAME")             # nothing generated
+
+
+def test_generate_from_approved_spec_uses_the_edited_prompt(db):
+    from tt_engine.creative import generate_from_spec
+    sid = create_spec(db, "P-LAME", actor_slug="jordan", prompt="EDITED-PROMPT-XYZ")
+    db.update_video_spec(sid, status="approved")
+    res = generate_from_spec(db, sid)                 # dry-run (no key)
+    assert res.dry_run
+    made = [c for c in db.creatives_for("P-LAME") if c.id == f"SPEC-{sid}"]
+    assert made and made[0].status == "briefed"
+    assert "EDITED-PROMPT-XYZ" in made[0].meta["prompt"]   # the fixed version
+    assert made[0].meta["aigc_disclosure"]                 # disclosure on the asset
+
+
+def test_generate_refuses_to_spend_without_confirm_when_configured(db):
+    """With a key configured, generation must not run without --confirm."""
+    from tt_engine.creative import generate_from_spec
+    from tt_engine.creative.mcp_client import ConfirmationRequired, HiggsfieldMCP
+    sid = create_spec(db, "P-LAME", actor_slug="maya")
+    db.update_video_spec(sid, status="approved")
+
+    class _AvailMCP(HiggsfieldMCP):
+        available = property(lambda self: True)
+    with pytest.raises(ConfirmationRequired):
+        generate_from_spec(db, sid, confirm=False, mcp=_AvailMCP(api_key="fake"))
+    # The briefed plan is still saved (no work lost), spec not marked generated.
+    assert db.creatives_for("P-LAME")
+    assert db.video_spec(sid)["status"] == "approved"
+
+
+def test_generate_unwired_sdk_fails_cleanly(db):
+    from tt_engine.creative import generate_from_spec
+    from tt_engine.creative.mcp_client import GenerationNotWired, HiggsfieldMCP
+    sid = create_spec(db, "P-LAME", actor_slug="maya")
+    db.update_video_spec(sid, status="approved")
+
+    class _AvailMCP(HiggsfieldMCP):
+        available = property(lambda self: True)
+    with pytest.raises(GenerationNotWired):
+        generate_from_spec(db, sid, confirm=True, mcp=_AvailMCP(api_key="fake"))
+    assert db.creatives_for("P-LAME")                # briefed plan preserved
 
 
 # ── dashboard surfaces ──────────────────────────────────────────────────────────

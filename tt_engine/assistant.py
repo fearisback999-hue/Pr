@@ -113,8 +113,10 @@ KNOWLEDGE: dict[str, str] = {
         "burning credits. `draft new <product> --actor <slug>` creates one (seeds the "
         "prompt); `draft set <id> --prompt \"...\"` edits just the prompt; `draft "
         "show <id>` reviews the three parts + assembled preview; `draft approve <id>` "
-        "marks it ready. Generation stays the separate confirmed spend step — you "
-        "only ever pay for a spec you've already reviewed."
+        "marks it ready. `draft generate <id> --confirm` then generates EXACTLY the "
+        "fixed version (must be approved first; refuses to spend without --confirm; "
+        "the AIGC disclosure is written onto the asset). You only ever pay for a spec "
+        "you've already reviewed — fix the prompt before credits, not after."
     ),
     "organic": (
         "Organic marketing (free views) is the cheapest lever. The 2026 algorithm "
