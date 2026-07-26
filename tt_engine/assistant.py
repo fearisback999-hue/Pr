@@ -83,12 +83,32 @@ KNOWLEDGE: dict[str, str] = {
         "new money. Every scorecard shows every component and the data behind it."
     ),
     "sourcing_products": (
-        "Finding products: export CSVs from Kalodata/FastMoss (filter: 7d growth >100%, "
-        "sellers <15, price $15–50) → `import-csv` → `daily` → `scorecard`. Free "
-        "scouting: TikTok Creative Center Top Ads, the Shop tab, #TikTokMadeMeBuyIt — "
-        "then `add` + `add-metric` what you observe. A winner in data: steep multi-day "
-        "growth, low-but-rising competition, defensible niche (not commodity), $15–50, "
-        "45%+ margin at a real quote, demonstrable on camera in 3 seconds."
+        "HOW FINDING WORKS (the thing most people misread): the engine does NOT browse "
+        "TikTok to discover products — it never scrapes (the guardrail). It FILTERS + "
+        "SCORES candidates YOU bring: kills commodity-saturated/thin-margin/branded/"
+        "restricted, rewards real demand (momentum) + a defensible niche "
+        "(differentiation). Candidates come from a DATA FEED (Kalodata/FastMoss/EchoTik "
+        "→ `import-csv`) or your own SCOUTING. Free scouting surfaces: TikTok Creative "
+        "Center Top Products, the Shop tab Best Sellers, #TikTokMadeMeBuyIt, Amazon "
+        "Movers & Shakers, niche subreddits for pain points. Log a find: `add` → "
+        "`add-metric` (a few days) → `add-supplier` → `scorecard`; the gates tell you "
+        "commodity trap vs niche-with-demand. A real find: 3 demand signals (repeat "
+        "creators, repeat 'where can I buy' comments, multi-day consistency), <50 "
+        "sellers / <500 reviews, $10–45, 45%+ margin at a real US/fast quote, "
+        "demonstrable in 3s. `scout` prints the full workflow."
+    ),
+    "sourcing_suppliers": (
+        "Where to source (US / fast handling — TikTok wants a tracking scan in ~24–48h "
+        "and ~3–6 day US delivery; overseas 2–4 week shipping = refunds + account "
+        "hits). Directories to CHECK (sample before you scale, never assume): CJ "
+        "Dropshipping (US warehouses, TikTok-Shop integration), TopDawg (US suppliers, "
+        "2–5 day), Spocket (real US/EU brands, 3–6 day), Zendrop (automated US "
+        "fulfilment), HyperSKU (US warehouse + branding), Amazon MCF (fastest once a "
+        "product is proven), USAdrop. Vet: confirm the SKU ships US, order a SAMPLE "
+        "(mandatory), get the true landed cost, then `add-supplier <id> --cost X "
+        "--ship-cost Y --ship-days N --us-warehouse` — the score rewards US warehouse + "
+        "sub-5-day and flags slow/overseas. `sourcing-guide` prints it. The engine "
+        "can't order or vouch for a supplier it's never used."
     ),
     "million": (
         "Road to $1M: $1M revenue in 24mo ≈ $42k/mo ≈ 31 orders/day ≈ 2 winners at "
@@ -240,8 +260,12 @@ KNOWLEDGE: dict[str, str] = {
 
 _ROUTES = [
     (("fee", "commission", "referral", "payment", "take-rate", "profit", "margin"), "fees"),
-    (("ship", "delivery", "warehouse", "supplier", "cj", "hypersku", "fbt", "source",
-      "sourcing", "buy"), "shipping"),
+    (("supplier", "us warehouse", "us-warehouse", "handling", "where to source",
+      "where do i source", "where to buy", "sourcing guide", "cj dropship", "zendrop",
+      "topdawg", "spocket", "hypersku", "fast shipping"), "sourcing_suppliers"),
+    (("scout", "discover", "how do i find", "how does finding", "where do i find "
+      "products", "find products"), "sourcing_products"),
+    (("ship", "delivery", "warehouse", "source", "sourcing", "buy"), "shipping"),
     (("fulfil", "fulfill", "order", "automat"), "fulfillment"),
     (("kill", "scale", "roas", "test", "budget", "spend", "validate"), "killscale"),
     (("score", "gate", "verdict", "lifecycle", "saturat", "commodity", "confidence"),

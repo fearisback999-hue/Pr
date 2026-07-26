@@ -325,7 +325,15 @@ def page_product(db: Database, pid: str) -> Optional[str]:
         body.append(table(["Supplier", "Landed", "Ship", "Warehouse", "Score"], rows,
                           num_cols={1, 2, 4}))
         body.append("<p class=mut>★ = recommended (composite of cost, speed, reliability "
-                    "— the same ranking `packet` uses).</p></div>")
+                    "— the same ranking `packet` uses). Need a US/fast supplier? See the "
+                    "<a href='/ideas'>sourcing guide</a> (or <code>sourcing-guide</code>) "
+                    "— the score rewards a US warehouse + sub-5-day shipping.</p></div>")
+    else:
+        body.append("<h2>Suppliers</h2><div class=panel><p class=mut>No supplier quote "
+                    "yet — economics can't score without a real landed cost. Find a "
+                    "US/fast supplier (<a href='/ideas'>sourcing guide</a>), order a "
+                    "sample, then <code>add-supplier " + esc(pid) + " --cost X "
+                    "--ship-cost Y --ship-days N --us-warehouse</code>.</p></div>")
 
     # ── Video specs: the 3 editable parts, reviewed before any spend ────────────
     specs = db.video_specs(pid)
@@ -378,13 +386,20 @@ def page_product(db: Database, pid: str) -> Optional[str]:
 def page_ideas(db: Database) -> str:
     """Product options — a menu of researched directions to validate, with the honest
     'not guaranteed winners' framing and the validation gate."""
-    from .. import product_ideas
+    from .. import discovery, product_ideas
+    from ..sourcing.guide import render as sourcing_render
     body = ["<h1>Product options</h1>",
             "<blockquote>Options, not one product at a time — a spread of archetypes "
             "that fit the model. These are <b>directions to validate with real data</b>, "
             "not guaranteed winners. Pick 2–3 that fit you, confirm demand + margin, "
             "then run them through the engine (<code>import-csv</code> → "
             "<code>daily</code> → <code>scorecard</code>).</blockquote>"]
+    # How finding actually works + the scout workflow (the thing operators misread).
+    body.append("<h2>How finding works &amp; where to scout</h2>")
+    body.append(f"<div class=panel>{md_to_html(discovery.render())}</div>")
+    body.append("<h2>Where to source (US / fast handling)</h2>")
+    body.append(f"<div class=panel>{md_to_html(sourcing_render())}</div>")
+    body.append("<h2>Product option menu</h2>")
     body.append(f"<div class=panel>{md_to_html(product_ideas.render())}</div>")
     body.append("<div class=panel><h2>Sources (verified 2026-07)</h2><ul>"
                 + "".join(f"<li><a href='{esc(u)}' target=_blank rel=noopener>{esc(u)}"

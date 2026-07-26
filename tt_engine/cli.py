@@ -846,6 +846,21 @@ def cmd_ideas(args) -> int:
     return 0
 
 
+def cmd_scout(args) -> int:
+    """How finding products works + where to scout niche-with-demand products, and how
+    to log a find so the engine's gates judge it."""
+    from . import discovery
+    print(discovery.render())
+    return 0
+
+
+def cmd_sourcing_guide(args) -> int:
+    """Where to source: US-warehouse / fast-handling suppliers + how to vet them."""
+    from .sourcing.guide import render
+    print(render())
+    return 0
+
+
 def cmd_organic(args) -> int:
     """Everything about organic marketing: the algorithm signals + the plays that work."""
     from . import organic_marketing
@@ -1358,6 +1373,12 @@ def main(argv=None) -> int:
     sub.add_parser("ideas",
                    help="product options to validate (a menu of directions, not one product)"
                    ).set_defaults(func=cmd_ideas)
+    sub.add_parser("scout",
+                   help="how finding works + where to scout niche products with demand"
+                   ).set_defaults(func=cmd_scout)
+    sub.add_parser("sourcing-guide",
+                   help="where to source: US-warehouse / fast-handling suppliers + vetting"
+                   ).set_defaults(func=cmd_sourcing_guide)
     sub.add_parser("organic",
                    help="organic marketing: the algorithm signals + plays that get free views"
                    ).set_defaults(func=cmd_organic)
