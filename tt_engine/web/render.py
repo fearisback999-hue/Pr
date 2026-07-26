@@ -134,12 +134,25 @@ hr { border:none; border-top:1px solid var(--line-soft); margin:18px 0; }
 .phasehead { display:flex; justify-content:space-between; align-items:baseline;
              margin:26px 0 4px; }
 .phasehead .n { color:var(--faint); font-size:12px; font-variant-numeric:tabular-nums; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;
+        margin:14px 0; }
+.card { background:var(--panel); border:1px solid var(--line-soft); border-radius:14px;
+        padding:16px 18px; box-shadow:var(--shadow);
+        transition:border-color .15s ease, transform .16s cubic-bezier(.22,1,.36,1); }
+.card:hover { border-color:var(--acc-line); transform:translateY(-2px); }
+.card.on { border-color:var(--acc); }
+.card h3 { margin-top:0; }
+.card .nm { font-size:17px; font-weight:650; letter-spacing:-0.01em; }
+.avatar { width:44px; height:44px; border-radius:50%; display:inline-flex;
+          align-items:center; justify-content:center; font-weight:700; font-size:18px;
+          background:var(--acc-soft); color:var(--acc); flex:0 0 auto; }
+.crow { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
 """
 
 _NAV = [("Overview", "/"), ("Assistant", "/assistant"), ("Ideas", "/ideas"),
-        ("Search", "/search"), ("Playbook", "/playbook"), ("Organic", "/organic"),
-        ("Advertising", "/advertising"), ("Styles", "/styles"), ("Budget", "/budget"),
-        ("Creators", "/creators"), ("Road to $1M", "/million")]
+        ("Search", "/search"), ("Playbook", "/playbook"), ("Actors", "/actors"),
+        ("Organic", "/organic"), ("Advertising", "/advertising"), ("Styles", "/styles"),
+        ("Budget", "/budget"), ("Creators", "/creators"), ("Road to $1M", "/million")]
 
 
 def sparkline(values: list[float], width: int = 220, height: int = 44,

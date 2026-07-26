@@ -175,6 +175,53 @@ def test_generate_unwired_sdk_fails_cleanly(db):
 
 
 # ── dashboard surfaces ──────────────────────────────────────────────────────────
+def test_actors_tab_click_to_create_flow(tmp_path):
+    """The Actors hub: grid of actors, pick one, pick a product, a spec is created."""
+    import http.client
+    import threading
+
+    from tt_engine import pipeline, seed
+    from tt_engine.web import make_server
+
+    db_path = str(tmp_path / "act.db")
+    with Database(db_path) as db:
+        seed.seed_sample(db)
+        pipeline.daily(db)
+    srv = make_server(db_path, host="127.0.0.1", port=0)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        def get(path):
+            c = http.client.HTTPConnection(*srv.server_address, timeout=10)
+            c.request("GET", path)
+            r = c.getresponse()
+            b = r.read().decode()
+            c.close()
+            return r.status, b
+
+        st, grid = get("/actors")
+        assert st == 200
+        assert "Maya" in grid and "Jordan" in grid
+        assert "Create with Maya" in grid
+        assert "/actors?use=maya" in grid
+
+        # Pick an actor -> product picker with create links.
+        st, chosen = get("/actors?use=jordan")
+        assert st == 200 and "Create with Jordan" in chosen
+        assert "/actors/new?actor=jordan&amp;product=P-SOURDOUGHLAME" in chosen \
+            or "/actors/new?actor=jordan" in chosen
+
+        # Create -> redirects to the product, spec now exists with that actor.
+        st, _ = get("/actors/new?actor=jordan&product=P-SOURDOUGHLAME")
+        assert st == 303
+        with Database(db_path) as db:
+            specs = db.video_specs("P-SOURDOUGHLAME")
+            assert specs and specs[-1]["actor_slug"] == "jordan"
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
 def test_dashboard_shows_roster_and_specs(tmp_path):
     import http.client
     import threading

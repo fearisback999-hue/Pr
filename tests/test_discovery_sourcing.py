@@ -44,6 +44,21 @@ def test_scout_is_honest_it_cant_do_it_for_you():
     assert "can't do it for you" in low or "cannot do it for you" in low
 
 
+def test_scroll_types_map_the_lanes_with_honest_reads():
+    from tt_engine.discovery import SCROLL_TYPES
+    text = discovery.render()
+    assert "scrolling" in text.lower()
+    names = " ".join(s.name.lower() for s in SCROLL_TYPES)
+    for lane in ("clothing", "blue-light", "meme", "gadget"):
+        assert lane in names
+    # Honest: names commodity/saturation and demands a defensible angle.
+    low = text.lower()
+    assert "commodity" in low or "saturated" in low
+    assert "angle" in low
+    for s in SCROLL_TYPES:
+        assert s.read and s.angle and s.ai_fit
+
+
 # ── the US / fast sourcing guide ────────────────────────────────────────────────
 def test_sourcing_guide_leads_with_us_and_fast():
     text = sourcing_render()

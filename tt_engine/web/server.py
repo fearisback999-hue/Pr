@@ -394,6 +394,73 @@ def page_product(db: Database, pid: str) -> Optional[str]:
     return page(pid, "".join(body), "/")
 
 
+def page_actors(db: Database, use_slug: str = "") -> str:
+    """The actor roster as a hub: every AI creator you've built, each on its own
+    account. Click one to create a video with them — pick a product and the engine
+    starts an editable spec (actor + product + prompt) you fix before generating."""
+    from ..creative.persona import load_personas, persona_by_slug, validate_persona
+    roster = load_personas()
+    body = ["<h1>Actors</h1>",
+            "<blockquote>Your roster of AI creators, each posting from its OWN account. "
+            "Click <b>Create with…</b> on an actor, pick a product, and the engine "
+            "starts an editable video spec (actor · product · prompt) you fix before "
+            "spending any credits. Add more as <code>docs/persona/*.md</code> "
+            "files.</blockquote>"]
+    if not roster:
+        body.append("<div class=panel><p class=mut>No actors yet. The shipped template "
+                    "is <code>docs/persona/CREATOR.md</code>; copy it to add more.</p></div>")
+        return page("Actors", "".join(body), "/actors")
+
+    chosen = persona_by_slug(use_slug) if use_slug else None
+
+    if chosen is None:
+        # The roster grid — pick an actor to create with.
+        body.append("<div class=grid>")
+        for p in roster:
+            ready = not validate_persona(p)
+            initial = esc(p.name[:1].upper())
+            status = ("<span class=good>ready</span>" if ready
+                      else "<span class=warn>needs setup</span>")
+            body.append(
+                f"<div class=card><div class=crow>"
+                f"<span class=avatar>{initial}</span>"
+                f"<div><div class=nm>{esc(p.name)}</div>"
+                f"<div class=mut style='font-size:12px'>{esc(p.account or 'no account set')}"
+                f"</div></div></div>"
+                f"<p class=mut style='min-height:34px'>rooms: "
+                f"{esc(', '.join(p.settings) or '—')}</p>"
+                f"<p>{status} · <a href='/actors?use={esc(p.slug)}'>"
+                "<b>Create with " + esc(p.name) + " →</b></a></p></div>")
+        body.append("</div>")
+        return page("Actors", "".join(body), "/actors")
+
+    # A specific actor chosen — pick a product to create a spec for.
+    body.append(f"<div class=panel><div class=crow>"
+                f"<span class=avatar>{esc(chosen.name[:1].upper())}</span>"
+                f"<div><div class=nm>Create with {esc(chosen.name)}</div>"
+                f"<div class=mut style='font-size:12px'>{esc(chosen.account or 'no account')}"
+                " · " + esc(chosen.summary) + "</div></div></div>"
+                "<p class=mut>Pick a product — a new editable spec opens on that "
+                "product's page.</p>")
+    products = db.all_products()
+    if products:
+        scored = {s.product_id: s for s in db.board()}
+        rows = []
+        for pr in products:
+            sc = scored.get(pr.id)
+            v = verdict(sc.gates_passed, sc.total) if sc else "—"
+            rows.append([
+                f"<a href='/product?id={esc(pr.id)}'>{esc(pr.id)}</a>",
+                esc(pr.name), esc(pr.category), chip(v) if sc else "—",
+                f"<a href='/actors/new?actor={esc(chosen.slug)}&amp;product={esc(pr.id)}'>"
+                "<b>＋ create spec</b></a>"])
+        body.append(table(["Product", "Name", "Category", "Verdict", ""], rows))
+    else:
+        body.append("<p class=mut>No products yet — add or import some first.</p>")
+    body.append(f"<p class=mut><a href='/actors'>← all actors</a></p></div>")
+    return page("Actors", "".join(body), "/actors")
+
+
 def page_publish(db: Database, creative_id: str, confirm: bool) -> str:
     """Post from the app — a deliberate 2-step so a public post is never one accidental
     click away. Step 1 (no confirm): a confirmation panel. Step 2 (confirm=1): the
@@ -1097,6 +1164,16 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/publish":
                     html = page_publish(db, (q.get("id") or [""])[0],
                                         (q.get("confirm") or [""])[0] == "1")
+                elif url.path == "/actors":
+                    html = page_actors(db, (q.get("use") or [""])[0])
+                elif url.path == "/actors/new":
+                    from ..creative import create_spec
+                    actor = (q.get("actor") or [""])[0]
+                    prod = (q.get("product") or [""])[0]
+                    sid = create_spec(db, prod, actor_slug=actor)
+                    if sid is None:
+                        return self._redirect("/actors")
+                    return self._redirect(f"/product?id={prod}")
                 elif url.path == "/ideas":
                     html = page_ideas(db)
                 elif url.path == "/organic":

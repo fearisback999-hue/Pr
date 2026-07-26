@@ -66,6 +66,48 @@ CRITERIA: tuple[str, ...] = (
 )
 
 
+# What you actually SEE scrolling TikTok Shop — and the honest read on each. These
+# are the high-volume lanes everyone tests; most are near-commodity, so the money is
+# in the DEFENSIBLE ANGLE within the lane, not the lane itself.
+@dataclass(frozen=True)
+class ScrollType:
+    name: str
+    read: str
+    angle: str
+    ai_fit: str
+
+
+SCROLL_TYPES: tuple[ScrollType, ...] = (
+    ScrollType(
+        "Comfortable / simplistic clothing (basics, loungewear, wide-leg, sets)",
+        "huge and PROVEN, but saturated — a plain tee competes with everyone",
+        "win on a SPECIFIC fit/fabric/aesthetic + honest sizing, sold via the fit-check "
+        "format. The garment (your real photos) is the product; the angle is the vibe.",
+        "STRONG — garment-swap try-on; faceless chest-down mode lands reliably"),
+    ScrollType(
+        "Blue-light / trendy glasses",
+        "very saturated and near-commodity — the engine's commodity gate will often "
+        "(correctly) flag the generic version",
+        "only worth it with a real edge: a distinct frame style, a niche audience "
+        "(gamers, nurses, night-shift), or a bundle. Otherwise skip — margins get "
+        "raced to zero.",
+        "PARTIAL — worn on camera (try-on), but claims about eye strain are OFF-limits"),
+    ScrollType(
+        "Meme / statement / novelty tees (identity + humour)",
+        "POD-friendly (low inventory risk), defensible via the DESIGN/identity niche, "
+        "healthy margin — but design-dependent and can be a flash trend",
+        "the JOKE or identity IS the product. Win a specific community; rotate designs "
+        "fast; Etsy POD + TikTok is the natural pairing (see the POD planner).",
+        "STRONG — wear it and let the design read; the reaction is the hook"),
+    ScrollType(
+        "Novelty / 'one satisfying job' gadgets (mini shavers, quirky tools)",
+        "demonstrable and impulse, but commodity-prone with real quality/refund risk",
+        "win with a genuinely satisfying real-time demo + FAST US shipping (returns "
+        "kill these). Differentiate on the specific job, not price.",
+        "STRONG — hands-on function demo; faceless/POV works great"),
+)
+
+
 def render() -> str:
     lines = [
         "# How finding products works — and how to scout",
@@ -87,6 +129,14 @@ def render() -> str:
     for s in SOURCES:
         tag = "free" if s.free else "paid / free-tier"
         lines += [f"### {s.name}  ({tag})", f"- {s.how}", ""]
+    lines += ["## What you keep seeing while scrolling (the honest read)", "",
+              "The lanes everyone tests. Most are near-commodity — the money is in the "
+              "DEFENSIBLE ANGLE within the lane, not the lane itself:", ""]
+    for s in SCROLL_TYPES:
+        lines += [f"### {s.name}",
+                  f"- **The read:** {s.read}",
+                  f"- **Your angle:** {s.angle}",
+                  f"- **AI-creator fit:** {s.ai_fit}", ""]
     lines += ["## What a real 'niche with demand' find must show", ""]
     lines += [f"- {c}" for c in CRITERIA]
     lines += [
