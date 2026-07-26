@@ -72,6 +72,13 @@ class Config:
     #     `get_status`/`subscribe` to poll) — that sidesteps HIGGSFIELD_API_KEY entirely.
     higgsfield_api_key: str = field(default_factory=lambda: _get("HIGGSFIELD_API_KEY"))
     higgsfield_soul_id: str = field(default_factory=lambda: _get("HIGGSFIELD_SOUL_ID"))
+    # Posting from the app — the OFFICIAL TikTok Content Posting API (developers.tiktok.com):
+    # OAuth-authorised by the account owner, sanctioned, NOT a gray-market auto-poster.
+    # A client key/secret plus a per-account OAuth access token. Posting still requires
+    # explicit per-post confirmation; this only enables the sanctioned upload path.
+    tiktok_client_key: str = field(default_factory=lambda: _get("TIKTOK_CLIENT_KEY"))
+    tiktok_client_secret: str = field(default_factory=lambda: _get("TIKTOK_CLIENT_SECRET"))
+    tiktok_access_token: str = field(default_factory=lambda: _get("TIKTOK_ACCESS_TOKEN"))
     # The creator bible: ONE persona per store, specified in a markdown file the
     # engine parses (casting, wardrobe, settings, speech). See docs/persona/CREATOR.md.
     persona_path: str = field(
@@ -106,6 +113,14 @@ class Config:
         except ImportError:
             return False
         return True
+
+    @property
+    def tiktok_posting_available(self) -> bool:
+        """True only when the official Content Posting API is fully configured (client
+        credentials + a per-account OAuth token). False means: the engine can prepare
+        the post but not upload it — you post by hand, or wire the official API."""
+        return bool(self.tiktok_client_key and self.tiktok_client_secret
+                    and self.tiktok_access_token)
 
 
 CONFIG = Config()

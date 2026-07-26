@@ -183,6 +183,11 @@ class Database:
         rows = self.conn.execute("SELECT * FROM creatives").fetchall()
         return [_to_creative(r) for r in rows]
 
+    def get_creative(self, creative_id: str) -> Optional[models.Creative]:
+        row = self.conn.execute(
+            "SELECT * FROM creatives WHERE id=?", (creative_id,)).fetchone()
+        return _to_creative(row) if row else None
+
     # ── import audit log ───────────────────────────────────────────────────────
     def log_import(self, source: str, filename: str, products: int,
                    metric_rows: int, rows_skipped: int) -> None:

@@ -117,6 +117,18 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "posting": (
+        "Posting from the app: the RIGHT way is TikTok's OFFICIAL Content Posting API "
+        "(developers.tiktok.com) — you authorise the app once via OAuth and it uploads "
+        "on your behalf, so no downloading + re-uploading by hand. That's sanctioned, "
+        "NOT a gray-market auto-poster (those are the shadowban risk). Guardrails: "
+        "every post needs your explicit per-post permission (`publish <id> --confirm`, "
+        "or a deliberate 2-step 'Post ▶' on the dashboard); only a generated + EXPORTED "
+        "asset (AIGC disclosure attached) can post; the label travels with it; it can "
+        "NEVER be flipped to auto. Until you set TIKTOK_CLIENT_KEY/SECRET + an OAuth "
+        "TIKTOK_ACCESS_TOKEN the engine prepares the post but won't upload (honest stub, "
+        "never an unofficial poster) — `publish <id> --mark-posted` records a by-hand post."
+    ),
     "roster": (
         "The actor roster: run ~10–12 personas, each a creator bible in "
         "docs/persona/*.md, each posting from its OWN dedicated account. More "
@@ -272,6 +284,8 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("post", "posting", "publish", "upload", "content posting api", "post from the "
+      "app", "post the video"), "posting"),
     (("roster", "actors", "multiple actor", "10 actor", "12 actor", "different "
       "account", "many account", "personas"), "roster"),
     (("video spec", "draft", "editable", "edit the prompt", "three part", "3 part",

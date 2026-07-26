@@ -366,11 +366,22 @@ def page_product(db: Database, pid: str) -> Optional[str]:
     creatives = db.creatives_for(pid)
     if creatives:
         body.append("<h2>Creatives</h2><div class=panel>")
-        rows = [[esc(c.id), esc(c.format), esc(c.hook[:60]), esc(c.status),
-                 ("✓" if c.meta.get("aigc_disclosure") else "<span class=bad>missing</span>")]
-                for c in creatives]
-        body.append(table(["ID", "Format", "Hook", "Status", "AIGC disclosure"], rows))
-        body.append("</div>")
+        rows = []
+        for c in creatives:
+            disc = c.meta.get("aigc_disclosure")
+            if c.status == "posted":
+                post = "<span class=good>posted</span>"
+            elif c.status in ("exported", "ready") and disc:
+                # Post from the app — a deliberate 2-step (confirm before it goes public).
+                post = f"<a href='/publish?id={esc(c.id)}'>Post ▶</a>"
+            else:
+                post = "<span class=mut>export first</span>"
+            rows.append([esc(c.id), esc(c.format), esc(c.hook[:52]), esc(c.status),
+                         ("✓" if disc else "<span class=bad>missing</span>"), post])
+        body.append(table(["ID", "Format", "Hook", "Status", "AIGC", "Post"], rows))
+        body.append("<p class=mut>Posting uses TikTok's OFFICIAL Content Posting API "
+                    "with your per-post permission — never a gray-market auto-poster. "
+                    "Only exported, disclosure-carrying assets can post.</p></div>")
 
     tests = db.tests_for_product(pid)
     if tests:
@@ -381,6 +392,45 @@ def page_product(db: Database, pid: str) -> Optional[str]:
         body.append(table(["Date", "Spend", "Revenue", "ROAS"], rows, num_cols={1, 2, 3}))
         body.append("</div>")
     return page(pid, "".join(body), "/")
+
+
+def page_publish(db: Database, creative_id: str, confirm: bool) -> str:
+    """Post from the app — a deliberate 2-step so a public post is never one accidental
+    click away. Step 1 (no confirm): a confirmation panel. Step 2 (confirm=1): the
+    OFFICIAL-API post with your permission, then the honest result."""
+    from .. import publishing
+    c = db.get_creative(creative_id)
+    if c is None:
+        return page("Post", "<h1>Post</h1><p class=bad>No such creative.</p>", "/")
+    prod = f"/product?id={esc(c.product_id)}"
+    if not confirm:
+        body = [
+            "<h1>Post to TikTok?</h1>",
+            f"<div class=panel><p>About to post <b>{esc(c.id)}</b> "
+            f"({esc(c.format)}) publicly to your TikTok account, via the OFFICIAL "
+            "Content Posting API — your per-post permission. The AIGC label travels "
+            "with it.</p>",
+            f"<p><a href='/publish?id={esc(c.id)}&amp;confirm=1'>"
+            "<b>Yes, post it ▶</b></a>  ·  "
+            f"<a href='{prod}'>Cancel</a></p>",
+            "<p class=mut>This is TikTok's sanctioned API, not a gray-market "
+            "auto-poster. Posting is public and hard to undo, so it takes this "
+            "deliberate second step.</p></div>",
+        ]
+        return page("Post", "".join(body), "/")
+    # Confirmed: attempt the sanctioned post.
+    try:
+        res = publishing.publish_creative(db, c.id, confirm=True)
+        note = res.summary + (" — " + "; ".join(res.notes) if res.notes else "")
+        cls = "good" if res.posted else "warn"
+    except publishing.PostingNotWired as e:
+        note, cls = str(e), "warn"
+    except ValueError as e:
+        note, cls = str(e), "bad"
+    body = [f"<h1>Post — {esc(c.id)}</h1>",
+            f"<div class=panel><p class={cls}>{esc(note)}</p>",
+            f"<p class=mut>Back to <a href='{prod}'>the product</a>.</p></div>"]
+    return page("Post", "".join(body), "/")
 
 
 def page_ideas(db: Database) -> str:
@@ -1044,6 +1094,9 @@ class Handler(BaseHTTPRequestHandler):
                     if m in SHOT_MODES:
                         db.set_setting("shot_mode", m)     # free toggle, no spend
                     return self._redirect("/advertising")
+                elif url.path == "/publish":
+                    html = page_publish(db, (q.get("id") or [""])[0],
+                                        (q.get("confirm") or [""])[0] == "1")
                 elif url.path == "/ideas":
                     html = page_ideas(db)
                 elif url.path == "/organic":

@@ -846,6 +846,30 @@ def cmd_ideas(args) -> int:
     return 0
 
 
+def cmd_publish(args) -> int:
+    """Post an exported asset to TikTok via the OFFICIAL Content Posting API — with
+    your per-post permission (--confirm). Never a gray-market auto-poster."""
+    from . import publishing
+    with _db(args) as db:
+        try:
+            if args.mark_posted:
+                publishing.mark_posted(db, args.creative_id)
+                print(f"marked {args.creative_id} as posted (by hand).")
+                return 0
+            res = publishing.publish_creative(db, args.creative_id,
+                                              confirm=args.confirm, caption=args.caption)
+            print(res.summary)
+            for n in res.notes:
+                print(f"  - {n}")
+        except publishing.PostConfirmationRequired as e:
+            print(f"⚠ {e}")
+            return 1
+        except (publishing.PostingNotWired, ValueError) as e:
+            print(f"error: {e}")
+            return 1
+    return 0
+
+
 def cmd_scout(args) -> int:
     """How finding products works + where to scout niche-with-demand products, and how
     to log a find so the engine's gates judge it."""
@@ -1373,6 +1397,16 @@ def main(argv=None) -> int:
     sub.add_parser("ideas",
                    help="product options to validate (a menu of directions, not one product)"
                    ).set_defaults(func=cmd_ideas)
+    p = sub.add_parser("publish",
+                       help="post an exported asset to TikTok via the OFFICIAL API "
+                            "(per-post permission; not a gray-market auto-poster)")
+    p.add_argument("creative_id")
+    p.add_argument("--confirm", action="store_true", help="your permission to post it")
+    p.add_argument("--caption", default="", help="post caption")
+    p.add_argument("--mark-posted", action="store_true",
+                   help="record that you posted it BY HAND (advances the pipeline)")
+    p.set_defaults(func=cmd_publish)
+
     sub.add_parser("scout",
                    help="how finding works + where to scout niche products with demand"
                    ).set_defaults(func=cmd_scout)
