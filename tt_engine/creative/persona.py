@@ -183,6 +183,106 @@ def persona_by_slug(slug: str, directory: Optional[str] = None) -> Optional[Pers
     return None
 
 
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def bible_template(name: str, account: str = "") -> str:
+    """A ready-to-edit creator bible for a new character. Every field is a placeholder
+    the operator fills in — look, rooms, voice — the one place a character is defined."""
+    handle = account or f"@{_slugify(name).replace('-', '')}"
+    return f"""# Creator bible — "{name}"
+
+The single source of truth for this character. Edit the values below; the engine
+parses this file into every prompt and the Actors tab. Keep the `## section`
+headings and `- key: value` bullets. Validate with
+`python -m tt_engine.cli persona --path docs/persona/{_slugify(name)}.md`.
+
+## identity
+
+- name: {name}
+- age: <age>
+- pronouns: <she/her | he/him | they/them>
+- account: {handle} (their OWN dedicated creator account — NOT the brand)
+- vibe: <one line: who they are on camera>
+
+## master-description
+
+<ONE paragraph describing their face and body, repeated verbatim at the top of every
+prompt. Be specific and give them a small imperfection: e.g. "A 26-year-old with
+wavy auburn hair, fair freckled skin, green eyes, a small gap in the front teeth,
+slim build, relaxed posture — reads as a real creator filming in their own space.">
+
+## appearance
+
+- face: <shape, any marks, makeup or none>
+- hair: <colour, length, texture — never salon-perfect>
+- skin: <tone, visible texture>
+- build: <build, approx height>
+- forbidden: <the things that must NEVER change, semicolon-separated: e.g. the gap in
+  the teeth never closes; hair never changes colour; no tattoos ever appear>
+
+## wardrobe
+
+- outfit-home: <itemized: e.g. oversized grey hoodie, black joggers, white socks>
+- outfit-desk: <itemized second outfit>
+- outfit-out: <itemized third outfit>
+- jewelry: <pieces that never change mid-clip: e.g. small silver studs>
+
+## settings
+
+<the rooms this character owns — pick from the engine's scene bundles; their videos
+never leave these. One per line:>
+- bedroom-morning
+- kitchen-evening
+- desk-office
+
+## speech
+
+- pace: <how they talk>
+- quirks: <recurring phrases / one disfluency; semicolon-separated: e.g. opens with
+  "okay so—"; one mid-sentence correction; ends on "anyway">
+- never: influencer over-energy, superlatives, reading-off-a-script cadence
+
+## voice
+
+- description: <the voice: e.g. warm mezzo, slight vocal fry, small laugh>
+- reference: assets/voice/{_slugify(name)}-ref.wav
+
+(ONE voice, forever. Record or generate a single ≤15s clip and pin it: feed it as
+the reference to every generation — via Seedance native audio, or lip-synced on with
+ElevenLabs video-to-voice. A shifting voice is as obvious as a shifting face.)
+
+## values
+
+- shows the thing working, honestly; never claims a result it can't show
+- outcome proof comes from real customer/affiliate footage, and says so
+- every post carries the AIGC label — openly an AI creator
+
+## soul-id-training
+
+- [ ] 20–25 photos of the SAME generated face, even lighting, varied angles
+- [ ] at least one full-height photo; nothing cropping the face
+- [ ] set the Soul ID once trained; the engine threads it into every prompt
+
+## workflow
+
+Keyframe-first: generate the actor once, then per scene a first-frame image → animate
+→ ONE pinned voice → assemble; QA on a phone; AIGC label non-negotiable.
+"""
+
+
+def create_bible(name: str, account: str = "", directory: Optional[str] = None) -> Path:
+    """Write a new character bible file (refuses to overwrite an existing one)."""
+    root = Path(directory) if directory else Path(CONFIG.persona_path).parent
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{_slugify(name).upper().replace('-', '_')}.md"
+    if path.exists():
+        raise FileExistsError(f"{path} already exists — edit it instead of recreating.")
+    path.write_text(bible_template(name, account))
+    return path
+
+
 def validate_persona(persona: Optional[Persona]) -> list[str]:
     """Operator-facing warnings: what's missing before the bible is production-ready."""
     if persona is None:

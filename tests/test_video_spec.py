@@ -205,9 +205,13 @@ def test_actors_tab_click_to_create_flow(tmp_path):
         assert "Create with Maya" in grid
         assert "/actors?use=maya" in grid
 
-        # Pick an actor -> product picker with create links.
+        # Pick an actor -> the FULL character profile (look/rooms/voice) + picker.
         st, chosen = get("/actors?use=jordan")
-        assert st == 200 and "Create with Jordan" in chosen
+        assert st == 200 and "Create a video with Jordan" in chosen
+        assert "What they look like" in chosen           # appearance
+        assert "Their rooms" in chosen                   # settings
+        assert "lip-sync" in chosen and "video-to-voice" in chosen   # voice concern
+        assert "docs/persona/JORDAN.md" in chosen         # where to edit
         assert "/actors/new?actor=jordan&amp;product=P-SOURDOUGHLAME" in chosen \
             or "/actors/new?actor=jordan" in chosen
 

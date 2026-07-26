@@ -810,6 +810,20 @@ def cmd_autopilot(args) -> int:
     return 0
 
 
+def cmd_persona_new(args) -> int:
+    """Scaffold a new character bible (look / rooms / voice) ready to edit."""
+    from .creative.persona import create_bible
+    try:
+        path = create_bible(args.name, account=args.account or "")
+    except FileExistsError as e:
+        print(f"error: {e}")
+        return 1
+    print(f"created {path}\n\nEdit it to set the look, rooms, and voice, then:")
+    print(f"  python -m tt_engine.cli persona --path {path}   # validate")
+    print("  (the new character shows up on the Actors tab automatically)")
+    return 0
+
+
 def cmd_persona(args) -> int:
     """Show the parsed creator bible + production-readiness warnings."""
     from .creative.persona import load_persona, validate_persona
@@ -1393,6 +1407,12 @@ def main(argv=None) -> int:
     p = sub.add_parser("persona", help="parse + validate the creator bible (docs/persona/CREATOR.md)")
     p.add_argument("--path", default=None, help="override TT_PERSONA_PATH")
     p.set_defaults(func=cmd_persona)
+
+    p = sub.add_parser("persona-new",
+                       help="scaffold a new character bible (look / rooms / voice)")
+    p.add_argument("name", help="the character's name, e.g. \"Maya\"")
+    p.add_argument("--account", default="", help="their dedicated TikTok handle")
+    p.set_defaults(func=cmd_persona_new)
 
     sub.add_parser("ideas",
                    help="product options to validate (a menu of directions, not one product)"

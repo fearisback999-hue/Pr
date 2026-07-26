@@ -434,12 +434,74 @@ def page_actors(db: Database, use_slug: str = "") -> str:
         body.append("</div>")
         return page("Actors", "".join(body), "/actors")
 
-    # A specific actor chosen — pick a product to create a spec for.
-    body.append(f"<div class=panel><div class=crow>"
-                f"<span class=avatar>{esc(chosen.name[:1].upper())}</span>"
-                f"<div><div class=nm>Create with {esc(chosen.name)}</div>"
-                f"<div class=mut style='font-size:12px'>{esc(chosen.account or 'no account')}"
-                " · " + esc(chosen.summary) + "</div></div></div>"
+    # A specific actor chosen — the FULL character profile: look, rooms, voice, and
+    # the create-a-spec picker. Everything that defines the character, in one place.
+    p = chosen
+    warns = validate_persona(p)
+    body.append(f"<div class=crow style='margin:8px 0 4px'>"
+                f"<span class=avatar>{esc(p.name[:1].upper())}</span>"
+                f"<div><div class=nm style='font-size:22px'>{esc(p.name)}</div>"
+                f"<div class=mut>{esc(p.account or 'no account set')}</div></div></div>")
+
+    def field(label, value):
+        return (f"<tr><td style='color:var(--faint);white-space:nowrap;"
+                f"text-transform:uppercase;font-size:11px;letter-spacing:.05em'>"
+                f"{esc(label)}</td><td>{value}</td></tr>")
+
+    # ── Look (appearance) ───────────────────────────────────────────────────────
+    body.append("<h2>What they look like</h2><div class=panel><table><tbody>")
+    body.append(field("master", esc(p.master_description) or
+                      "<span class=warn>not set</span>"))
+    if p.forbidden:
+        body.append(field("never changes", esc("; ".join(p.forbidden))))
+    for slot, outfit in sorted(p.outfits.items()):
+        body.append(field(slot.replace("outfit-", "outfit "), esc(outfit)))
+    if p.jewelry:
+        body.append(field("jewelry", esc(p.jewelry)))
+    body.append("</tbody></table></div>")
+
+    # ── Their rooms ─────────────────────────────────────────────────────────────
+    body.append("<h2>Their rooms</h2><div class=panel>")
+    if p.settings:
+        body.append("<p>" + " · ".join(f"<code>{esc(s)}</code>" for s in p.settings)
+                    + "</p><p class=mut>Their videos never leave these rooms (scene "
+                    "coherence keeps it from looking generated).</p>")
+    else:
+        body.append("<p class=warn>No rooms set — add a <code>## settings</code> list.</p>")
+    body.append("</div>")
+
+    # ── Voice + lip-sync (the operator's concern) ───────────────────────────────
+    body.append("<h2>Their voice &amp; lip-sync</h2><div class=panel>")
+    body.append("<table><tbody>")
+    body.append(field("voice", esc(p.voice_description) or
+                      "<span class=warn>describe it in the bible</span>"))
+    body.append(field("reference clip", (f"<code>{esc(p.voice_reference)}</code>"
+                      if p.voice_reference else
+                      "<span class=warn>none — pin ONE ≤15s clip</span>")))
+    body.append("</tbody></table>")
+    body.append("<p><b>Voice is as important as the face</b> — a shifting voice reads "
+                "as AI instantly. Pin ONE voice and reuse it forever: record or "
+                "generate a single ≤15s clip. To make the mouth match (so it doesn't "
+                "look AI), lip-sync THAT voice onto the generated clips with "
+                "ElevenLabs <b>video-to-voice</b>; use <b>text-to-voice</b> (same "
+                "voice) for any narration. The <code>production &lt;id&gt;</code> "
+                "runbook spells out these exact steps per scene.</p></div>")
+
+    # ── Edit / status ───────────────────────────────────────────────────────────
+    fname = p.source_path.split("/")[-1] if p.source_path else f"{p.slug}.md"
+    body.append("<div class=panel><p><b>Edit this character:</b> everything above lives "
+                f"in <code>docs/persona/{esc(fname)}</code> — change the look, rooms, "
+                "or voice there and the app updates live. New character: "
+                "<code>persona new \"Name\"</code>.</p>")
+    if warns:
+        body.append("<p class=warn>Before production:</p><ul>"
+                    + "".join(f"<li>{esc(w)}</li>" for w in warns) + "</ul>")
+    else:
+        body.append("<p class=good>✓ Production-ready.</p>")
+    body.append("</div>")
+
+    # ── Create a video with this actor ──────────────────────────────────────────
+    body.append("<h2>Create a video with " + esc(p.name) + "</h2><div class=panel>"
                 "<p class=mut>Pick a product — a new editable spec opens on that "
                 "product's page.</p>")
     products = db.all_products()

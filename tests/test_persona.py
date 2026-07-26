@@ -3,6 +3,8 @@ realism layer. Invariants: the shipped bible parses production-ready; the master
 description opens the casting block verbatim; one outfit per product batch; the
 persona never leaves her own rooms; a missing bible degrades gracefully."""
 
+import pytest
+
 from tt_engine.creative import load_persona, validate_persona
 from tt_engine.creative import realism
 from tt_engine.creative.realism import SETTINGS, enhance_prompt, prompts_for_scripts
@@ -43,6 +45,38 @@ def test_missing_bible_degrades_gracefully(tmp_path):
     assert load_persona(str(tmp_path / "nope.md")) is None
     warnings = validate_persona(None)
     assert any("CREATOR.md" in w for w in warnings)
+
+
+def test_scaffold_new_character_parses_and_joins_roster(tmp_path):
+    """`persona new` writes an editable bible with look/rooms/voice sections; it
+    parses (name + master + a room) so a fresh character is real, not a stub."""
+    from tt_engine.creative.persona import (
+        bible_template,
+        create_bible,
+        load_persona,
+        load_personas,
+    )
+    tmpl = bible_template("Riley", account="@riley.picks")
+    for section in ("## identity", "## master-description", "## appearance",
+                    "## wardrobe", "## settings", "## voice", "## soul-id-training"):
+        assert section in tmpl
+    assert "video-to-voice" not in tmpl or "ONE voice" in tmpl   # voice guidance present
+
+    path = create_bible("Riley", account="@riley.picks", directory=str(tmp_path))
+    assert path.exists() and path.name == "RILEY.md"
+    p = load_persona(str(path))
+    assert p is not None and p.name == "Riley"
+    assert p.account.startswith("@riley.picks")           # note travels with it, as with Maya
+    assert p.settings and p.master_description
+    # It appears in the roster loaded from that directory.
+    assert "riley" in {q.slug for q in load_personas(str(tmp_path))}
+
+
+def test_scaffold_refuses_to_overwrite(tmp_path):
+    from tt_engine.creative.persona import create_bible
+    create_bible("Riley", directory=str(tmp_path))
+    with pytest.raises(FileExistsError):
+        create_bible("Riley", directory=str(tmp_path))
 
 
 def test_bible_without_a_face_is_no_bible(tmp_path):
