@@ -347,6 +347,38 @@ def page_product(db: Database, pid: str) -> Optional[str]:
     return page(pid, "".join(body), "/")
 
 
+def page_ideas(db: Database) -> str:
+    """Product options — a menu of researched directions to validate, with the honest
+    'not guaranteed winners' framing and the validation gate."""
+    from .. import product_ideas
+    body = ["<h1>Product options</h1>",
+            "<blockquote>Options, not one product at a time — a spread of archetypes "
+            "that fit the model. These are <b>directions to validate with real data</b>, "
+            "not guaranteed winners. Pick 2–3 that fit you, confirm demand + margin, "
+            "then run them through the engine (<code>import-csv</code> → "
+            "<code>daily</code> → <code>scorecard</code>).</blockquote>"]
+    body.append(f"<div class=panel>{md_to_html(product_ideas.render())}</div>")
+    body.append("<div class=panel><h2>Sources (verified 2026-07)</h2><ul>"
+                + "".join(f"<li><a href='{esc(u)}' target=_blank rel=noopener>{esc(u)}"
+                          "</a></li>" for u in product_ideas.SOURCES) + "</ul></div>")
+    return page("Ideas", "".join(body), "/ideas")
+
+
+def page_organic(db: Database) -> str:
+    """Everything about organic marketing: the algorithm signals + the plays, plus the
+    authenticity guide (they're the same job — native-feeling content that gets watched)."""
+    from .. import organic_marketing
+    from ..creative.realism import render_authenticity_guide
+    body = ["<h1>Organic marketing</h1>"]
+    body.append(f"<div class=panel>{md_to_html(organic_marketing.render())}</div>")
+    body.append("<h2>Make the AI video look authentic</h2>")
+    body.append(f"<div class=panel>{md_to_html(render_authenticity_guide())}</div>")
+    body.append("<div class=panel><h2>Sources (verified 2026-07)</h2><ul>"
+                + "".join(f"<li><a href='{esc(u)}' target=_blank rel=noopener>{esc(u)}"
+                          "</a></li>" for u in organic_marketing.SOURCES) + "</ul></div>")
+    return page("Organic", "".join(body), "/organic")
+
+
 def page_styles(db: Database) -> str:
     """One tab per product TYPE: how clothing, gadgets, beauty, pet, home, hobby,
     accessories, toys, and wellness each get their own hooks, demo grammar, camera,
@@ -925,6 +957,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._redirect("/")
                 elif url.path == "/advertising":
                     html = page_advertising(db)
+                elif url.path == "/ideas":
+                    html = page_ideas(db)
+                elif url.path == "/organic":
+                    html = page_organic(db)
                 elif url.path == "/styles":
                     html = page_styles(db)
                 elif url.path == "/budget":

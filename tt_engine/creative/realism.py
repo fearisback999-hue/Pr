@@ -167,6 +167,60 @@ ARTIFACT_CHECKLIST = (
     "the AIGC disclosure label is ON — non-negotiable; export refuses without it",
 )
 
+# The honest number (researched 2026-07): real operators report ~2 usable clips out
+# of 7 for AI video with visible hand interaction — roughly a 30% keep rate. Faces
+# drift by frame ~4; physics is "locally plausible, globally inconsistent". Plan to
+# GENERATE 3–4× what you need and discard the tells — that discipline, not one lucky
+# render, is what makes a feed look real.
+USABLE_CLIP_RATE = 0.30
+GENERATIONS_PER_USABLE = 4     # generate this many, expect ~1 keeper
+
+
+def render_authenticity_guide() -> str:
+    """The practical 'make it look real' guide — honest craft, honest odds, the QA
+    gate. Consolidates what the naturalism layer bakes into prompts so an operator
+    knows what they're aiming for and what to throw away."""
+    keep_pct = int(USABLE_CLIP_RATE * 100)
+    lines = [
+        "# Making AI video look as authentic as possible",
+        "",
+        "## The honest odds (so you're not surprised)",
+        f"- Expect to KEEP roughly {keep_pct}% of what you generate — real operators "
+        f"report ~2 usable clips in 7 when hands are involved. Generate "
+        f"~{GENERATIONS_PER_USABLE}× what you need and DISCARD the tells. That "
+        "discipline is the whole trick; there is no one-render magic.",
+        "- Nobody can promise 'identical to a real person'. Some clips pass, many "
+        "don't. The label is on regardless — the goal is native-feeling, not deception.",
+        "",
+        "## What the engine already bakes into every prompt",
+        "- Shot 'on an iPhone', single-take, NOT cinematic; the word 'photorealism' is "
+        "banned (it pushes the plastic look).",
+        "- ONE coherent setting (light + clutter + sound match); exactly TWO texture "
+        "imperfections, not nine (over-imperfection reads as a filter).",
+        "- Real skin (pores, a blemish), irregular blinking, natural motion, one speech "
+        "disfluency; the persona's face/wardrobe/room pinned for continuity.",
+        "- Keyframe-first: generate a still, approve it, THEN animate — the single "
+        "biggest anti-drift lever.",
+        "",
+        "## The tells to hunt (discard on ANY of these)",
+    ]
+    lines += [f"- {item}" for item in ARTIFACT_CHECKLIST]
+    lines += [
+        "",
+        "## Craft tips that move the needle",
+        "- Watch every candidate ON A PHONE at feed size — tells hide on a big screen.",
+        "- Favour shots that hide the hardest failures: hands out of frame or still, "
+        "face-covered mirror selfies (a proven format AND fewer face tells), short 8s "
+        "clips (less time to drift).",
+        "- Pin ONE voice (ElevenLabs video-to-voice / a reference clip) across every "
+        "clip — a shifting voice is as obvious as a shifting face.",
+        "- Outcome proof stays REAL footage — a generated 'result' is fabricated "
+        "evidence, and the label doesn't cover that.",
+        "",
+        "`authenticity` prints this; `production <id>` and `slideshows <id>` apply it.",
+    ]
+    return "\n".join(lines) + "\n"
+
 
 @dataclass
 class RealismPrompt:

@@ -97,6 +97,41 @@ KNOWLEDGE: dict[str, str] = {
         "Median seller does ~$1,150/mo; <10% survive year one. `roadmap` computes your "
         "exact ladder."
     ),
+    "organic": (
+        "Organic marketing (free views) is the cheapest lever. The 2026 algorithm "
+        "weights completion rate (~70% is the reach threshold), watch time, shares, "
+        "comments, and repeat views — things no bot fakes. Wins for a small account: "
+        "TikTok serves on quality not follower count (zero-follower clips can pop if "
+        "the first 3s land); post what people SEARCH (say the keyword, TikTok SEO); "
+        "series (Part 1/2/3) beat standalone; 4–6 posts/week for 8+ weeks before "
+        "judging; reply-to-comment clips are the highest-trust free content. Keep "
+        "clips short (8–15s), hook in 3s, make the last second worth reaching. "
+        "`organic` prints the full playbook; the AIGC label stays on, YOU post."
+    ),
+    "ideas": (
+        "Product options (not one at a time): `ideas` is a menu of researched "
+        "archetypes that fit the model — precision hobby tools, material-story "
+        "accessories, satisfying organization systems, problem-specific pet gear, "
+        "defensible-fit apparel, sensory desk items, routine props (not supplements), "
+        "niche audio, one-job kitchen tools, aesthetic problem-solvers. Each is "
+        "demonstrable, defensible (not commodity), $10–45, with an honest AI-creator "
+        "fit and watch-out. They're DIRECTIONS TO VALIDATE, not guaranteed winners — "
+        "confirm demand (repeat creators, 'where can I buy' comments, multi-day "
+        "consistency), low saturation (<50 sellers, <500 reviews), and 25–40%+ margin, "
+        "then run them through the engine's gates + score on real Kalodata/FastMoss data."
+    ),
+    "authenticity": (
+        "Making AI video look authentic: the honest number is you'll KEEP ~30% of "
+        "what you generate (operators report ~2 usable clips in 7 with hands) — so "
+        "generate ~4× what you need and DISCARD the tells; that discipline is the "
+        "trick, not one lucky render. Nobody can promise 'identical to a real person'. "
+        "The engine bakes in the craft (iPhone look, one coherent setting, exactly two "
+        "imperfections, real skin/blinking, pinned face/voice, keyframe-first). Hunt "
+        "tells on a PHONE at feed size: hands, dead eyes, morphing text, floating "
+        "product, lip-sync, continuity. Favour shots that hide hard failures (hands "
+        "still/out of frame, face-covered mirror selfies, short 8s clips). Outcome "
+        "proof stays REAL footage. `authenticity` prints the full guide."
+    ),
     "account_safety": (
         "Will a bot get us shadowbanned? Not for LABELED AI content — TikTok "
         "requires the AIGC label (the engine enforces it) and does NOT restrict "
@@ -187,6 +222,12 @@ _ROUTES = [
      "scoring"),
     (("find", "product", "winner", "niche", "trend", "kalodata", "fastmoss", "research"),
      "sourcing_products"),
+    (("organic", "free views", "algorithm", "watch time", "completion", "for you",
+      "fyp", "views", "grow", "reach", "hashtag", "trending sound", "seo"), "organic"),
+    (("idea", "ideas", "what to sell", "what should i sell", "options", "product "
+      "options", "what could i sell", "niche to", "categories to sell"), "ideas"),
+    (("authentic", "look real", "realistic", "look fake", "uncanny", "identical",
+      "usable rate", "discard", "tells", "quality of the video"), "authenticity"),
     (("shadowban", "shadow ban", "banned", "ban", "reduced reach", "flagged",
       "account safety", "account health", "spam", "detected", "detection"),
      "account_safety"),

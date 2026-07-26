@@ -44,7 +44,10 @@ from .realism import (
 GEN_PLAN_COST = 55.0
 GEN_PLAN_SECONDS = 180
 CLIP_SECONDS = 8
-CLIPS_PER_MONTH = GEN_PLAN_SECONDS // CLIP_SECONDS      # 22
+CLIPS_PER_MONTH = GEN_PLAN_SECONDS // CLIP_SECONDS      # 22 GENERATED
+# Honest keep rate (researched ~30% usable) — 22 generated ≠ 22 postable.
+from .realism import USABLE_CLIP_RATE
+USABLE_PER_MONTH = max(1, int(CLIPS_PER_MONTH * USABLE_CLIP_RATE))   # ~6 keepers
 
 
 @dataclass
@@ -101,7 +104,9 @@ class FitCheckRunbook:
         lines += [
             "## Economics (sourced — re-verify)", "",
             f"- ~${GEN_PLAN_COST:.0f}/mo ≈ {GEN_PLAN_SECONDS}s of generation ≈ "
-            f"~{CLIPS_PER_MONTH} clips at {CLIP_SECONDS}s each.",
+            f"~{CLIPS_PER_MONTH} clips at {CLIP_SECONDS}s each — but plan to KEEP only "
+            f"~{USABLE_PER_MONTH} of them (~{int(USABLE_CLIP_RATE*100)}% usable; "
+            "discard the tells). Generated ≠ postable.",
             f"- {self.breakeven_note}",
             "",
             "## Non-negotiable", "",

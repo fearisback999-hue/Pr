@@ -836,6 +836,27 @@ def cmd_persona(args) -> int:
     return 0
 
 
+def cmd_ideas(args) -> int:
+    """A menu of researched product directions to validate — options, not one at a time."""
+    from . import product_ideas
+    print(product_ideas.render())
+    return 0
+
+
+def cmd_organic(args) -> int:
+    """Everything about organic marketing: the algorithm signals + the plays that work."""
+    from . import organic_marketing
+    print(organic_marketing.render())
+    return 0
+
+
+def cmd_authenticity(args) -> int:
+    """How to make AI video look as authentic as possible — honest odds + the QA gate."""
+    from .creative.realism import render_authenticity_guide
+    print(render_authenticity_guide())
+    return 0
+
+
 def cmd_account_safety(args) -> int:
     """Account-health guidance: staying within TikTok's ToS so a labeled-AI shop
     keeps its reach. Optional cadence check for a specific account."""
@@ -1192,6 +1213,16 @@ def main(argv=None) -> int:
     p = sub.add_parser("persona", help="parse + validate the creator bible (docs/persona/CREATOR.md)")
     p.add_argument("--path", default=None, help="override TT_PERSONA_PATH")
     p.set_defaults(func=cmd_persona)
+
+    sub.add_parser("ideas",
+                   help="product options to validate (a menu of directions, not one product)"
+                   ).set_defaults(func=cmd_ideas)
+    sub.add_parser("organic",
+                   help="organic marketing: the algorithm signals + plays that get free views"
+                   ).set_defaults(func=cmd_organic)
+    sub.add_parser("authenticity",
+                   help="make AI video look as real as possible — honest odds + QA gate"
+                   ).set_defaults(func=cmd_authenticity)
 
     p = sub.add_parser("account-safety",
                        help="TikTok account-health rules (avoid reduced reach); ToS-compliant")

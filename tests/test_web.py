@@ -88,6 +88,24 @@ def test_creators_page_links_marketplaces(server):
     assert "packet" in body                   # points at the outreach packet command
 
 
+def test_ideas_page_lists_options_and_stays_honest(server):
+    status, body = _get(server, "/ideas")
+    assert status == 200
+    assert "Product options" in body
+    assert "not guaranteed winners" in body
+    assert "Precision hobby" in body or "Material-story" in body
+    assert "import-csv" in body                          # points back at real data
+
+
+def test_organic_page_has_playbook_and_authenticity(server):
+    status, body = _get(server, "/organic")
+    assert status == 200
+    assert "Organic marketing" in body
+    assert "Completion rate" in body
+    assert "Make the AI video look authentic" in body
+    assert "30%" in body                                 # the honest keep rate
+
+
 def test_unknown_route_404s(server):
     status, _ = _get(server, "/nope")
     assert status == 404
