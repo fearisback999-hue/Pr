@@ -343,7 +343,8 @@ def actor_image_prompt(
         wardrobe = ""
     prompt = (
         "Vertical portrait selfie shot on an iPhone 15 Pro, front camera at arm's "
-        f"length, casual and candid. {who}. "
+        "length with the slight wide-angle distortion a phone selfie lens gives, "
+        f"casual and candid. {who}. "
         + (f"Wearing {wardrobe}. " if wardrobe else "")
         + (f"Read: {avatar_note}. " if avatar_note else "")
         + "Plain everyday room in the background, natural window light with uneven "
@@ -448,7 +449,8 @@ def scene_frame_prompt(
                 "attached product photo. " if needs_product else ""))
     if spec["face"]:
         prompt = (
-            "First video frame, vertical 9:16, shot on an iPhone 15 Pro. The SAME "
+            "First video frame, vertical 9:16, shot on an iPhone 15 Pro (slight "
+            "wide-angle phone-lens distortion). The SAME "
             f"actor from the attached reference image ({who}), "
             + (f"wearing {wardrobe}, " if wardrobe else "")
             + scene
