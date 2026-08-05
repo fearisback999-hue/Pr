@@ -343,6 +343,11 @@ def page_product(db: Database, pid: str) -> Optional[str]:
                 "and review the assembled result BEFORE generating, so a bad prompt "
                 "costs no credits. New: <code>draft new " + esc(pid)
                 + " --actor &lt;slug&gt;</code></p>")
+    body.append(f"<p><a href='/actors/variants?product={esc(pid)}'>"
+                "＋ Test demographics: one spec per actor →</a> "
+                "<span class=mut>the legit way to target different people (old/young, "
+                "etc.) — the same concept across YOUR roster, your own content.</span>"
+                "</p>")
     if specs:
         from ..creative import resolve_actor
         rows = []
@@ -1236,6 +1241,11 @@ class Handler(BaseHTTPRequestHandler):
                     if sid is None:
                         return self._redirect("/actors")
                     return self._redirect(f"/product?id={prod}")
+                elif url.path == "/actors/variants":
+                    from ..creative import create_variants
+                    prod = (q.get("product") or [""])[0]
+                    create_variants(db, prod)          # one spec per roster actor
+                    return self._redirect(f"/product?id={prod}" if prod else "/actors")
                 elif url.path == "/ideas":
                     html = page_ideas(db)
                 elif url.path == "/organic":

@@ -21,6 +21,7 @@ from .persona import (
 from .video_spec import (
     assemble,
     create_spec,
+    create_variants,
     default_prompt,
     generate_from_spec,
     render_spec,
@@ -66,8 +67,8 @@ __all__ = [
     "CreativePack", "build_pack", "UGCConcept",
     "FitResult", "ai_fit", "build_creator_plan",
     "Persona", "load_persona", "load_personas", "persona_by_slug", "validate_persona",
-    "create_spec", "render_spec", "render_spec_list", "assemble", "resolve_actor",
-    "default_prompt", "generate_from_spec",
+    "create_spec", "create_variants", "render_spec", "render_spec_list", "assemble",
+    "resolve_actor", "default_prompt", "generate_from_spec",
     "CategoryStyle", "style_for", "all_styles",
     "RealismPrompt", "enhance_prompt", "prompts_for_scripts", "render_qa_checklist",
     "ARTIFACT_CHECKLIST",

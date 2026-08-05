@@ -68,6 +68,29 @@ def create_spec(db: Database, product_id: str, actor_slug: str = "",
     return db.create_video_spec(product_id, actor_slug, prompt, shot_mode)
 
 
+def create_variants(db: Database, product_id: str, actor_slugs=None,
+                    prompt: str = "", shot_mode: str = "") -> list[int]:
+    """Demographic testing the legitimate way: one editable spec per actor for the
+    SAME product, so you can A/B the same concept across different faces (young/old,
+    etc.) using YOUR OWN roster — not by cloning anyone's video. Each variant seeds
+    its own persona-appropriate prompt unless you pass a shared one. Returns the new
+    spec ids (empty if the product is unknown)."""
+    from .persona import load_personas
+    if db.get_product(product_id) is None:
+        return []
+    if actor_slugs:
+        slugs = [s.strip() for s in actor_slugs if s and s.strip()]
+    else:
+        slugs = [p.slug for p in load_personas()]
+    out: list[int] = []
+    for slug in slugs:
+        sid = create_spec(db, product_id, actor_slug=slug, prompt=prompt,
+                          shot_mode=shot_mode)
+        if sid is not None:
+            out.append(sid)
+    return out
+
+
 def render_spec(db: Database, spec: dict) -> str:
     """The three editable parts, the assembled preview, and the review contract."""
     product = db.get_product(spec["product_id"])

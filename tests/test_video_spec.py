@@ -75,6 +75,29 @@ def test_editing_the_actor_leaves_prompt_and_product_intact(db):
     assert spec["product_id"] == "P-LAME"
 
 
+def test_demographic_variants_one_spec_per_actor(db):
+    """Legit demographic testing: the SAME product across your OWN roster — one
+    editable spec per actor, each seeded with that persona (not a competitor clone)."""
+    from tt_engine.creative import create_variants
+    ids = create_variants(db, "P-LAME")               # whole roster
+    specs = [db.video_spec(i) for i in ids]
+    actors = {s["actor_slug"] for s in specs}
+    assert {"maya", "jordan"} <= actors               # a variant per roster actor
+    assert all(s["product_id"] == "P-LAME" for s in specs)   # same product
+    # A subset works too.
+    sub = create_variants(db, "P-STRAP", actor_slugs=["maya"])
+    assert len(sub) == 1 and db.video_spec(sub[0])["actor_slug"] == "maya"
+    # Unknown product → nothing created, no crash.
+    assert create_variants(db, "P-GONE") == []
+
+
+def test_variants_seed_persona_appropriate_prompts(db):
+    from tt_engine.creative import create_variants
+    ids = create_variants(db, "P-LAME")
+    prompts = {db.video_spec(i)["actor_slug"]: db.video_spec(i)["prompt"] for i in ids}
+    assert prompts["maya"] != prompts["jordan"]       # each carries its own persona
+
+
 def test_editing_the_product_leaves_actor_and_prompt_intact(db):
     sid = create_spec(db, "P-LAME", actor_slug="maya", prompt="keep me")
     db.update_video_spec(sid, product_id="P-STRAP")
@@ -221,6 +244,15 @@ def test_actors_tab_click_to_create_flow(tmp_path):
         with Database(db_path) as db:
             specs = db.video_specs("P-SOURDOUGHLAME")
             assert specs and specs[-1]["actor_slug"] == "jordan"
+
+        # Product page offers demographic variants; the route makes one per actor.
+        _, prod = get("/product?id=P-COWHIDESTRAP")
+        assert "Test demographics" in prod and "/actors/variants?product=P-COWHIDESTRAP" in prod
+        st, _ = get("/actors/variants?product=P-COWHIDESTRAP")
+        assert st == 303
+        with Database(db_path) as db:
+            actors = {s["actor_slug"] for s in db.video_specs("P-COWHIDESTRAP")}
+            assert {"maya", "jordan"} <= actors        # one per roster actor
     finally:
         srv.shutdown()
         srv.server_close()

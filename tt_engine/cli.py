@@ -936,6 +936,7 @@ def cmd_draft(args) -> int:
     reviewed and fixed BEFORE generation spends credits."""
     from .creative import (
         create_spec,
+        create_variants,
         generate_from_spec,
         render_spec,
         render_spec_list,
@@ -962,6 +963,22 @@ def cmd_draft(args) -> int:
                 return 1
             print(f"created spec #{sid}\n")
             print(render_spec(db, db.video_spec(sid)))
+        elif act == "variants":
+            if not target:
+                print("usage: draft variants <product-id> [--actors a,b,c]")
+                return 1
+            slugs = args.actors.split(",") if args.actors else None
+            ids = create_variants(db, target, actor_slugs=slugs,
+                                  prompt=args.prompt or "", shot_mode=args.mode or "")
+            if not ids:
+                print(f"{target} not found (or no actors in the roster)")
+                return 1
+            print(f"created {len(ids)} demographic variant(s) for {target} — "
+                  "one editable spec per actor (your OWN roster, your OWN content):")
+            for sid in ids:
+                sp = db.video_spec(sid)
+                print(f"  #{sid}  actor={sp['actor_slug']}")
+            print("Review/edit each with `draft show <id>`, then generate the winners.")
         elif act == "list":
             print(render_spec_list(db, db.video_specs(target)))
         elif act == "show":
@@ -1448,8 +1465,8 @@ def main(argv=None) -> int:
                        help="composable video specs: edit actor/product/prompt "
                             "separately, review before spending credits")
     p.add_argument("draft_action",
-                   choices=("new", "list", "show", "set", "approve", "generate",
-                            "delete"))
+                   choices=("new", "variants", "list", "show", "set", "approve",
+                            "generate", "delete"))
     p.add_argument("target", nargs="?", default=None,
                    help="product id (new/list) or spec id (show/set/approve/generate/delete)")
     p.add_argument("--actor", default=None, help="roster actor slug (the ACTOR part)")
@@ -1458,6 +1475,8 @@ def main(argv=None) -> int:
     p.add_argument("--prompt", default=None, help="the PROMPT part text")
     p.add_argument("--mode", default=None,
                    choices=(None, "full", "face_light", "faceless"))
+    p.add_argument("--actors", default=None,
+                   help="variants: comma-separated actor slugs (default: whole roster)")
     p.add_argument("--confirm", action="store_true",
                    help="generate: actually spend credits (else refuses when a key is set)")
     p.set_defaults(func=cmd_draft)
