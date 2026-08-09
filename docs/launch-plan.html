@@ -1,0 +1,608 @@
+<title>Launch — first 30 days on $2,000</title>
+
+<style>
+  /* ---- Light palette (complete, on bare :root) ---- */
+  :root {
+    --ground:   #EFF1F4;   /* cool grey, slight blue bias against the amber accent */
+    --surface:  #FFFFFF;
+    --sunken:   #E4E7EC;
+    --line:     #D3D8E0;
+    --line-soft:#E7EAEF;
+    --ink:      #191C22;
+    --ink-2:    #4A515D;
+    --ink-3:    #757D8B;
+    --accent:   #A8620C;   /* amber, darkened to hold contrast on white */
+    --accent-b: #C8801E;   /* the bar/graphic amber */
+    --accent-w: #FBF1E2;   /* accent wash */
+    --go:       #2C6E49;
+    --hold:     #96690B;
+    --stop:     #A32C22;
+    --shadow:   0 1px 2px rgba(20,25,35,.06), 0 4px 14px rgba(20,25,35,.05);
+
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  /* ---- Dark: tokens only, so an explicit light choice still wins ---- */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #12151A;
+      --surface:  #191D24;
+      --sunken:   #101317;
+      --line:     #2B313B;
+      --line-soft:#22272F;
+      --ink:      #E7EAEF;
+      --ink-2:    #A8B0BE;
+      --ink-3:    #7C8493;
+      --accent:   #E8A33C;
+      --accent-b: #E8A33C;
+      --accent-w: #2A2115;
+      --go:       #5DBE98;
+      --hold:     #D8A62E;
+      --stop:     #E8776A;
+      --shadow:   0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #12151A;
+    --surface:  #191D24;
+    --sunken:   #101317;
+    --line:     #2B313B;
+    --line-soft:#22272F;
+    --ink:      #E7EAEF;
+    --ink-2:    #A8B0BE;
+    --ink-3:    #7C8493;
+    --accent:   #E8A33C;
+    --accent-b: #E8A33C;
+    --accent-w: #2A2115;
+    --go:       #5DBE98;
+    --hold:     #D8A62E;
+    --stop:     #E8776A;
+    --shadow:   0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 60rem; margin: 0 auto; }
+
+  /* ---------- masthead ---------- */
+  .mast { padding: 3.5rem 0 2rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    letter-spacing: -.028em;
+    line-height: 1.03;
+    text-wrap: balance;
+    font-size: clamp(2.1rem, 6.5vw, 3.4rem);
+    margin: 0 0 .9rem;
+  }
+  .standfirst {
+    font-size: 1.12rem;
+    color: var(--ink-2);
+    max-width: 40rem;
+    margin: 0;
+  }
+
+  /* ---------- budget envelope ---------- */
+  .money {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 1.6rem 1.5rem 1.4rem;
+    margin: 2.5rem 0 1rem;
+  }
+  .money-head {
+    display: flex; flex-wrap: wrap; gap: .5rem 1rem;
+    align-items: baseline; justify-content: space-between;
+    margin-bottom: 1.1rem;
+  }
+  .label {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .total {
+    font-family: var(--mono); font-size: 1.5rem; font-weight: 600;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .bar {
+    display: flex; width: 100%; height: 15px; border-radius: 3px;
+    overflow: hidden; background: var(--sunken); gap: 2px;
+  }
+  .seg { height: 100%; }
+  .seg-hold { background: var(--ink-3); }
+  .seg-float{ background: var(--ink-3); opacity: .55; }
+  .seg-tool { background: var(--accent-b); opacity: .42; }
+  .seg-samp { background: var(--accent-b); opacity: .68; }
+  .seg-test { background: var(--accent-b); }
+
+  .legend {
+    display: grid; gap: .1rem 1.5rem; margin-top: 1.15rem;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+  .leg {
+    display: grid; grid-template-columns: 10px 1fr auto;
+    gap: .7rem; align-items: baseline;
+    padding: .5rem 0; border-bottom: 1px solid var(--line-soft);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 2px; transform: translateY(1px); }
+  .leg-name { font-family: var(--sans); font-size: .92rem; font-weight: 600; }
+  .leg-note { font-family: var(--serif); font-size: .88rem; color: var(--ink-3); font-weight: 400; display: block; }
+  .leg-amt {
+    font-family: var(--mono); font-size: .92rem; font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+  .leg.is-key .leg-amt, .leg.is-key .leg-name { color: var(--accent); }
+
+  .envelope {
+    font-family: var(--mono); font-size: .8rem; color: var(--ink-3);
+    margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--line);
+    overflow-x: auto; white-space: pre-wrap;
+  }
+
+  /* ---------- rules ---------- */
+  .rules { margin: 3.5rem 0 1rem; }
+  .rules ol { list-style: none; counter-reset: r; padding: 0; margin: 1.25rem 0 0; display: grid; gap: .5rem; }
+  .rules li {
+    counter-increment: r; position: relative;
+    padding: .85rem 0 .95rem 3.1rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .rules li::before {
+    content: counter(r);
+    position: absolute; left: 0; top: .95rem;
+    font-family: var(--mono); font-size: .78rem; font-weight: 600;
+    color: var(--accent);
+    width: 1.9rem; height: 1.9rem; line-height: 1.9rem; text-align: center;
+    border: 1px solid var(--accent); border-radius: 50%;
+  }
+  .rules strong { font-family: var(--sans); font-weight: 700; }
+
+  h2 {
+    font-family: var(--sans); font-weight: 750; letter-spacing: -.02em;
+    font-size: 1.45rem; margin: 0; text-wrap: balance;
+  }
+  .section-note { color: var(--ink-2); margin: .5rem 0 0; max-width: 44rem; }
+
+  /* ---------- progress ---------- */
+  .progress {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: .9rem;
+    background: var(--ground); border-bottom: 1px solid var(--line);
+    padding: .8rem 0; margin: 3.5rem 0 0;
+  }
+  .progress-track { flex: 1; height: 5px; background: var(--sunken); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent-b); transition: width .28s ease; }
+  .progress-count {
+    font-family: var(--mono); font-size: .8rem; font-variant-numeric: tabular-nums;
+    color: var(--ink-2); white-space: nowrap;
+  }
+  .reset {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .06em;
+    background: none; border: 1px solid var(--line); color: var(--ink-3);
+    padding: .3rem .6rem; border-radius: 5px; cursor: pointer;
+  }
+  .reset:hover { color: var(--ink); border-color: var(--ink-3); }
+  .reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- phases ---------- */
+  .phase {
+    display: grid; grid-template-columns: 10.5rem 1fr; gap: 0 2rem;
+    padding: 2.6rem 0; border-bottom: 1px solid var(--line);
+  }
+  .phase-rail { position: relative; }
+  .phase-when {
+    font-family: var(--mono); font-size: .95rem; font-weight: 600;
+    letter-spacing: -.01em; color: var(--ink); display: block;
+  }
+  .phase-cost {
+    font-family: var(--mono); font-size: .78rem; color: var(--ink-3);
+    display: block; margin-top: .3rem;
+  }
+  .phase-cost.is-spend { color: var(--accent); }
+  .phase-title { margin-bottom: .2rem; }
+
+  .tasks { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: .45rem; }
+  .task {
+    display: grid; grid-template-columns: auto 1fr; gap: .85rem;
+    align-items: start;
+    background: var(--surface); border: 1px solid var(--line-soft);
+    border-radius: 8px; padding: .8rem .95rem;
+    cursor: pointer;
+  }
+  .task:hover { border-color: var(--line); }
+  .task input {
+    appearance: none; -webkit-appearance: none;
+    width: 1.15rem; height: 1.15rem; margin: .22rem 0 0;
+    border: 1.5px solid var(--ink-3); border-radius: 4px;
+    background: transparent; cursor: pointer; flex: none;
+    display: grid; place-content: center;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .task input::after {
+    content: ""; width: .34rem; height: .62rem;
+    border: solid var(--surface); border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0); transform-origin: center;
+    margin-top: -.13rem;
+    transition: transform .15s ease;
+  }
+  .task input:checked { background: var(--go); border-color: var(--go); }
+  .task input:checked::after { transform: rotate(45deg) scale(1); }
+  .task input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .task-body { font-size: .97rem; }
+  .task-name { font-family: var(--sans); font-weight: 620; letter-spacing: -.005em; }
+  .task-note { color: var(--ink-2); display: block; margin-top: .12rem; font-size: .94rem; }
+  .task input:checked ~ .task-body { color: var(--ink-3); }
+  .task input:checked ~ .task-body .task-name { text-decoration: line-through; text-decoration-color: var(--ink-3); }
+
+  code, .id {
+    font-family: var(--mono); font-size: .84em;
+    background: var(--sunken); border-radius: 4px; padding: .1em .38em;
+    color: var(--ink-2);
+  }
+  .id { color: var(--accent); background: var(--accent-w); }
+
+  .flag {
+    display: inline-block; font-family: var(--mono); font-size: .66rem;
+    letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+    padding: .12rem .42rem; border-radius: 3px; margin-left: .4rem;
+    vertical-align: 1.5px;
+  }
+  .flag-long { background: var(--accent-w); color: var(--accent); }
+  .flag-gate { background: var(--stop); color: var(--surface); }
+
+  .callout {
+    background: var(--accent-w); border: 1px solid var(--accent-b);
+    border-radius: 8px; padding: 1rem 1.15rem; margin: 1.3rem 0 0;
+    font-size: .96rem;
+  }
+  .callout .label { color: var(--accent); display: block; margin-bottom: .4rem; }
+
+  /* ---------- ladder ---------- */
+  .ladder { margin: 3.5rem 0 0; }
+  .rungs { display: grid; gap: .6rem; margin-top: 1.4rem; counter-reset: rung; }
+  .rung {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 1rem 1.2rem;
+    display: grid; grid-template-columns: auto 1fr; gap: 1.1rem; align-items: baseline;
+  }
+  .rung-when {
+    font-family: var(--mono); font-size: .8rem; color: var(--accent);
+    letter-spacing: .04em; white-space: nowrap;
+  }
+  .rung-what { font-size: .97rem; }
+  .rung-what strong { font-family: var(--sans); font-weight: 680; }
+
+  .closing {
+    margin-top: 2rem; padding-top: 1.6rem; border-top: 1px solid var(--line);
+    color: var(--ink-2); max-width: 44rem;
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 0 1rem 4rem; }
+    .phase { grid-template-columns: 1fr; gap: 0; padding: 2.1rem 0; }
+    .phase-rail { margin-bottom: .9rem; display: flex; gap: .8rem; align-items: baseline; }
+    .phase-cost { margin-top: 0; }
+    .mast { padding: 2.5rem 0 1.5rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">Preflight · solo operator · capital $2,000</p>
+    <h1>The first 30 days.</h1>
+    <p class="standfirst">
+      The playbook has 47 steps grouped by topic. It doesn't tell you what to do
+      first when the money is already in the bank. This is the same work in time
+      order, with the budget attached and the long-lead items pulled to the front.
+    </p>
+  </header>
+
+  <section class="money" aria-labelledby="money-h">
+    <div class="money-head">
+      <span class="label" id="money-h">How the $2,000 splits</span>
+      <span class="total">$2,000.00</span>
+    </div>
+
+    <div class="bar" role="img" aria-label="Budget: reserve $300, payout float $310, tools $150, samples $60, product tests $1,180">
+      <span class="seg seg-hold"  style="width:15%"></span>
+      <span class="seg seg-float" style="width:15.5%"></span>
+      <span class="seg seg-tool"  style="width:7.5%"></span>
+      <span class="seg seg-samp"  style="width:3%"></span>
+      <span class="seg seg-test"  style="width:59%"></span>
+    </div>
+
+    <div class="legend">
+      <div class="leg">
+        <span class="dot seg-hold"></span>
+        <span><span class="leg-name">Reserve</span>
+          <span class="leg-note">Never spent. It is what makes month two exist.</span></span>
+        <span class="leg-amt">$300</span>
+      </div>
+      <div class="leg">
+        <span class="dot seg-float"></span>
+        <span><span class="leg-name">Payout float</span>
+          <span class="leg-note">In transit — TikTok holds payouts ~14 days.</span></span>
+        <span class="leg-amt">$310</span>
+      </div>
+      <div class="leg">
+        <span class="dot seg-tool"></span>
+        <span><span class="leg-name">Tools, month one</span>
+          <span class="leg-note">Market data + generation subscriptions.</span></span>
+        <span class="leg-amt">$150</span>
+      </div>
+      <div class="leg">
+        <span class="dot seg-samp"></span>
+        <span><span class="leg-name">Samples</span>
+          <span class="leg-note">Three products, ~$20 each. Mandatory.</span></span>
+        <span class="leg-amt">$60</span>
+      </div>
+      <div class="leg is-key">
+        <span class="dot seg-test"></span>
+        <span><span class="leg-name">Product tests</span>
+          <span class="leg-note">About seven at $150. The only money that buys information.</span></span>
+        <span class="leg-amt">$1,180</span>
+      </div>
+    </div>
+
+    <div class="envelope">capital --capital 2000 --test-budget 150 --daily-ad 15 --daily-cogs 7
+→ payout float $308 · deployable $1,392 · 9 concurrent tests · runway 3.0mo · no warnings</div>
+  </section>
+
+  <div class="callout">
+    <span class="label">Why $150 a test and not $250</span>
+    At $250 the same $2,000 drops to a 1.5-month runway and <code>capital</code> starts
+    throwing undercapitalization warnings. More shots at $150 beats fewer at $250,
+    because what you are buying this month is <em>attempts</em>, not outcomes. And
+    holding daily ad spend near $15 is the single number keeping the runway at three
+    months — scale spend comes out of a winner's revenue, never out of the loan.
+  </div>
+
+  <section class="rules" aria-labelledby="rules-h">
+    <h2 id="rules-h">Five rules that don't bend</h2>
+    <p class="section-note">Everything else in this document is a suggestion about sequence. These are not.</p>
+    <ol>
+      <li><strong>The 48-hour kill timer wins every argument.</strong> Below break-even for 48 straight hours is KILL, even when you feel it turning. <code>validate</code> makes the call; you execute it.</li>
+      <li><strong>No landed cost, no score.</strong> The engine refuses to score economics on a guessed supplier cost. Hold yourself to the same rule.</li>
+      <li><strong>Hold the product before you fund it.</strong> Photos lie. A quality problem found by a customer costs a refund spiral; found by you it costs $20.</li>
+      <li><strong>Log spend and revenue every day a test runs.</strong> Skipping one day breaks the consecutive-day math the kill timer depends on.</li>
+      <li><strong>AIGC disclosure on everything.</strong> <code>export-creatives</code> blocks any asset missing it, on purpose.</li>
+    </ol>
+  </section>
+
+  <div class="progress">
+    <span class="progress-count" id="count">0 / 41 done</span>
+    <div class="progress-track"><div class="progress-fill" id="fill"></div></div>
+    <button class="reset" id="reset" type="button">Reset</button>
+  </div>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Day 1</span>
+      <span class="phase-cost">$0 out</span>
+    </div>
+    <div>
+      <h2 class="phase-title">Paperwork, and the applications that take days</h2>
+      <p class="section-note">Nothing today costs ad money. Start the slow things first so they cook while you work.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Deposit the $2,000 into a dedicated business bank account</span><span class="task-note">Not personal. Every dollar in and out goes through this one account. <span class="id">biz-bank</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Get an EIN</span><span class="task-note">Free, instant, IRS.gov, about 15 minutes. Never pay a third party for this. Do it in one sitting — the session times out. <span class="id">biz-ein</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Decide the business structure</span><span class="task-note">Sole prop is fastest; an LLC separates personal assets. Most start sole prop and form the LLC once revenue is real. <span class="id">biz-structure</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Apply for TikTok Shop Seller<span class="flag flag-long">long pole</span></span><span class="task-note">Approval takes 1–3 business days, so it gates everything. Have ready: 18+, US address, a fresh email and phone not used on another account, government ID, proof of address, and bank plus tax details that all match. <span class="id">tt-seller</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Create a TikTok Ads Manager account</span><span class="task-note">A separate login from Seller Center. <span class="id">ads-account</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Open a supplier-platform account</span><span class="task-note">CJ Dropshipping, Zendrop, or AutoDS. Free to join. <span class="id">sup-account</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Start the bookkeeping sheet</span><span class="task-note">Today, before the first transaction. Retrofitting six months of records is how people give up on taxes entirely. <span class="id">biz-books</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Read the two rules that close shops</span><span class="task-note">What you may never sell, and the AI-labeling rule. Fifteen minutes each, tonight, while approvals process. <span class="id">tt-restricted</span> <span class="id">tt-ai-disclosure</span></span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Days 2–4</span>
+      <span class="phase-cost is-spend">~$40 · data</span>
+    </div>
+    <div>
+      <h2 class="phase-title">Find three candidates</h2>
+      <p class="section-note">The highest-leverage work of the month. A good product with mediocre creative beats great creative on a bad product, every time.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Get real market data into the engine</span><span class="task-note">Subscribe and import, or scout by hand for free. Momentum needs a multi-day series — one day of data tells you nothing. <code>import-csv</code> <span class="id">data-in</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Learn where to look</span><span class="task-note"><code>scout</code>, <code>ideas</code>, and <code>organic</code> cover the free surfaces and the four lanes that actually sell.</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Rank what you found</span><span class="task-note"><code>daily</code>, then <code>find --top 5</code>, then <code>scorecard &lt;id&gt;</code> on anything close to the bar.</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Choose exactly three</span><span class="task-note">Not one — a single bet carries no information. Not ten — you can't source or film ten. <span class="id">first-test-verdict</span></span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Days 3–7</span>
+      <span class="phase-cost is-spend">~$60 · samples</span>
+    </div>
+    <div>
+      <h2 class="phase-title">Quotes out, samples ordered</h2>
+      <p class="section-note">Start the moment you have candidates. Samples ship slowly and they gate everything downstream.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Get a real landed-cost quote for each of the three</span><span class="task-note">Actual unit cost plus actual shipping cost. This is what unlocks every downstream score. <code>add-supplier &lt;id&gt; --cost X --ship-cost Y</code> <span class="id">sup-real-quote</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Order all three samples today<span class="flag flag-long">long pole</span></span><span class="task-note">They take 5–10 days. Ordering them late is the most common way this timeline slips a week. <span class="id">sup-sample</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Check the supplier against the shipping SLA</span><span class="task-note">Tracking to "In Transit" within 2 business days, "Delivered" within 6. <code>health --ship-days 4 --refund-rate 0.03</code> shows the throttle risk before it hits. <span class="id">tt-shipping</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Confirm carrier compliance if shipping cross-border</span><span class="task-note">TikTok requires a whitelisted carrier. A supplier outside that list is a compliance risk, not just a slow one.</span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Days 5–10</span>
+      <span class="phase-cost is-spend">~$110 · tools</span>
+    </div>
+    <div>
+      <h2 class="phase-title">Build creative while the samples ship</h2>
+      <p class="section-note">Free until the moment you type <code>--confirm</code>. Use that.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Run the psychology pass on real comments and reviews</span><span class="task-note">One clear trigger becomes the spine of every ad. <code>psych &lt;id&gt; --file comments.txt</code> <span class="id">psych-run</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Pick your actor from the roster</span><span class="task-note"><code>personas</code>, or the Actors tab in <code>serve</code>. One face per account. <span class="id">soul-id</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Wire generation</span><span class="task-note"><code>HIGGSFIELD_API_KEY</code> and <code>HF_KEY</code> in <code>.env</code>, plus <code>pip install higgsfield-client</code>. Until this is set everything dry-runs — that's the safe default, not a failure. <span class="id">higgsfield-configure</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Draft the specs, then read them before you spend</span><span class="task-note">Prompt, actor, and product are separately editable. This step exists so you fix mistakes for free instead of at credit cost. <code>draft new</code> → <code>draft show</code> → approve. <span class="id">creative-plan</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Generate only once the draft reads right</span><span class="task-note"><code>creative &lt;id&gt; --confirm</code>. Expect roughly one usable clip in four — that ratio is normal and already priced into the plan. <span class="id">creative-generate</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Export with disclosure intact</span><span class="task-note"><code>export-creatives &lt;id&gt;</code> <span class="id">creative-export</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Run the phone test on every clip</span><span class="task-note">Arm's length, muted, full speed, the way a real viewer will see it. If anything makes you look twice, cut it — don't try to fix it. If faces aren't landing, drop a rung: <code>shot-mode face_light</code>, or <code>faceless</code> for chest-down and POV. A clean faceless video beats an almost-right face every time.</span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Days 10–12</span>
+      <span class="phase-cost">decision point</span>
+    </div>
+    <div>
+      <h2 class="phase-title">Samples arrive<span class="flag flag-gate">real gate</span></h2>
+      <p class="section-note">The most-skipped step in dropshipping, and the most common cause of a refund spiral no scorecard predicts.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Hold each product</span><span class="task-note">Quality, fit, function, packaging. Does it actually do the thing your video is about to claim it does?</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Kill anything that disappoints you in your hands</span><span class="task-note">Right now, before any ad money. This costs $20 and saves $150 plus the refunds.</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Film your own footage with the real product</span><span class="task-note">Real hands on a real object is the cheapest realism you will ever buy.</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Create the live listing</span><span class="task-note">Title, price, images, description. No medical or absolute claims. AI-generated backgrounds need disclosure too. <span class="id">listing-live</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Set price from the margin floor, not vibes</span><span class="task-note">Your scorecard already shows break-even ROAS and max allowable CAC. Use those. <span class="id">offer-set</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Set your affiliate commission</span><span class="task-note">Open collaboration typically 10–15%, targeted 18–25%. Locked for 30 days once a creator picks it up. <span class="id">affiliate-rate</span></span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Days 12–20</span>
+      <span class="phase-cost is-spend">$150 per product</span>
+    </div>
+    <div>
+      <h2 class="phase-title">The first real test</h2>
+      <p class="section-note">A killed test loses about $120, not the full $150 — the timer is what caps it. Killing fast isn't failure; it's the mechanism working.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Verify the Pixel and Events API are both firing</span><span class="task-note">Before spending a dollar. Wrong tracking means every kill/scale call downstream measures the wrong thing. Aim for Event Match Quality 6+. <span class="id">ads-pixel</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Launch small and spread</span><span class="task-note">A few hooks and creators at small per-ad-set budgets — not one big bet on one video. <span class="id">ads-launch</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Watch the funnel in order</span><span class="task-note">3-second view rate → CTR → add-to-cart → ROAS. A break early in that chain is a creative problem; a break at the end is an offer or price problem. Different fixes.</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Log it daily, without exception</span><span class="task-note"><code>log-test &lt;id&gt; --spend X --revenue Y</code> <span class="id">log-daily</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">At 48 hours, let the engine decide</span><span class="task-note"><code>validate &lt;id&gt;</code>, then <code>log-result &lt;id&gt; --decision kill|scale</code>. Don't override it. <span class="id">decide</span></span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="phase">
+    <div class="phase-rail">
+      <span class="phase-when">Days 20–30</span>
+      <span class="phase-cost is-spend">from the test budget</span>
+    </div>
+    <div>
+      <h2 class="phase-title">Iterate, then compound</h2>
+      <p class="section-note">You budgeted about seven tests. Use them methodically, one at a time.</p>
+      <ul class="tasks">
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Killed → move to the next candidate</span><span class="task-note">Same loop, product two and three. No mourning period.</span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Scaled → raise 20–30% at a time</span><span class="task-note">Re-run <code>validate</code> after each raise. A SCALE verdict is not a blank check. <span class="id">scale-steps</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Diversify creative before scaling hard</span><span class="task-note">A single-creative scale dies to fatigue fast. <span class="id">scale-angles</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Confirm the supplier can carry the volume</span><span class="task-note">Reorder lead time and MOQ matter far more at scale than at test size. A stockout mid-scale burns the momentum you just paid for. <span class="id">scale-supply</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Open collaboration and invite creators on anything working</span><span class="task-note">The relationship stays human — this is the one place automation is deliberately not built. <span class="id">creator-outreach</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Reconcile payouts and set aside the tax reserve</span><span class="task-note">Payouts rarely match gross sales once fees, refunds, and holds net out. <span class="id">recon-monthly</span> <span class="id">tax-reserve</span></span></span></label></li>
+        <li><label class="task"><input type="checkbox"><span class="task-body"><span class="task-name">Run the monthly recalibration</span><span class="task-note">Which sub-scores actually predicted your winners. <code>report-monthly</code> — suggestions only, you approve any change. <span class="id">monthly-report</span></span></span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ladder" aria-labelledby="ladder-h">
+    <h2 id="ladder-h">What month one is actually for</h2>
+    <p class="section-note">
+      Expected value for month one is negative by design — <code>month-one</code> puts it
+      near −$385 at this size. You are not buying profit. You are buying real landed
+      costs and real conversion data on three real products, a working shop and ads
+      and supplier pipeline, reps at the one skill that compounds (killing losers fast),
+      and an option on a winner — which is where all the money actually is.
+      <strong>Most first tests lose. That's the base rate, not a verdict on you.</strong>
+    </p>
+
+    <div class="rungs">
+      <div class="rung">
+        <span class="rung-when">Month 1</span>
+        <span class="rung-what"><strong>$2,000 finds a product that clears break-even.</strong> Expect to lose a few hundred dollars learning which one it is.</span>
+      </div>
+      <div class="rung">
+        <span class="rung-when">Months 2–3</span>
+        <span class="rung-what"><strong>Reinvest the winner's profit into scaling that product.</strong> This is where the first real money appears — not in month one.</span>
+      </div>
+      <div class="rung">
+        <span class="rung-when">Months 4+</span>
+        <span class="rung-what"><strong>A portfolio of about three winners with $25k+ ceilings each</strong>, funded by retained profit rather than by the loan.</span>
+      </div>
+    </div>
+
+    <p class="closing">
+      <code>scale</code> itemizes the $100k month honestly: ~74 orders a day at $45 AOV,
+      about three concurrent winners, ~$20k/mo in ads, 60+ active affiliates, ~30 videos
+      a week — and <strong>$41,783 of working capital just to run that month.</strong>
+      That number is the point. $2,000 does not buy a $100k month; it buys the first rung,
+      and each rung is funded by the one below it. Skipping a rung by borrowing more is
+      how this goes badly. The loan gets you onto rung one. That's its whole job, and it
+      is enough for that job.
+    </p>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    var KEY = "tt-launch-30d-v1";
+    var boxes = Array.prototype.slice.call(document.querySelectorAll(".task input"));
+    var count = document.getElementById("count");
+    var fill = document.getElementById("fill");
+    var reset = document.getElementById("reset");
+
+    function load() {
+      try {
+        var saved = JSON.parse(localStorage.getItem(KEY) || "[]");
+        boxes.forEach(function (b, i) { b.checked = !!saved[i]; });
+      } catch (e) { /* first run, or storage unavailable — start unchecked */ }
+    }
+    function save() {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(boxes.map(function (b) { return b.checked; })));
+      } catch (e) { /* storage unavailable — the page still works, it just won't remember */ }
+    }
+    function paint() {
+      var done = boxes.filter(function (b) { return b.checked; }).length;
+      count.textContent = done + " / " + boxes.length + " done";
+      fill.style.width = (boxes.length ? (done / boxes.length) * 100 : 0) + "%";
+    }
+
+    boxes.forEach(function (b) {
+      b.addEventListener("change", function () { save(); paint(); });
+    });
+    reset.addEventListener("click", function () {
+      boxes.forEach(function (b) { b.checked = false; });
+      save(); paint();
+    });
+
+    load(); paint();
+  })();
+</script>
