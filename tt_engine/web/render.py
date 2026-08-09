@@ -149,7 +149,8 @@ hr { border:none; border-top:1px solid var(--line-soft); margin:18px 0; }
 .crow { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
 """
 
-_NAV = [("Overview", "/"), ("Assistant", "/assistant"), ("Ideas", "/ideas"),
+_NAV = [("Overview", "/"), ("Launch", "/launch"), ("Assistant", "/assistant"),
+        ("Ideas", "/ideas"),
         ("Search", "/search"), ("Playbook", "/playbook"), ("Actors", "/actors"),
         ("Organic", "/organic"), ("Advertising", "/advertising"), ("Styles", "/styles"),
         ("Budget", "/budget"), ("Creators", "/creators"), ("Road to $1M", "/million")]

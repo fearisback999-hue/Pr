@@ -432,14 +432,20 @@ def cmd_psych(args) -> int:
 
 def cmd_creative(args) -> int:
     from .creative import ConfirmationRequired
+    from .creative.mcp_client import PartialBatch
+    from .creative.spend import BatchTooLarge, SpendCeilingExceeded
     with _db(args) as db:
         try:
             kit, result = pipeline.produce_creatives(
                 db, args.product_id, confirm=args.confirm,
                 variations=args.variations, force=args.force,
             )
-        except (ValueError, ConfirmationRequired) as e:
+        except (ValueError, ConfirmationRequired, BatchTooLarge,
+                SpendCeilingExceeded) as e:
             print(f"refused: {e}")
+            return 1
+        except PartialBatch as e:
+            print(f"⚠ PARTIAL BATCH — money was spent: {e}")
             return 1
         print(result.summary)
         if args.brief:
@@ -875,6 +881,9 @@ def cmd_publish(args) -> int:
             print(res.summary)
             for n in res.notes:
                 print(f"  - {n}")
+        except publishing.AlreadyPosted as e:
+            print(f"refused (duplicate-post guard): {e}")
+            return 1
         except publishing.PostConfirmationRequired as e:
             print(f"⚠ {e}")
             return 1
@@ -896,6 +905,38 @@ def cmd_sourcing_guide(args) -> int:
     """Where to source: US-warehouse / fast-handling suppliers + how to vet them."""
     from .sourcing.guide import render
     print(render())
+    return 0
+
+
+def cmd_creative_recover(args) -> int:
+    """Collect assets for jobs already submitted and PAID FOR but never landed."""
+    from .creative.mcp_client import recover_jobs
+    with _db(args) as db:
+        print(recover_jobs(db))
+    return 0
+
+
+def cmd_spend_check(args) -> int:
+    """What a batch of this size would cost, and what guards are actually armed."""
+    from .creative import spend
+    est = spend.estimate(args.variations)
+    print("Spend guards\n")
+    print(f"  batch size cap       : {spend.MAX_BATCH} clips (hard, refuses above it)")
+    unit = spend.unit_cost()
+    print(f"  unit cost            : "
+          + (f"${unit:,.2f}/clip" if unit else "UNSET (TT_GENERATION_UNIT_COST)"))
+    ceiling = spend.spend_ceiling()
+    print(f"  per-batch ceiling    : "
+          + (f"${ceiling:,.2f}" if ceiling else "UNSET (TT_MAX_BATCH_SPEND)"))
+    print(f"\n  a {args.variations}-clip batch: {est.render()}")
+    if not unit:
+        print("\n  ⚠ Without TT_GENERATION_UNIT_COST the confirm prompt can tell you "
+              "THAT a batch spends money but not HOW MUCH. Set it to your real "
+              "per-clip cost — that is the number that makes the gate meaningful.")
+    if not ceiling:
+        print("  ⚠ Without TT_MAX_BATCH_SPEND there is no dollar ceiling — only the "
+              f"{spend.MAX_BATCH}-clip size cap. Set a ceiling you would not want to "
+              "cross by accident.")
     return 0
 
 
@@ -953,6 +994,8 @@ def cmd_draft(args) -> int:
         render_spec_list,
     )
     from .creative.mcp_client import ConfirmationRequired, GenerationNotWired
+    from .creative.spend import BatchTooLarge, SpendCeilingExceeded
+    from .creative.video_spec import AlreadyGenerated
     with _db(args) as db:
         act = args.draft_action
         target = args.target
@@ -1044,6 +1087,12 @@ def cmd_draft(args) -> int:
                     print(f"  - {n}")
             except ConfirmationRequired as e:
                 print(f"⚠ {e}\n  → re-run with --confirm to spend credits.")
+            except AlreadyGenerated as e:
+                print(f"refused (double-spend guard): {e}")
+                return 1
+            except (BatchTooLarge, SpendCeilingExceeded) as e:
+                print(f"refused (spend guard): {e}")
+                return 1
                 return 1
             except (GenerationNotWired, ValueError) as e:
                 print(f"error: {e}")
@@ -1464,6 +1513,13 @@ def main(argv=None) -> int:
     sub.add_parser("launch",
                    help="the first 30 days in time order, with the $2k money split"
                    ).set_defaults(func=cmd_launch)
+    sub.add_parser("creative-recover",
+                   help="collect assets for jobs already PAID FOR but never landed"
+                   ).set_defaults(func=cmd_creative_recover)
+    p = sub.add_parser("spend-check",
+                       help="what a batch would cost + which spend guards are armed")
+    p.add_argument("--variations", type=int, default=30)
+    p.set_defaults(func=cmd_spend_check)
     sub.add_parser("organic",
                    help="organic marketing: the algorithm signals + plays that get free views"
                    ).set_defaults(func=cmd_organic)

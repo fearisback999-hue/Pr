@@ -135,6 +135,11 @@ def render_spec(db: Database, spec: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+class AlreadyGenerated(RuntimeError):
+    """This spec already has a creative in flight or landed. Generating again would
+    pay twice and overwrite the first job's id — the receipt you need to recover it."""
+
+
 def generate_from_spec(db: Database, spec_id: int, confirm: bool = False, mcp=None):
     """Generate the ONE video this spec describes — from the actor + product + the
     PROMPT you already edited and reviewed. Closes the loop: you fix the spec, approve
@@ -146,6 +151,7 @@ def generate_from_spec(db: Database, spec_id: int, confirm: bool = False, mcp=No
       • the AIGC disclosure is written into the asset metadata
       • an unwired SDK fails cleanly (GenerationNotWired), never a raw crash
     """
+    from . import spend
     from .compliance import DISCLOSURE
     from .mcp_client import (
         ConfirmationRequired,
@@ -170,6 +176,19 @@ def generate_from_spec(db: Database, spec_id: int, confirm: bool = False, mcp=No
     prompt = assemble(product, persona, spec["prompt"], spec["shot_mode"])
     soul = (CONFIG.higgsfield_soul_id or (persona.slug if persona else "")) or ""
 
+    # The creative id is derived from the spec id, so a second generate OVERWRITES the
+    # first — paying twice and destroying the job id needed to collect what the first
+    # payment already bought. Refuse while a job is in flight or already landed.
+    existing = next((c for c in db.all_creatives() if c.id == f"SPEC-{spec_id}"), None)
+    if existing is not None and existing.status in ("generating", "ready", "exported",
+                                                    "posted"):
+        raise AlreadyGenerated(
+            f"spec #{spec_id} already has a creative at status '{existing.status}'"
+            + (f" (job {existing.meta['job_id']})" if existing.meta.get("job_id") else "")
+            + ". Generating again would pay a second time and overwrite the first job's "
+            "id. If it never landed, run `creative-recover` to collect what you already "
+            "paid for. To make a genuinely different video, create a new spec.")
+
     creative = models.Creative(
         id=f"SPEC-{spec_id}", product_id=product.id, format="Spec",
         hook=spec["prompt"][:80], hook_type="spec", soul_id=soul, asset_url=None,
@@ -183,7 +202,8 @@ def generate_from_spec(db: Database, spec_id: int, confirm: bool = False, mcp=No
     if mcp.available and not confirm:
         raise ConfirmationRequired(
             f"spec #{spec_id} is ready and Higgsfield is configured. Generation spends "
-            "credits — re-run with --confirm to actually generate this video.")
+            "credits — re-run with --confirm to actually generate this video.\n"
+            f"  SPEND IF CONFIRMED: {spend.estimate(1).render()}")
 
     if not mcp.available:
         return GenerationResult(
@@ -191,6 +211,8 @@ def generate_from_spec(db: Database, spec_id: int, confirm: bool = False, mcp=No
             notes=[f"spec #{spec_id} planned (dry-run) — the assembled prompt is saved. "
                    "Set HIGGSFIELD_API_KEY (+ higgsfield-client) to generate for real, "
                    "or run it from a Claude Code session with the Higgsfield MCP."])
+
+    spend.guard(1)                                      # ceiling applies to one clip too
 
     # Live path: one job. The assembled prompt lives on creative.meta["prompt"] — an
     # SDK wiring reads it there. Until then submit() raises → clean GenerationNotWired.

@@ -41,12 +41,18 @@ from typing import Optional
 from ..config import CONFIG
 from ..db import Database, models
 from .brief import CreativeKit
+from . import spend
 from .compliance import DISCLOSURE
 from .higgsfield import HiggsfieldClient
 
 
 class ConfirmationRequired(RuntimeError):
     """Raised when generation is attempted without explicit operator confirmation."""
+
+
+class PartialBatch(RuntimeError):
+    """Submission failed midway: some jobs are already submitted and PAID FOR.
+    Carries the instruction to recover them rather than letting the spend vanish."""
 
 
 class GenerationNotWired(RuntimeError):
@@ -152,6 +158,74 @@ class HiggsfieldMCP:
         )
 
 
+def _drain(db, mcp, creatives, poll_interval: float, poll_timeout: float):
+    """Poll a set of in-flight jobs to completion. Returns (notes, still_pending).
+
+    A poll failure is never fatal here. The jobs are already paid for; crashing out
+    of the loop would strand them with no record of what to collect. Transient errors
+    are counted and retried on the next sweep; the deadline is the only exit."""
+    notes: list[str] = []
+    pending = {c.id: c for c in creatives if c.meta.get("job_id")}
+    errors: dict[str, int] = {}
+    deadline = time.time() + poll_timeout
+
+    while pending and time.time() < deadline:
+        for cid in list(pending):
+            c = pending[cid]
+            try:
+                status, url = mcp.poll(c.meta["job_id"])
+            except NotImplementedError:
+                raise
+            except Exception as e:                       # transient — keep the job alive
+                errors[cid] = errors.get(cid, 0) + 1
+                if errors[cid] == 1:
+                    notes.append(f"{cid}: poll error ({type(e).__name__}) — retrying; "
+                                 "the job is paid for and still tracked")
+                continue
+            if status in ("ready", "completed", "succeeded"):
+                c.status, c.asset_url = "ready", url
+                db.upsert_creative(c)
+                del pending[cid]
+            elif status in ("failed", "error"):
+                c.status = "failed"
+                db.upsert_creative(c)
+                del pending[cid]
+        if pending and time.time() < deadline:
+            time.sleep(poll_interval)
+
+    return notes, list(pending.values())
+
+
+def recover_jobs(db: Database, mcp: Optional[HiggsfieldMCP] = None,
+                 poll_interval: float = 5.0, poll_timeout: float = 300.0) -> str:
+    """Collect assets for jobs that were submitted (and paid for) but never landed.
+
+    Generation is charged at submit time, so a crash, a timeout, or a closed laptop
+    between submit and poll means money spent for an asset the engine never saved.
+    This finds every creative still marked 'generating' with a job id and re-polls it.
+    Free — it spends nothing, it only collects what you already bought."""
+    mcp = mcp or HiggsfieldMCP()
+    orphans = [c for c in db.all_creatives()
+               if c.status == "generating" and c.meta.get("job_id")]
+    if not orphans:
+        return "nothing to recover — no submitted jobs are unaccounted for."
+    if not mcp.available:
+        return (f"{len(orphans)} job(s) were submitted and paid for but never collected. "
+                "Higgsfield isn't configured in this environment, so they can't be "
+                "polled from here — set HIGGSFIELD_API_KEY and re-run `creative-recover` "
+                "from the machine that has it. Do NOT re-generate; that pays twice.\n  "
+                + "\n  ".join(f"{c.id} (job {c.meta['job_id']})" for c in orphans))
+
+    notes, still = _drain(db, mcp, orphans, poll_interval, poll_timeout)
+    got = len(orphans) - len(still)
+    lines = [f"recovered {got} of {len(orphans)} paid-for job(s)."]
+    lines += notes
+    if still:
+        lines.append(f"{len(still)} still generating — run `creative-recover` again "
+                     "later; they stay tracked until they land.")
+    return "\n".join(lines)
+
+
 def generate_batch(
     db: Database,
     kit: CreativeKit,
@@ -181,7 +255,8 @@ def generate_batch(
     if mcp.available and not confirm:
         raise ConfirmationRequired(
             "Higgsfield MCP is configured but generation was not confirmed. Generation "
-            "spends money — re-run with --confirm to actually generate the batch."
+            "spends money — re-run with --confirm to actually generate the batch.\n"
+            f"  SPEND IF CONFIRMED: {spend.estimate(len(creatives)).render()}"
         )
 
     notes: list[str] = []
@@ -197,7 +272,12 @@ def generate_batch(
         return GenerationResult(creatives=creatives, dry_run=True,
                                 soul_warnings=warnings, notes=notes)
 
+    # ── Spend preflight: size cap + dollar ceiling, before a single paid job ──
+    est = spend.guard(len(creatives))
+    notes.append(f"spend: {est.render()}")
+
     # ── Live path: submit every job, then poll to completion ──────────────────
+    submitted: list[models.Creative] = []
     for c in creatives:
         try:
             job_id = mcp.submit(kit, c)
@@ -211,28 +291,29 @@ def generate_batch(
                 f"poll (see the integration-point comments), or run the batch from a "
                 f"Claude Code session with the Higgsfield MCP connected. ({e})"
             ) from e
+        except Exception as e:
+            # A paid job may already be in flight for everything in `submitted`.
+            # STOP submitting (don't burn more), keep what's persisted recoverable,
+            # and say plainly what was spent — silent partial batches are how money
+            # disappears without a trace.
+            raise PartialBatch(
+                f"submit failed on {c.id} after {len(submitted)} job(s) were already "
+                f"submitted and PAID FOR. Stopped before spending more. Those jobs are "
+                f"saved with their job ids — run `creative-recover` to collect the "
+                f"assets you already paid for. ({type(e).__name__}: {e})"
+            ) from e
         c.status = "generating"
         c.meta["job_id"] = job_id
         db.upsert_creative(c)
+        submitted.append(c)
 
-    deadline = time.time() + poll_timeout
-    pending = {c.id: c for c in creatives}
-    while pending and time.time() < deadline:
-        for cid in list(pending):
-            c = pending[cid]
-            status, url = mcp.poll(c.meta["job_id"])
-            if status in ("ready", "completed", "succeeded"):
-                c.status, c.asset_url = "ready", url
-                db.upsert_creative(c)
-                del pending[cid]
-            elif status in ("failed", "error"):
-                c.status = "failed"
-                db.upsert_creative(c)
-                del pending[cid]
-        if pending:
-            time.sleep(poll_interval)
-    for c in pending.values():
-        notes.append(f"{c.id}: still generating after {poll_timeout:.0f}s — re-poll later")
+    collected, still_pending = _drain(db, mcp, creatives, poll_interval, poll_timeout)
+    notes.extend(collected)
+    if still_pending:
+        notes.append(
+            f"{len(still_pending)} job(s) still generating after {poll_timeout:.0f}s. "
+            "They are PAID FOR and saved with their job ids — run `creative-recover` "
+            "to collect them; do not re-generate, that would pay twice.")
 
     return GenerationResult(creatives=creatives, dry_run=False,
                             soul_warnings=warnings, notes=notes)

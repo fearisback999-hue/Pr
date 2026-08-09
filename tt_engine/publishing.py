@@ -35,6 +35,10 @@ class PostConfirmationRequired(RuntimeError):
     """Posting was attempted without the explicit per-post confirm."""
 
 
+class AlreadyPosted(RuntimeError):
+    """This asset is already live. Re-posting it is duplicate content, not a retry."""
+
+
 class PostingNotWired(RuntimeError):
     """The official TikTok Content Posting API isn't configured/wired yet, so the app
     can prepare the post but not upload it. A clean signal, never a raw crash."""
@@ -83,6 +87,15 @@ def publish_creative(db: Database, creative_id: str, confirm: bool = False,
     it prepares the post and returns a dry-run result telling you what's missing — it
     never uploads through an unofficial path, and never claims to have posted."""
     c = _postable(db, creative_id)
+
+    # Already live. Re-posting the same asset is duplicate content — TikTok's own
+    # dedupe suppresses it and repeated duplicates are an account-health risk, which
+    # is a real cost even though no API bill is attached to it.
+    if c.status == "posted":
+        raise AlreadyPosted(
+            f"{creative_id} is already marked posted — refusing to post it again. "
+            "Duplicate uploads get suppressed and repeat offences hurt account health. "
+            "If this is a deliberate re-post, generate a fresh variant instead.")
 
     if not confirm:
         raise PostConfirmationRequired(

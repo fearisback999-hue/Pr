@@ -314,3 +314,54 @@ def test_playbook_toggle_ignores_auto_steps(server):
     status, after = _get(server, "/playbook")
     assert status == 200
     assert before == after  # no-op: auto steps ignore manual toggles
+
+
+# --- /launch: the 30-day sequence + live spend-guard state ---
+
+def test_launch_page_renders_sequence_and_money(tmp_path):
+    from tt_engine.web.server import page_launch
+    with Database(str(tmp_path / "w.db")) as db:
+        html = page_launch(db)
+    assert "Launch — the first 30 days" in html
+    for phase in ["Day 1", "Days 2–4", "Days 3–7", "Days 5–10",
+                  "Days 10–12", "Days 12–20", "Days 20–30"]:
+        assert phase in html, f"missing phase {phase}"
+    assert "$1,180" in html and "$300" in html          # the money split
+    assert "EV-negative by design" in html              # the honest line survives
+
+
+def test_launch_page_reports_spend_guard_state(tmp_path, monkeypatch):
+    """The guards panel must reflect reality, not claim protection that isn't set."""
+    from tt_engine.web.server import page_launch
+    monkeypatch.delenv("TT_GENERATION_UNIT_COST", raising=False)
+    monkeypatch.delenv("TT_MAX_BATCH_SPEND", raising=False)
+    with Database(str(tmp_path / "w1.db")) as db:
+        html = page_launch(db)
+    assert "UNSET" in html, "an unconfigured ceiling must read as unset, not armed"
+
+    monkeypatch.setenv("TT_GENERATION_UNIT_COST", "0.40")
+    monkeypatch.setenv("TT_MAX_BATCH_SPEND", "25.00")
+    with Database(str(tmp_path / "w2.db")) as db:
+        html = page_launch(db)
+    assert "$0.40/clip" in html and "$25.00" in html
+
+
+def test_launch_page_surfaces_unrecovered_paid_jobs(tmp_path):
+    """Money already spent on jobs that never landed must be visible, not silent."""
+    from tt_engine.web.server import page_launch
+    from tt_engine.db import models
+    with Database(str(tmp_path / "w.db")) as db:
+        db.upsert_product(models.Product(id="P1", name="Thing", category="home"))
+        db.upsert_creative(models.Creative(
+            id="C1", product_id="P1", format="UGC", hook="h", hook_type="t",
+            soul_id="s", asset_url=None, status="generating",
+            meta={"aigc_disclosure": "AI", "job_id": "job-1"}))
+        html = page_launch(db)
+    assert "paid for have not landed" in html
+    assert "creative-recover" in html
+    assert "pays twice" in html
+
+
+def test_launch_is_in_the_nav():
+    from tt_engine.web.render import _NAV
+    assert ("Launch", "/launch") in _NAV

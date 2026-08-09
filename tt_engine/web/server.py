@@ -189,6 +189,136 @@ def page_overview(db: Database) -> str:
     return page("Overview", "".join(body), "/")
 
 
+def page_launch(db: Database) -> str:
+    """Day one to day thirty, in time order, with the money attached — and the live
+    state of every guard that stands between you and an accidental spend."""
+    from ..capital import plan_capital
+    from ..creative import spend
+
+    plan = plan_capital(capital=2000.0, test_budget=150.0,
+                        daily_ad_spend=15.0, daily_cogs=7.0)
+    unit, ceiling = spend.unit_cost(), spend.spend_ceiling()
+
+    body = ["<h1>Launch — the first 30 days</h1>",
+            "<p class=mut>The playbook groups the work by topic. This is the same work "
+            "in time order, with the budget attached and the long-lead items pulled to "
+            "the front. Full detail: <code>python -m tt_engine.cli launch</code></p>"]
+
+    body.append("<div class=kpis>"
+                + kpi(f"${plan.deployable:,.0f}", "deployable")
+                + kpi(f"{plan.max_concurrent_tests}", "concurrent tests")
+                + kpi(f"{plan.runway_months:.1f}mo", "runway")
+                + kpi("$150", "per test")
+                + "</div>")
+
+    if plan.warnings:
+        body.append("<div class=panel><p class=label>Capital warnings</p><ul>"
+                    + "".join(f"<li>{esc(w)}</li>" for w in plan.warnings)
+                    + "</ul></div>")
+
+    # ── The money split ───────────────────────────────────────────────────────
+    split = [("Reserve", 300, "Never spent. It is what makes month two exist."),
+             ("Payout float", 310, "In transit — TikTok holds payouts ~14 days."),
+             ("Tools, month one", 150, "Market data + generation subscriptions."),
+             ("Samples", 60, "Three products, ~$20 each. Mandatory."),
+             ("Product tests", 1180, "~7 at $150. The only money that buys information.")]
+    rows = [[n, f"${a:,}", note] for n, a, note in split]
+    body.append("<div class=panel><p class=label>How the $2,000 splits</p>"
+                + table(["bucket", "amount", "rule"], rows)
+                + "<p class=mut>Sized by running <code>capital</code> until it returns "
+                "zero warnings. At $250/test the same $2,000 drops to a 1.5-month "
+                "runway. You are buying attempts, not outcomes.</p></div>")
+
+    # ── Spend guards: the live state of what protects you ─────────────────────
+    guards = [
+        ["Batch size cap", f"{spend.MAX_BATCH} clips", "armed",
+         "Refuses above it — a 3,000-variation typo would be 3,000 paid jobs."],
+        ["Unit cost", f"${unit:,.2f}/clip" if unit else "UNSET",
+         "armed" if unit else "unset",
+         "Set TT_GENERATION_UNIT_COST so the confirm prompt shows dollars, not just "
+         "a warning that money moves."],
+        ["Per-batch ceiling", f"${ceiling:,.2f}" if ceiling else "UNSET",
+         "armed" if ceiling else "unset",
+         "Set TT_MAX_BATCH_SPEND. Refuses an over-ceiling batch even with --confirm."],
+        ["Double-spend guard", "always on", "armed",
+         "Re-generating a spec that already has a job is refused — it would pay twice "
+         "and overwrite the first job id."],
+        ["Duplicate-post guard", "always on", "armed",
+         "An already-posted asset cannot be posted again."],
+        ["Job recovery", "always on", "armed",
+         "Jobs are charged at submit. <code>creative-recover</code> collects assets you "
+         "already paid for but never received."],
+    ]
+    grows = [[g[0], g[1],
+              f'<span class="chip {"TEST" if g[2] == "armed" else "WATCH"}">{g[2]}</span>',
+              g[3]] for g in guards]
+    body.append("<div class=panel><p class=label>Spend guards</p>"
+                + table(["guard", "setting", "state", "what it stops"], grows)
+                + "</div>")
+
+    orphans = [c for c in db.all_creatives()
+               if c.status == "generating" and c.meta.get("job_id")]
+    if orphans:
+        body.append(f"<blockquote><b>{len(orphans)} job(s) submitted and paid for have "
+                    "not landed.</b> They are tracked with their job ids. Run "
+                    "<code>python -m tt_engine.cli creative-recover</code> to collect "
+                    "them — do not re-generate, that pays twice.</blockquote>")
+
+    # ── The sequence ──────────────────────────────────────────────────────────
+    phases = [
+        ("Day 1", "$0 out", "Paperwork, and the applications that take days",
+         ["Deposit the $2,000 into a dedicated business account — not personal",
+          "Get an EIN — free, instant, IRS.gov, one sitting (it times out)",
+          "Decide the structure — sole prop is fastest, LLC separates your assets",
+          "Apply for TikTok Shop Seller — the long pole, 1–3 business days",
+          "Create a TikTok Ads Manager account (separate login)",
+          "Open a supplier account — CJ, Zendrop, or AutoDS. Free",
+          "Start the bookkeeping sheet, before the first transaction",
+          "Tonight: read the prohibited-items list and the AI-disclosure rule"]),
+        ("Days 2–4", "~$40 data", "Find three candidates",
+         ["Get real market data in — import a CSV, or scout by hand for free",
+          "Rank it: <code>daily</code> → <code>find --top 5</code> → <code>scorecard</code>",
+          "Choose exactly three. Not one (no information), not ten (no focus)"]),
+        ("Days 3–7", "~$60 samples", "Quotes out, samples ordered",
+         ["Real landed-cost quote for each — <code>add-supplier</code>. No guesses",
+          "Order all three samples TODAY — they take 5–10 days and gate everything",
+          "Check the supplier against the shipping SLA — <code>health</code>"]),
+        ("Days 5–10", "~$110 tools", "Build creative while the samples ship",
+         ["Psychology pass on real comments — <code>psych</code>",
+          "Pick your actor from the roster — one face per account",
+          "Wire generation, then set the spend guards above before you confirm anything",
+          "Draft specs and READ them, then <code>--confirm</code>. ~1 usable clip in 4",
+          "Phone test every clip: arm's length, muted, full speed"]),
+        ("Days 10–12", "decision point", "Samples arrive — a real gate",
+         ["Hold each product. Does it do what the video is about to claim?",
+          "Kill anything that disappoints you in your hands, before any ad money",
+          "Create the listing; price off the margin floor, not vibes"]),
+        ("Days 12–20", "$150 per product", "The first real test",
+         ["Verify Pixel + Events API are firing BEFORE spending a dollar",
+          "Launch small and spread — a few hooks, small per-ad-set budgets",
+          "Log spend and revenue every single day — <code>log-test</code>",
+          "At 48h let <code>validate</code> decide. Do not override it"]),
+        ("Days 20–30", "from the test budget", "Iterate, then compound",
+         ["Killed → next candidate, no mourning period",
+          "Scaled → raise 20–30% at a time, re-validating after each raise",
+          "Diversify creative before scaling hard — fatigue kills a single creative"]),
+    ]
+    for when, cost, title, items in phases:
+        body.append(f"<div class=phasehead><h2 style='margin:0'>{esc(title)}</h2>"
+                    f"<span class=n>{esc(when)} · {esc(cost)}</span></div>")
+        body.append("<div class=panel><ul>"
+                    + "".join(f"<li>{i}</li>" for i in items) + "</ul></div>")
+
+    body.append("<blockquote><b>Month one is EV-negative by design</b> (~−$385 at this "
+                "size). You are buying real cost data on three real products, a working "
+                "pipeline, reps at killing losers fast, and an option on a winner. Most "
+                "first tests lose — that is the base rate, not a verdict on you. "
+                "<code>scale</code> prices the $100k month at $41,783 of working capital: "
+                "$2,000 buys the first rung of the ladder, and each rung is funded by the "
+                "one below it.</blockquote>")
+    return page("Launch", "".join(body), "/launch")
+
+
 def page_playbook(db: Database) -> str:
     """The zero-to-hero checklist: every step of the business, in order, with a live
     completion state. Auto steps flip themselves from DB state; manual steps toggle via
@@ -1186,6 +1316,8 @@ class Handler(BaseHTTPRequestHandler):
                     if html is None:
                         return self._send(404, page("Not found",
                                                     f"<h1>No product {esc(pid)}</h1>"))
+                elif url.path == "/launch":
+                    html = page_launch(db)
                 elif url.path == "/playbook":
                     html = page_playbook(db)
                 elif url.path == "/playbook/toggle":

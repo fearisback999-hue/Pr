@@ -18,7 +18,10 @@ from .persona import (
     persona_by_slug,
     validate_persona,
 )
+from . import spend
+from .spend import BatchTooLarge, SpendCeilingExceeded
 from .video_spec import (
+    AlreadyGenerated,
     assemble,
     create_spec,
     create_variants,
@@ -53,8 +56,10 @@ from .mcp_client import (
     GenerationNotWired,
     GenerationResult,
     HiggsfieldMCP,
+    PartialBatch,
     export_creatives,
     generate_batch,
+    recover_jobs,
     soul_consistency,
 )
 from .scripts import UGCScript, generate_scripts
@@ -80,4 +85,6 @@ __all__ = [
     "HiggsfieldClient",
     "HiggsfieldMCP", "generate_batch", "export_creatives", "soul_consistency",
     "GenerationResult", "ExportResult", "ConfirmationRequired", "GenerationNotWired",
+    "PartialBatch", "recover_jobs",
+    "spend", "BatchTooLarge", "SpendCeilingExceeded", "AlreadyGenerated",
 ]
