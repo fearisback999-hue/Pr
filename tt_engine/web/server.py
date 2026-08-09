@@ -189,6 +189,79 @@ def page_overview(db: Database) -> str:
     return page("Overview", "".join(body), "/")
 
 
+def _how_block(step_id: str) -> str:
+    """Instructions for one step, collapsed by default — the checklist stays scannable
+    and the how-to is one click away, rather than a wall of text on every row."""
+    from ..howto import how_to
+    steps, done = how_to(step_id)
+    if not steps:
+        return ""
+    items = "".join(f"<li>{esc(s)}</li>" for s in steps)
+    done_line = (f"<p class=how-done><b>done when</b>{esc(done)}</p>" if done else "")
+    return ("<details class=how><summary>How to do this</summary>"
+            f"<div class=how-body><ol>{items}</ol>{done_line}</div></details>")
+
+
+_SEV_CLASS = {"critical": "KILL", "warning": "WATCH", "info": "info", "good": "TEST"}
+
+
+def page_audit(db: Database) -> str:
+    """The auditor agent: every deterministic check, ranked, with the fix command."""
+    from ..agent import audit
+    from ..agent.auditor import _RANK
+
+    report = audit(db)
+    sev_counts = {s: len([f for f in report.findings if f.severity == s])
+                  for s in ("critical", "warning", "info", "good")}
+
+    body = ["<h1>Audit</h1>",
+            "<p class=mut>Every check the engine can make about your business, run "
+            "against your real database. The rules layer is arithmetic — no model in "
+            "the loop, nothing to hallucinate. The judgment layer is clearly labeled "
+            "and can only add commentary, never talk you out of a finding.</p>"]
+
+    body.append("<div class=kpis>"
+                + kpi(f"{report.score}", "readiness")
+                + kpi(f"{sev_counts['critical']}", "critical")
+                + kpi(f"{sev_counts['warning']}", "warning")
+                + kpi(f"{len(report.findings)}", "checks reporting")
+                + "</div>")
+
+    if report.judgment:
+        label = ("Claude's read" if report.judgment_mode == "llm"
+                 else "Priority read (offline — deterministic ordering)")
+        body.append(f"<div class=panel><p class=label>{esc(label)}</p><pre "
+                    f"class=judgment>{esc(report.judgment)}</pre></div>")
+
+    ordered = sorted(report.findings, key=lambda f: (_RANK[f.severity], f.domain))
+    by_domain: dict[str, list] = {}
+    for f in ordered:
+        by_domain.setdefault(f.domain, []).append(f)
+
+    for domain, items in by_domain.items():
+        body.append(f"<div class=phasehead><h2 style='margin:0'>{esc(domain)}</h2>"
+                    f"<span class=n>{len(items)}</span></div><div class=panel>")
+        for f in items:
+            cls = _SEV_CLASS.get(f.severity, "info")
+            body.append(f"<div class=finding><p><span class='chip {cls}'>"
+                        f"{esc(f.severity)}</span> <b>{esc(f.title)}</b></p>"
+                        f"<p class=mut>{esc(f.detail)}</p>")
+            if f.money:
+                body.append(f"<p class=cost><b>Costs if ignored:</b> {esc(f.money)}</p>")
+            if f.fix:
+                body.append(f"<p class=fix><b>Fix:</b> <code>{esc(f.fix)}</code></p>")
+            body.append("</div>")
+        body.append("</div>")
+
+    if not report.criticals:
+        body.append("<blockquote>No criticals — nothing is actively bleeding. That is "
+                    "not the same as a product being likely to work; that part is still "
+                    "the market's call.</blockquote>")
+    body.append("<p class=mut>Same report in the terminal: "
+                "<code>python -m tt_engine.cli audit</code></p>")
+    return page("Audit", "".join(body), "/audit")
+
+
 def page_launch(db: Database) -> str:
     """Day one to day thirty, in time order, with the money attached — and the live
     state of every guard that stands between you and an accidental spend."""
@@ -364,7 +437,8 @@ def page_playbook(db: Database) -> str:
             body.append(
                 f"<div class='pbstep{' done' if is_done else ''}'>{box}"
                 f"<div class=body><b>{esc(step.title)}</b><span class=src>{src}</span>"
-                f"<div class=mut>{esc(step.detail)}</div>{cmd}{cites}</div></div>"
+                f"<div class=mut>{esc(step.detail)}</div>{cmd}{cites}"
+                f"{_how_block(step.id)}</div></div>"
             )
         body.append("</div>")
 
@@ -1316,6 +1390,8 @@ class Handler(BaseHTTPRequestHandler):
                     if html is None:
                         return self._send(404, page("Not found",
                                                     f"<h1>No product {esc(pid)}</h1>"))
+                elif url.path == "/audit":
+                    html = page_audit(db)
                 elif url.path == "/launch":
                     html = page_launch(db)
                 elif url.path == "/playbook":

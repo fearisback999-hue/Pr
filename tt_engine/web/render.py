@@ -38,6 +38,12 @@ nav a { padding:6px 12px; border-radius:8px; color:var(--mut); font-size:13.5px;
         font-weight:500; transition:background-color .15s ease, color .15s ease; }
 nav a:hover { background:var(--elev); color:var(--ink); text-decoration:none; }
 nav a.on { background:var(--acc-soft); color:var(--acc); font-weight:600; }
+nav a:focus-visible { outline:2px solid var(--acc); outline-offset:-2px; }
+.navgroup { display:flex; gap:2px; align-items:center; }
+.navsep { width:1px; height:17px; background:var(--line); margin:0 9px; flex:0 0 auto;
+          border-radius:1px; }
+@media (max-width:760px) { .navsep { display:none; }
+                           nav { gap:2px; padding:9px 14px; } }
 
 main { max-width:1120px; margin:0 auto; padding:26px 22px 96px; }
 main p, main li { max-width:76ch; }
@@ -133,6 +139,51 @@ hr { border:none; border-top:1px solid var(--line-soft); margin:18px 0; }
 .pbstep .cmd { margin-top:4px; }
 .phasehead { display:flex; justify-content:space-between; align-items:baseline;
              margin:26px 0 4px; }
+
+/* ── auditor findings ──────────────────────────────────────────────────────── */
+.finding { padding:14px 0; border-bottom:1px solid var(--line-soft); }
+.finding:first-child { padding-top:2px; }
+.finding:last-child { border-bottom:none; padding-bottom:2px; }
+.finding p { margin:0 0 5px; }
+.finding p:last-child { margin-bottom:0; }
+.finding .cost { color:var(--warn); font-size:13px; }
+.finding .fix { font-size:13px; }
+.finding .cost b, .finding .fix b { font-size:10.5px; text-transform:uppercase;
+                                    letter-spacing:0.07em; color:var(--faint);
+                                    margin-right:5px; font-weight:700; }
+/* The judgment is prose, not output — the `code, pre` shorthand would otherwise
+   set it in mono, which reads as a machine dump rather than a considered opinion. */
+pre.judgment { background:none; border:none; padding:0; white-space:pre-wrap;
+               font-family:inherit; font-size:14.5px; line-height:1.62;
+               color:var(--ink); max-width:74ch; margin:0; }
+
+/* Section label above a panel's content. */
+.label { font-size:11px; text-transform:uppercase; letter-spacing:0.075em;
+         font-weight:700; color:var(--faint); margin:0 0 11px; }
+
+/* ── how-to instructions, disclosed on demand ─────────────────────────────── */
+details.how { margin-top:8px; }
+details.how > summary { cursor:pointer; display:inline-flex; align-items:center;
+                        gap:6px; font-size:11.5px; font-weight:650; color:var(--acc);
+                        text-transform:uppercase; letter-spacing:0.06em;
+                        list-style:none; padding:3px 0; }
+details.how > summary::-webkit-details-marker { display:none; }
+details.how > summary::before { content:"›"; display:inline-block; font-size:15px;
+                                transition:transform .18s cubic-bezier(.22,1,.36,1); }
+details.how[open] > summary::before { transform:rotate(90deg); }
+details.how > summary:hover { filter:brightness(1.15); }
+details.how > summary:focus-visible { outline:2px solid var(--acc); outline-offset:3px;
+                                      border-radius:4px; }
+.how-body { margin:8px 0 4px; padding:14px 16px; background:var(--elev);
+            border:1px solid var(--line-soft); border-radius:11px; }
+.how-body ol { margin:0; padding-left:20px; }
+.how-body ol li { margin:0 0 7px; font-size:13.5px; color:var(--mut); }
+.how-body ol li:last-child { margin-bottom:0; }
+.how-body ol li::marker { color:var(--acc); font-weight:650; }
+.how-done { margin:11px 0 0; padding-top:10px; border-top:1px solid var(--line-soft);
+            font-size:12.5px; color:var(--good); }
+.how-done b { font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em;
+              color:var(--faint); margin-right:5px; font-weight:700; }
 .phasehead .n { color:var(--faint); font-size:12px; font-variant-numeric:tabular-nums; }
 .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;
         margin:14px 0; }
@@ -149,11 +200,20 @@ hr { border:none; border-top:1px solid var(--line-soft); margin:18px 0; }
 .crow { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
 """
 
-_NAV = [("Overview", "/"), ("Launch", "/launch"), ("Assistant", "/assistant"),
-        ("Ideas", "/ideas"),
-        ("Search", "/search"), ("Playbook", "/playbook"), ("Actors", "/actors"),
-        ("Organic", "/organic"), ("Advertising", "/advertising"), ("Styles", "/styles"),
-        ("Budget", "/budget"), ("Creators", "/creators"), ("Road to $1M", "/million")]
+# Nav in three groups: what you DO daily, what you BUILD, what you LEARN FROM.
+# Fourteen undifferentiated links is a wall; grouped, it reads as a workspace.
+_NAV_GROUPS = [
+    ("operate", [("Overview", "/"), ("Audit", "/audit"), ("Launch", "/launch"),
+                 ("Playbook", "/playbook")]),
+    ("build",   [("Ideas", "/ideas"), ("Search", "/search"), ("Actors", "/actors"),
+                 ("Styles", "/styles"), ("Creators", "/creators")]),
+    ("learn",   [("Assistant", "/assistant"), ("Organic", "/organic"),
+                 ("Advertising", "/advertising"), ("Budget", "/budget"),
+                 ("Road to $1M", "/million")]),
+]
+
+# Flat view, kept because callers and tests reason about "is this page in the nav".
+_NAV = [item for _, items in _NAV_GROUPS for item in items]
 
 
 def sparkline(values: list[float], width: int = 220, height: int = 44,
@@ -196,10 +256,15 @@ def meter(fraction: float, label: str) -> str:
 
 
 def page(title: str, body: str, active: str = "/") -> str:
-    nav = "".join(
-        f'<a href="{href}"{" class=on" if href == active else ""}>{esc(label)}</a>'
-        for label, href in _NAV
-    )
+    groups = []
+    for i, (_, items) in enumerate(_NAV_GROUPS):
+        links = "".join(
+            f'<a href="{href}"{" class=on" if href == active else ""}>{esc(label)}</a>'
+            for label, href in items
+        )
+        sep = "<span class=navsep aria-hidden=true></span>" if i else ""
+        groups.append(f"{sep}<span class=navgroup>{links}</span>")
+    nav = "".join(groups)
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{esc(title)} · ENGINE</title><style>{_CSS}</style></head><body>"

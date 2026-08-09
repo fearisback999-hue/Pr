@@ -908,6 +908,45 @@ def cmd_sourcing_guide(args) -> int:
     return 0
 
 
+def cmd_how(args) -> int:
+    """Step-by-step instructions for one checklist step (or every step)."""
+    from .howto import HOW_TO, render_how
+    from .playbook import STEPS
+    by_id = {s.id: s for s in STEPS}
+    if args.step_id:
+        step = by_id.get(args.step_id)
+        if step is None:
+            print(f"no step '{args.step_id}'. Run `playbook` for the list of ids.")
+            return 1
+        print(f"# {step.title}\n\n{step.detail}\n")
+        print(render_how(step.id, ""))
+        if step.command:
+            print(f"\n  command: {step.command}")
+        if step.sources:
+            print("\n  sources: " + ", ".join(step.sources))
+        return 0
+    # No id: the whole thing, in playbook order.
+    print("# How to do every step\n")
+    for step in STEPS:
+        if step.id not in HOW_TO:
+            continue
+        print(f"## {step.title}   [{step.id}]")
+        print(render_how(step.id, ""))
+        if step.command:
+            print(f"\n  command: {step.command}")
+        print()
+    return 0
+
+
+def cmd_audit(args) -> int:
+    """The auditor agent: evaluate the whole business and rank what's wrong."""
+    from .agent import audit
+    with _db(args) as db:
+        report = audit(db, with_judgment=not args.no_judgment)
+        print(report.render())
+    return 1 if report.criticals else 0
+
+
 def cmd_creative_recover(args) -> int:
     """Collect assets for jobs already submitted and PAID FOR but never landed."""
     from .creative.mcp_client import recover_jobs
@@ -1513,6 +1552,16 @@ def main(argv=None) -> int:
     sub.add_parser("launch",
                    help="the first 30 days in time order, with the $2k money split"
                    ).set_defaults(func=cmd_launch)
+    p = sub.add_parser("how",
+                       help="step-by-step instructions for a checklist step (or all)")
+    p.add_argument("step_id", nargs="?", default="",
+                   help="playbook step id, e.g. tt-seller. Omit for every step.")
+    p.set_defaults(func=cmd_how)
+    p = sub.add_parser("audit",
+                       help="the auditor agent — evaluate everything, ranked by severity")
+    p.add_argument("--no-judgment", action="store_true",
+                   help="rules only; skip the judgment layer")
+    p.set_defaults(func=cmd_audit)
     sub.add_parser("creative-recover",
                    help="collect assets for jobs already PAID FOR but never landed"
                    ).set_defaults(func=cmd_creative_recover)
