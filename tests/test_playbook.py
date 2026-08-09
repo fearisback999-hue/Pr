@@ -159,3 +159,40 @@ def test_render_playbook_includes_sources_section(tmp_path):
 def test_verified_date_is_iso_format():
     import datetime
     datetime.date.fromisoformat(VERIFIED_DATE)  # raises if malformed
+
+
+# --- docs/LAUNCH.md: the 30-day sequence, keyed to real playbook steps ---
+
+def _launch_text() -> str:
+    from pathlib import Path
+    doc = Path(__file__).resolve().parent.parent / "docs" / "LAUNCH.md"
+    return doc.read_text(encoding="utf-8")
+
+
+def test_launch_doc_only_references_real_playbook_steps():
+    """Every `id` the launch doc tells you to check off must actually exist."""
+    import re
+    text = _launch_text()
+    known = {s.id for s in STEPS}
+    referenced = set(re.findall(r"→ (?:`playbook-check )?`?([a-z][a-z0-9-]{3,})`", text))
+    unknown = {r for r in referenced if r not in known}
+    assert not unknown, f"launch doc points at non-existent playbook steps: {sorted(unknown)}"
+    assert len(referenced & known) >= 20, "launch doc should sequence most of the playbook"
+
+
+def test_launch_doc_money_split_sums_to_capital():
+    """The allocation table has to actually add up to $2,000."""
+    import re
+    rows = re.findall(r"\|\s*\**\$([\d,]+)\**\s*\|", _launch_text())
+    amounts = [int(r.replace(",", "")) for r in rows]
+    assert amounts, "no allocation rows found"
+    assert sum(amounts) == 2000, f"allocation sums to {sum(amounts)}, not 2000"
+
+
+def test_launch_doc_keeps_the_honest_lines():
+    """Month one is EV-negative and $2k is not a $100k month — both stay stated."""
+    text = _launch_text().lower()
+    assert "negative by design" in text
+    assert "most first tests lose" in text
+    assert "does not buy a $100k month" in text
+    assert "48-hour kill timer" in text
