@@ -202,6 +202,10 @@ HOW_TO: dict[str, tuple[tuple[str, ...], str]] = {
 
     # ── 4. Find a product ─────────────────────────────────────────────────────
     "data-in": ((
+        "Import your SUPPLIER's catalog first — it carries real landed costs for "
+        "hundreds of products at once: `catalog import <file.csv> --source "
+        "cj|zendrop|autods|spocket|generic`. Then `catalog rank` for the supply "
+        "shortlist. This gives you candidates and costs, never demand.",
         "Either subscribe to a data source and export a CSV, or scout by hand for "
         "free — `scout` lists the free surfaces and how to read them.",
         "Import with `import-csv <file.csv> --source kalodata|fastmoss|generic`.",

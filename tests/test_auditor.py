@@ -178,3 +178,35 @@ def test_render_how_includes_numbering_and_done_condition():
 def test_how_to_is_safe_on_unknown_ids():
     steps, done = how_to("nonsense")
     assert steps == () and done == ""
+
+
+def test_catalog_demand_gap_is_reported(tmp_path):
+    """Catalog import creates the inverse of the missing-cost problem: many costed
+    products, no demand signal on any of them."""
+    from tt_engine.sourcing import catalog as cat
+    csv = tmp_path / "c.csv"
+    csv.write_text(
+        "Product ID,Product Name,Category,Product Price,Shipping Cost,Ships From\n"
+        "A1,Thing A,home,2.00,1.00,US\nA2,Thing B,home,3.00,1.00,US\n",
+        encoding="utf-8")
+    with Database(str(tmp_path / "a.db")) as db:
+        cat.import_catalog(db, csv, source="cj")
+        findings = auditor.check_catalog_demand_gap(db)
+    assert findings and findings[0].severity == WARNING
+    assert "2 of 2 costed products have no demand data" in findings[0].title
+    assert "catalog rank" in findings[0].fix
+
+
+def test_catalog_demand_gap_silent_when_demand_exists(tmp_path):
+    from tt_engine.sourcing import catalog as cat
+    csv = tmp_path / "c.csv"
+    csv.write_text(
+        "Product ID,Product Name,Category,Product Price,Shipping Cost,Ships From\n"
+        "A1,Thing A,home,2.00,1.00,US\n", encoding="utf-8")
+    with Database(str(tmp_path / "a.db")) as db:
+        cat.import_catalog(db, csv, source="cj")
+        pid = cat.slug_id("Thing A", "A1")
+        db.upsert_metric(models.DailyMetric(
+            product_id=pid, date="2026-01-01", units=100, gmv=1999.0, price=19.99,
+            sellers=5, promo_videos=10, ads=2, avg_ad_age=6.0))
+        assert auditor.check_catalog_demand_gap(db) == []

@@ -908,6 +908,43 @@ def cmd_sourcing_guide(args) -> int:
     return 0
 
 
+def cmd_catalog(args) -> int:
+    """Your supplier's catalog: import it, then rank it on supply economics."""
+    from .sourcing import catalog
+    action = (args.action or "rank").lower()
+    with _db(args) as db:
+        if action == "import":
+            if not args.file:
+                print("usage: catalog import <file.csv> [--source cj|zendrop|autods|"
+                      "spocket|generic] [--supplier NAME] [--map 'Header=field']")
+                return 1
+            overrides = {}
+            for m in (args.map or []):
+                header, _, fieldname = m.partition("=")
+                if not fieldname:
+                    print(f"bad --map '{m}' — use 'Their Header=field'")
+                    return 1
+                overrides[header] = fieldname
+            try:
+                res = catalog.import_catalog(
+                    db, args.file, supplier_name=args.supplier,
+                    source=args.source, overrides=overrides,
+                    default_ship_days=args.default_ship_days)
+            except (ValueError, FileNotFoundError) as e:
+                print(f"refused: {e}")
+                return 1
+            print(res.summary)
+            return 0
+        if action == "rank":
+            picks = catalog.rank(db, top=args.top, category=args.category,
+                                 max_landed=args.max_landed)
+            print(catalog.render_rank(
+                picks, has_demand=lambda pid: bool(db.metrics_for(pid))))
+            return 0
+        print(f"unknown action '{action}' — use `import` or `rank`.")
+        return 1
+
+
 def cmd_how(args) -> int:
     """Step-by-step instructions for one checklist step (or every step)."""
     from .howto import HOW_TO, render_how
@@ -1552,6 +1589,22 @@ def main(argv=None) -> int:
     sub.add_parser("launch",
                    help="the first 30 days in time order, with the $2k money split"
                    ).set_defaults(func=cmd_launch)
+    p = sub.add_parser("catalog",
+                       help="import YOUR supplier's catalog + rank it on supply economics")
+    p.add_argument("action", nargs="?", default="rank", help="import | rank")
+    p.add_argument("file", nargs="?", default="", help="catalog CSV (for import)")
+    p.add_argument("--source", default="generic",
+                   help="cj | zendrop | autods | spocket | generic")
+    p.add_argument("--supplier", default="", help="display name for the supplier")
+    p.add_argument("--map", action="append", default=[],
+                   help="remap a column: --map \"Their Header=cost\"")
+    p.add_argument("--default-ship-days", type=float, default=7.0,
+                   help="assumed ship days when the CSV has no such column")
+    p.add_argument("--top", type=int, default=20)
+    p.add_argument("--category", default="")
+    p.add_argument("--max-landed", type=float, default=0.0,
+                   help="exclude anything landing above this cost")
+    p.set_defaults(func=cmd_catalog)
     p = sub.add_parser("how",
                        help="step-by-step instructions for a checklist step (or all)")
     p.add_argument("step_id", nargs="?", default="",

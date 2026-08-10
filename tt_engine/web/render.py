@@ -68,7 +68,7 @@ tr:last-child td { border-bottom:none; }
 .num { text-align:right; font-variant-numeric:tabular-nums; }
 
 .chip { display:inline-block; padding:2.5px 11px; border-radius:999px; font-size:11.5px;
-        font-weight:650; letter-spacing:0.01em; line-height:1.5; }
+        font-weight:650; letter-spacing:0.01em; line-height:1.5; white-space:nowrap; }
 .chip.TEST { background:oklch(0.76 0.15 156 / 0.16); color:var(--good);
              box-shadow:inset 0 0 0 1px oklch(0.76 0.15 156 / 0.22); }
 .chip.WATCH { background:oklch(0.81 0.13 82 / 0.15); color:var(--warn);
@@ -205,11 +205,14 @@ details.how > summary:focus-visible { outline:2px solid var(--acc); outline-offs
 _NAV_GROUPS = [
     ("operate", [("Overview", "/"), ("Audit", "/audit"), ("Launch", "/launch"),
                  ("Playbook", "/playbook")]),
-    ("build",   [("Ideas", "/ideas"), ("Search", "/search"), ("Actors", "/actors"),
+    ("build",   [("Catalog", "/catalog"), ("Ideas", "/ideas"),
+                 ("Search", "/search"), ("Actors", "/actors"),
                  ("Styles", "/styles"), ("Creators", "/creators")]),
-    ("learn",   [("Assistant", "/assistant"), ("Organic", "/organic"),
-                 ("Advertising", "/advertising"), ("Budget", "/budget"),
-                 ("Road to $1M", "/million")]),
+    # Labels are kept short deliberately: fifteen full-width links wrap to a second
+    # row, and a two-row nav pushes every page's content below the fold.
+    ("learn",   [("Ask", "/assistant"), ("Organic", "/organic"),
+                 ("Ads", "/advertising"), ("Budget", "/budget"),
+                 ("$1M", "/million")]),
 ]
 
 # Flat view, kept because callers and tests reason about "is this page in the nav".

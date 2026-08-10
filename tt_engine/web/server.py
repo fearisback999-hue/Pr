@@ -189,6 +189,90 @@ def page_overview(db: Database) -> str:
     return page("Overview", "".join(body), "/")
 
 
+def page_catalog(db: Database, category: str = "") -> str:
+    """Your supplier's catalog, ranked on supply economics — a research shortlist."""
+    from ..sourcing import catalog as cat
+
+    picks = cat.rank(db, top=60, category=category)
+    have_demand = {p.id for p in db.all_products() if db.metrics_for(p.id)}
+
+    body = ["<h1>Catalog</h1>",
+            "<p class=mut>Your supplier's products, ranked on what a catalog actually "
+            "knows: margin headroom inside the impulse price band, shipping speed, US "
+            "warehouse, and MOQ. <b>There is no demand term here</b> — a catalog "
+            "contains no demand information. This is what is worth researching, not "
+            "what is worth testing.</p>"]
+
+    if not picks:
+        body.append(
+            "<div class=panel><p class=label>Nothing imported yet</p>"
+            "<p>Export your catalog from your supplier's own dashboard (CJ, Zendrop, "
+            "AutoDS and Spocket all offer CSV export), then:</p>"
+            "<pre><code>python -m tt_engine.cli catalog import catalog.csv "
+            "--source cj</code></pre>"
+            "<p class=mut>Columns are matched case-insensitively across the common "
+            "spellings. Anything unmatched can be remapped with "
+            "<code>--map \"Their Header=cost\"</code>. Rows without a parseable cost "
+            "are reported, never silently dropped — the engine will not invent a "
+            "landed cost.</p></div>")
+        return page("Catalog", "".join(body), "/catalog")
+
+    researched = len([c for c in picks if c.product.id in have_demand])
+    us = len([c for c in picks if c.supplier.us_warehouse])
+    fast = len([c for c in picks if c.supplier.ship_days <= 5])
+    body.append("<div class=kpis>"
+                + kpi(f"{len(picks)}", "candidates")
+                + kpi(f"{us}", "US warehouse")
+                + kpi(f"{fast}", "ship ≤5 days")
+                + kpi(f"{researched}/{len(picks)}", "have demand data")
+                + "</div>")
+
+    if researched < len(picks):
+        body.append(f"<blockquote><b>{len(picks) - researched} of {len(picks)} have no "
+                    "demand data.</b> Until they do, none can reach a TEST verdict — "
+                    "that gate is deliberate. A cheap product with a fat theoretical "
+                    "margin and no demand is the most common way a new store dies. "
+                    "Pick three, research real demand on each, then import what you "
+                    "find.</blockquote>")
+
+    cats = sorted({p.category for p in db.all_products() if p.category})
+    if cats:
+        links = " · ".join(
+            f"<a href='/catalog?category={esc(c)}'>{esc(c)}</a>"
+            if c != category else f"<b>{esc(c)}</b>" for c in cats)
+        allc = "<b>all</b>" if not category else "<a href='/catalog'>all</a>"
+        body.append(f"<div class=panel><p class=label>Category</p>{allc} · {links}</div>")
+
+    rows = []
+    for c in picks:
+        demand = ("<span class='chip TEST'>has demand data</span>"
+                  if c.product.id in have_demand
+                  else "<span class='chip WATCH'>needs research</span>")
+        flags = ("<br>".join(f"<span class=bad>⚠ {esc(b)}</span>" for b in c.blockers)
+                 or "<span class=mut>" + esc("; ".join(c.reasons)) + "</span>")
+        rows.append([
+            f"<b>{c.supply_score:.1f}</b>",
+            f"<a href='/product?id={esc(c.product.id)}'>{esc(c.product.name[:52])}</a>"
+            f"<br><span class=mut>{esc(c.product.category)}</span>",
+            f"${c.landed:.2f}",
+            f"${c.target_price:.2f}",
+            f"{c.supplier.ship_days:.0f}d"
+            + (" <span class='chip TEST'>US</span>" if c.supplier.us_warehouse else ""),
+            demand,
+            flags,
+        ])
+    body.append("<div class=panel>" + table(
+        ["supply", "product", "landed", "target price", "ship", "demand", "read"],
+        rows, num_cols={0, 2, 3}) + "</div>")
+
+    body.append("<p class=mut>Target price is landed × 3.5 — the multiple that leaves "
+                "room for the fee stack plus a CAC. It is a sanity check on whether the "
+                "product can support paid traffic at all, not a pricing recommendation; "
+                "price off the margin floor in <code>scorecard</code> once real demand "
+                "data is in.</p>")
+    return page("Catalog", "".join(body), "/catalog")
+
+
 def _how_block(step_id: str) -> str:
     """Instructions for one step, collapsed by default — the checklist stays scannable
     and the how-to is one click away, rather than a wall of text on every row."""
@@ -1390,6 +1474,8 @@ class Handler(BaseHTTPRequestHandler):
                     if html is None:
                         return self._send(404, page("Not found",
                                                     f"<h1>No product {esc(pid)}</h1>"))
+                elif url.path == "/catalog":
+                    html = page_catalog(db, (q.get("category") or [""])[0])
                 elif url.path == "/audit":
                     html = page_audit(db)
                 elif url.path == "/launch":

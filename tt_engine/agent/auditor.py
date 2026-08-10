@@ -223,6 +223,32 @@ def check_capital(db: Database) -> list[Finding]:
     return out
 
 
+def check_catalog_demand_gap(db: Database) -> list[Finding]:
+    """Catalog import gives you hundreds of costed products and zero demand signal.
+    That asymmetry is the trap: a cheap product with a fat theoretical margin and no
+    demand looks like a find right up until the ad spend."""
+    products = db.all_products()
+    if not products:
+        return []
+    costed = [p for p in products if db.suppliers_for(p.id)]
+    if not costed:
+        return []
+    no_demand = [p for p in costed if not db.metrics_for(p.id)]
+    if not no_demand:
+        return []
+    share = len(no_demand) / len(costed)
+    sev = WARNING if share > 0.9 else INFO
+    return [Finding(
+        sev, "product", f"{len(no_demand)} of {len(costed)} costed products have no "
+        "demand data",
+        "A supplier catalog carries cost and shipping but nothing about whether "
+        "anything sells. These cannot reach a TEST verdict, and the supply ranking "
+        "deliberately does not try to make them.",
+        fix="pick 3 from `catalog rank`, research real demand, then `import-csv` "
+            "or `add-metric` what you find",
+        money="none yet — this is the gate that stops you spending on an untested guess")]
+
+
 def check_data_freshness(db: Database) -> list[Finding]:
     out: list[Finding] = []
     products = db.all_products()
@@ -277,6 +303,7 @@ CHECKS: list[Callable[[Database], list[Finding]]] = [
     check_compliance,
     check_test_discipline,
     check_landed_costs,
+    check_catalog_demand_gap,
     check_capital,
     check_data_freshness,
     check_readiness,
