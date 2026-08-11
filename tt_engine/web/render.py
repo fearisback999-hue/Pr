@@ -62,6 +62,7 @@ th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line-s
          vertical-align:top; }
 th { color:var(--faint); font-weight:600; font-size:11px; text-transform:uppercase;
      letter-spacing:0.06em; white-space:nowrap; }
+th.num { text-align:right; }
 tbody tr { transition:background-color .12s ease; }
 tbody tr:hover { background:var(--elev); }
 tr:last-child td { border-bottom:none; }
@@ -140,6 +141,17 @@ hr { border:none; border-top:1px solid var(--line-soft); margin:18px 0; }
 .phasehead { display:flex; justify-content:space-between; align-items:baseline;
              margin:26px 0 4px; }
 
+/* ── odds bars (shots on goal) ─────────────────────────────────────────────── */
+.oddsrow { display:grid; grid-template-columns:5.5rem 1fr 3rem; gap:12px;
+           align-items:center; padding:5px 0; }
+.oddsn { font-size:12.5px; color:var(--mut); white-space:nowrap; }
+.oddsp { font-size:13px; font-weight:650; text-align:right;
+         font-variant-numeric:tabular-nums; }
+.oddsrow .bar { margin:0; }
+.bar > i.good { background:var(--good); }
+.bar > i.warn { background:var(--warn); }
+.bar > i.bad  { background:var(--bad); }
+
 /* ── auditor findings ──────────────────────────────────────────────────────── */
 .finding { padding:14px 0; border-bottom:1px solid var(--line-soft); }
 .finding:first-child { padding-top:2px; }
@@ -212,7 +224,7 @@ _NAV_GROUPS = [
     # row, and a two-row nav pushes every page's content below the fold.
     ("learn",   [("Ask", "/assistant"), ("Organic", "/organic"),
                  ("Ads", "/advertising"), ("Budget", "/budget"),
-                 ("$1M", "/million")]),
+                 ("Profit", "/profit")]),   # /million still routes; Profit is the goal page now
 ]
 
 # Flat view, kept because callers and tests reason about "is this page in the nav".
@@ -286,7 +298,12 @@ def kpi(value: str, label: str) -> str:
 
 def table(headers: list[str], rows: list[list[str]], num_cols: set[int] = frozenset()) -> str:
     """rows contain PRE-RENDERED html cells; headers are escaped here."""
-    head = "".join(f"<th>{esc(h)}</th>" for h in headers)
+    # Header alignment must follow the cells beneath it — a left-aligned header over a
+    # right-aligned column of figures reads as a misrendered table.
+    head = "".join(
+        f'<th{" class=num" if i in num_cols else ""}>{esc(h)}</th>'
+        for i, h in enumerate(headers)
+    )
     body = "".join(
         "<tr>" + "".join(
             f'<td{" class=num" if i in num_cols else ""}>{cell}</td>'

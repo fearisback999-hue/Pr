@@ -908,6 +908,16 @@ def cmd_sourcing_guide(args) -> int:
     return 0
 
 
+def cmd_profit(args) -> int:
+    """The $400k profit plan + the levers that decide whether it happens."""
+    from . import profit
+    from .creative import spend
+    clip = spend.unit_cost()
+    print(profit.render(target=args.target, months=args.months,
+                        budget=args.budget, clip_cost=clip))
+    return 0
+
+
 def cmd_catalog(args) -> int:
     """Your supplier's catalog: import it, then rank it on supply economics."""
     from .sourcing import catalog
@@ -1589,6 +1599,14 @@ def main(argv=None) -> int:
     sub.add_parser("launch",
                    help="the first 30 days in time order, with the $2k money split"
                    ).set_defaults(func=cmd_launch)
+    p = sub.add_parser("profit",
+                       help="the $400k profit plan + the levers that actually move it")
+    p.add_argument("--target", type=float, default=400_000.0,
+                   help="profit target in dollars (default 400,000)")
+    p.add_argument("--months", type=int, default=24)
+    p.add_argument("--budget", type=float, default=1180.0,
+                   help="test budget to size the screening plan against")
+    p.set_defaults(func=cmd_profit)
     p = sub.add_parser("catalog",
                        help="import YOUR supplier's catalog + rank it on supply economics")
     p.add_argument("action", nargs="?", default="rank", help="import | rank")

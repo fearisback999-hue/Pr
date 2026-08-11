@@ -189,6 +189,111 @@ def page_overview(db: Database) -> str:
     return page("Overview", "".join(body), "/")
 
 
+def page_profit(db: Database, target: float = 400_000.0) -> str:
+    """The profit target, the levers, and the portfolio math behind 'always profitable'."""
+    from .. import profit as pf
+    from ..creative import spend
+
+    clip = spend.unit_cost()
+    blended = pf.plan_profit(target, 24, pf.BLENDED_MARGIN)
+    organic = pf.plan_profit(target, 24, pf.ORGANIC_MARGIN)
+    plan = pf.screening_plan(1180.0, clip)
+
+    body = [f"<h1>${target:,.0f} profit</h1>",
+            "<p class=mut>What the target actually requires, and the four levers that "
+            "decide whether it happens.</p>"]
+
+    body.append("<blockquote><b>No product-testing business is profitable on every "
+                "test.</b> You are paying to discover which products sell, and discovery "
+                "costs money on the ones that don't. What is achievable is <b>portfolio "
+                "profitability</b>: make the losses cheap, the attempts many, the wins "
+                "big, and the kills fast — then one winner pays for every loser that "
+                "found it. That is a solvable problem, and it is what this page "
+                "computes.</blockquote>")
+
+    # ── The margin lever, stated as the headline it is ────────────────────────
+    saved = blended.revenue_total - organic.revenue_total
+    body.append("<div class=kpis>"
+                + kpi(f"${organic.revenue_total/1e6:.2f}M", "revenue at 35% margin")
+                + kpi(f"${blended.revenue_total/1e6:.2f}M", "revenue at 16% margin")
+                + kpi(f"${saved/1e6:.2f}M", "less to build")
+                + kpi(f"~{organic.orders_per_day:.0f}/day", "orders at 35%")
+                + "</div>")
+
+    body.append("<div class=panel><p class=label>Same profit, two margins</p>"
+                + table(["", "blended 16%", "organic-first 35%"], [
+                    ["monthly revenue needed",
+                     f"${blended.monthly_revenue:,.0f}", f"${organic.monthly_revenue:,.0f}"],
+                    ["cumulative revenue",
+                     f"${blended.revenue_total:,.0f}", f"${organic.revenue_total:,.0f}"],
+                    ["orders / day",
+                     f"~{blended.orders_per_day:.0f}", f"~{organic.orders_per_day:.0f}"],
+                    ["concurrent winners",
+                     f"~{blended.winners_needed}", f"~{organic.winners_needed}"],
+                ], num_cols={1, 2})
+                + "<p class=mut><b>Margin is not a detail — it is most of the mountain.</b> "
+                "Making your own content instead of paying creators or affiliates is the "
+                "single largest lever in the business, and it is entirely under your "
+                "control. It is what the AI creator roster is for.</p></div>")
+
+    # ── Shots on goal: the honest version of "always profitable" ──────────────
+    counts = [1, 3, 5, 7, 10, 14, 20]
+    bars = []
+    for n in counts:
+        p = pf.p_at_least_one(pf.P_WIN_COLD, n)
+        cls = "good" if p >= 0.90 else ("warn" if p >= 0.65 else "bad")
+        bars.append(
+            f"<div class=oddsrow><span class=oddsn>{n} tests</span>"
+            f"<div class=bar><i class={cls} style='width:{p*100:.0f}%'></i></div>"
+            f"<span class='oddsp {cls}'>{p:.0%}</span></div>")
+    body.append("<h2>Shots on goal</h2><div class=panel>"
+                + f"<p class=label>P(at least one winner) at a {pf.P_WIN_COLD:.0%} hit rate</p>"
+                + "".join(bars)
+                + "<p class=mut>One test is a coin flip you lose four times out of five. "
+                "Fourteen cheap tests make a winner ~95% likely. The strategy is not to "
+                "pick better than everyone else — it is to <b>afford more attempts</b> "
+                "than they can.</p></div>")
+
+    # ── Screening: how you afford those attempts ──────────────────────────────
+    body.append("<h2>How you afford more attempts</h2><div class=panel>")
+    if plan.clip_cost is None:
+        body.append("<p>Generation cost is <b>UNPRICED</b>. Set "
+                    "<code>TT_GENERATION_UNIT_COST</code> to your real per-clip cost and "
+                    "this computes how many candidates your budget can screen before "
+                    "paying for traffic.</p>")
+    else:
+        body.append(table(["", "cold — pay to find out", "organic screen first"], [
+            ["candidates reached", f"{plan.baseline_tests}",
+             f"<b>{plan.candidates_screened}</b>"],
+            ["paid tests", f"{plan.baseline_tests}", f"{plan.paid_tests}"],
+            ["cost to reject a loser", f"~${pf.KILLED_TEST_LOSS:.0f}",
+             f"<b>~${plan.screen_cost/max(1, plan.candidates_screened):.2f}</b>"],
+            ["P(at least one winner)", f"{plan.baseline_p_any:.0%}",
+             f"<b class=good>{plan.p_any_winner:.0%}</b>"],
+        ], num_cols={1, 2}))
+        body.append(f"<p class=mut>Same ${plan.budget:,.0f}. "
+                    f"<b>{plan.improvement:+.0%}</b> on the odds of finding a winner — "
+                    "by rejecting losers for the price of four clips instead of a full "
+                    "paid test, then paying only to amplify what already earned views.</p>")
+    body.append("</div>")
+
+    body.append("<h2>The levers, ranked</h2>")
+    for lever in pf.levers(target, 24):
+        body.append(f"<div class=panel><p class=label>{esc(lever.name)}</p>"
+                    f"<p><b>{esc(lever.effect)}</b></p>"
+                    f"<p class=mut>{esc(lever.detail)}</p>"
+                    f"<p class=fix><b>DO</b> {esc(lever.how)}</p></div>")
+
+    body.append("<blockquote><b>What this does not promise.</b> Not that any individual "
+                "test profits — most will not. Not that month one profits — it is planned "
+                f"to lose about $247. Not that ${target:,.0f} arrives in 24 months; it is a "
+                "target that tells you what scale is required, not a forecast that it "
+                "happens. The hit rate and screening rates are <b>assumptions</b> — measure "
+                "them against your first 20 candidates and replace them.</blockquote>")
+    body.append("<p class=mut>Full detail: <code>python -m tt_engine.cli profit</code></p>")
+    return page("Profit", "".join(body), "/profit")
+
+
 def page_catalog(db: Database, category: str = "") -> str:
     """Your supplier's catalog, ranked on supply economics — a research shortlist."""
     from ..sourcing import catalog as cat
@@ -1474,6 +1579,8 @@ class Handler(BaseHTTPRequestHandler):
                     if html is None:
                         return self._send(404, page("Not found",
                                                     f"<h1>No product {esc(pid)}</h1>"))
+                elif url.path == "/profit":
+                    html = page_profit(db)
                 elif url.path == "/catalog":
                     html = page_catalog(db, (q.get("category") or [""])[0])
                 elif url.path == "/audit":

@@ -249,6 +249,41 @@ def check_catalog_demand_gap(db: Database) -> list[Finding]:
         money="none yet — this is the gate that stops you spending on an untested guess")]
 
 
+def check_margin_and_screening(db: Database) -> list[Finding]:
+    """The two levers with the largest effect on whether the profit target is
+    reachable at all. Both are strategy, so these are always advisory — but a
+    solo operator forgets them precisely when busy, which is always."""
+    from .. import profit as pf
+    out: list[Finding] = []
+
+    blended = pf.plan_profit(400_000.0, 24, pf.BLENDED_MARGIN)
+    organic = pf.plan_profit(400_000.0, 24, pf.ORGANIC_MARGIN)
+    out.append(Finding(
+        INFO, "profit", "Margin is the biggest lever on the target",
+        f"$400,000 profit needs ${blended.revenue_total:,.0f} of revenue at a blended "
+        f"{pf.BLENDED_MARGIN:.0%} margin, but only ${organic.revenue_total:,.0f} at an "
+        f"organic-first {pf.ORGANIC_MARGIN:.0%}. Making your own content instead of "
+        "paying it out roughly halves the whole mountain.",
+        fix="python -m tt_engine.cli profit"))
+
+    # Paid tests running with no organic content behind them is the expensive path.
+    paid_products = {p.id for p in db.all_products() if db.tests_for_product(p.id)}
+    if paid_products:
+        posted = {c.product_id for c in db.all_creatives() if c.status == "posted"}
+        cold = paid_products - posted
+        if cold:
+            out.append(Finding(
+                WARNING, "profit", f"{len(cold)} product(s) got paid traffic with no "
+                "organic post first",
+                "Screening a candidate organically rejects a loser for the price of a "
+                "few clips instead of a full paid test. Paying to discover what a free "
+                "post would have told you is the most expensive habit in this business.",
+                fix="post organically first; use paid only to amplify what already works",
+                money=f"~${pf.KILLED_TEST_LOSS:.0f} per loser that a free post could "
+                      "have caught"))
+    return out
+
+
 def check_data_freshness(db: Database) -> list[Finding]:
     out: list[Finding] = []
     products = db.all_products()
@@ -304,6 +339,7 @@ CHECKS: list[Callable[[Database], list[Finding]]] = [
     check_test_discipline,
     check_landed_costs,
     check_catalog_demand_gap,
+    check_margin_and_screening,
     check_capital,
     check_data_freshness,
     check_readiness,
