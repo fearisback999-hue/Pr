@@ -225,7 +225,7 @@ def test_actors_tab_click_to_create_flow(tmp_path):
         st, grid = get("/actors")
         assert st == 200
         assert "Maya" in grid and "Jordan" in grid
-        assert "Create with Maya" in grid
+        assert "Open Maya" in grid          # card CTA (renamed in the IA pass)
         assert "/actors?use=maya" in grid
 
         # Pick an actor -> the FULL character profile (look/rooms/voice) + picker.

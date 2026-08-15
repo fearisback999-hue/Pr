@@ -114,10 +114,19 @@ def test_shell_ships_the_js_and_toast_layer():
     assert "id=toast" in html
 
 
-def test_nav_groups_render_with_labels():
+def test_nav_shows_named_sections_and_only_the_current_section_pages():
+    """Two-tier nav: four named sections up top, and the second row shows only the
+    pages inside the section you're in — so every page has a visible home."""
     html = render.page("T", "<p>x</p>", "/")
-    for label in ("operate", "build", "learn"):
-        assert f"title='{label}'" in html
+    for label in ("Engine", "Studio", "Money", "Start"):
+        assert f">{label}</a>" in html, f"missing section tab {label}"
+    # "/" lives in Engine, so Engine's pages show and Studio's do not.
+    assert "/catalog" in html and "/audit" in html
+    assert "/restyle" not in html.split("<main>")[0]
+
+    studio = render.page("T", "<p>x</p>", "/restyle")
+    assert "/restyle" in studio.split("<main>")[0]
+    assert "Make the videos" in studio          # the section tagline
 
 
 def test_helpers_render():
@@ -125,3 +134,96 @@ def test_helpers_render():
     assert render.toc([("a", "1")]) == ""      # <3 sections → no toc
     assert "class=empty" in render.empty_state("📥", "nothing", "<a>go</a>")
     assert "cmdline" in render.cmd_code("python -m tt_engine.cli audit")
+
+
+# ── actor lanes: one account = one audience, many products ───────────────────
+
+def test_actor_lane_routes_products_to_the_right_actor():
+    """The answer to 'does every character need a niche': an account needs a coherent
+    AUDIENCE, not one product. Many products per actor, all inside their lane."""
+    from tt_engine.creative.persona import actor_for_product, load_personas
+    roster = load_personas()
+    assert roster, "shipped bibles should load"
+    maya = actor_for_product(roster, "home")
+    assert maya and maya.name == "Maya"
+    # Same actor carries MULTIPLE categories — that's the point of a lane.
+    assert actor_for_product(roster, "beauty").name == "Maya"
+    assert actor_for_product(roster, "wellness").name == "Maya"
+    # A different world routes elsewhere.
+    assert actor_for_product(roster, "electronics").name == "Jordan"
+
+
+def test_uncovered_categories_are_reported_not_silently_assigned():
+    """A product with no matching lane must surface as a decision, never get handed
+    to whichever actor happens to be free — that's the mixed-account failure."""
+    from tt_engine.creative.persona import actor_for_product, lane_report, load_personas
+    roster = load_personas()
+    assert actor_for_product(roster, "firearms") is None
+    rep = lane_report(roster, ["home", "apparel", "electronics"])
+    assert "apparel" in rep["uncovered"]
+    assert "home" not in rep["uncovered"]
+
+
+def test_actors_page_explains_the_lane_rule(tmp_path):
+    from tt_engine.web.server import page_actors
+    db = _seeded(tmp_path)
+    html = page_actors(db, "")
+    assert "many products" in html.lower()
+    assert "lane" in html.lower()
+    # Every seeded category IS covered by the shipped roster, so no gap panel here.
+    assert "Product types with no actor" not in html
+    db.close()
+
+
+def test_actors_page_flags_a_genuinely_uncovered_category(tmp_path):
+    """A product nobody's lane covers must surface as a decision to make."""
+    from tt_engine.web.server import page_actors
+    db = Database(str(tmp_path / "gap.db"))
+    db.upsert_product(models.Product(id="G1", name="Cordless Drill", category="tools"))
+    html = page_actors(db, "")
+    assert "Product types with no actor" in html
+    assert "tools" in html
+    db.close()
+
+
+def test_prohibited_categories_never_ask_for_an_actor(tmp_path):
+    """The seed's vape product is prohibited — it must not show up as a lane gap
+    ('you need an actor for vape' would be absurd)."""
+    from tt_engine.web.server import page_actors
+    db = _seeded(tmp_path)
+    html = page_actors(db, "")
+    gap = html.split("Product types with no actor")[-1] if "Product types with no actor" in html else ""
+    assert "restricted" not in gap
+    db.close()
+
+
+# ── real faces ────────────────────────────────────────────────────────────────
+
+def test_avatar_uses_a_real_photo_when_present_and_initials_when_not(tmp_path):
+    from tt_engine.creative.persona import Persona
+    from tt_engine.web.render import avatar
+    photo = tmp_path / "face.png"
+    photo.write_bytes(b"\x89PNG\r\n\x1a\n")
+    with_face = Persona(name="Maya", master_description="m", avatar=str(photo))
+    assert "<img" in avatar(with_face) and "/face?actor=maya" in avatar(with_face)
+    without = Persona(name="Ada Lovelace", master_description="m")
+    out = avatar(without)
+    assert "<img" not in out and ">AL<" in out   # initials fallback, never a fake face
+
+
+def test_avatar_is_discovered_beside_the_bible(tmp_path):
+    """MAYA.md + MAYA.jpg — no config needed."""
+    from tt_engine.creative.persona import load_persona
+    bible = tmp_path / "TESTER.md"
+    bible.write_text("## identity\n- name: Tester\n\n## master-description\n\nA person.\n",
+                     encoding="utf-8")
+    assert load_persona(str(bible)).avatar == ""
+    (tmp_path / "TESTER.jpg").write_bytes(b"\xff\xd8\xff")
+    assert load_persona(str(bible)).avatar.endswith("TESTER.jpg")
+
+
+def test_handle_strips_the_bible_parenthetical():
+    from tt_engine.creative.persona import Persona
+    p = Persona(name="Maya", master_description="m",
+                account="@maya.tries (her own account — NOT the brand)")
+    assert p.handle == "@maya.tries"

@@ -14,6 +14,9 @@ Run `python -m tt_engine.cli persona --path docs/persona/JORDAN.md` to validate.
 - pronouns: they/them
 - account: @jordan.irl (their own dedicated creator account — NOT the brand)
 - vibe: the deadpan early-adopter who shows the thing working and lets it speak
+- niche: gadgets, desk & gear
+- covers: electronics, accessories, hobby, toys
+- avatar: (drop a real reference still next to this file, e.g. JORDAN.jpg)
 
 ## master-description
 

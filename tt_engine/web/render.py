@@ -9,17 +9,25 @@ import re
 esc = html.escape
 
 _CSS = """
+/* PALETTE — a working instrument, not a mood.
+   Neutrals are genuinely neutral (chroma ~0.004) instead of tinted, so data reads
+   as data. ONE accent — a calm instrument blue — used only for "you can act on
+   this": links, the active tab, primary buttons. Status keeps its own three
+   colours (green/amber/red) and never borrows the accent, so "interactive" and
+   "how is it going" stay two different questions. Deliberately not the dark+purple
+   default: purple would compete with the red/amber status colours for attention. */
 :root {
-  --bg:oklch(0.165 0.006 72); --panel:oklch(0.207 0.008 72);
-  --elev:oklch(0.247 0.009 72); --line:oklch(0.315 0.008 72);
-  --line-soft:oklch(0.27 0.007 72);
-  /* --mut / --faint bumped for WCAG AA (≥4.5:1 on --panel): secondary text and
-     table headers were failing contrast at the old lightness. */
-  --ink:oklch(0.945 0.006 82); --mut:oklch(0.74 0.01 82); --faint:oklch(0.655 0.01 82);
-  --acc:oklch(0.76 0.128 279); --acc-soft:oklch(0.76 0.128 279 / 0.15);
-  --acc-line:oklch(0.76 0.128 279 / 0.30); --acc-ink:oklch(0.20 0.03 279);
-  --good:oklch(0.76 0.15 156); --warn:oklch(0.81 0.13 82); --bad:oklch(0.665 0.17 26);
-  --shadow:0 1px 2px oklch(0 0 0 / 0.35), 0 8px 24px -16px oklch(0 0 0 / 0.5);
+  --bg:oklch(0.172 0.004 250); --panel:oklch(0.213 0.005 250);
+  --elev:oklch(0.256 0.006 250); --line:oklch(0.325 0.007 250);
+  --line-soft:oklch(0.278 0.006 250);
+  /* mut/faint sit above WCAG AA (≥4.5:1) on --panel. */
+  --ink:oklch(0.955 0.003 250); --mut:oklch(0.755 0.006 250);
+  --faint:oklch(0.655 0.007 250);
+  --acc:oklch(0.705 0.125 236); --acc-soft:oklch(0.705 0.125 236 / 0.14);
+  --acc-line:oklch(0.705 0.125 236 / 0.32); --acc-ink:oklch(0.17 0.03 236);
+  --good:oklch(0.745 0.135 156); --warn:oklch(0.795 0.12 78);
+  --bad:oklch(0.665 0.165 25);
+  --shadow:0 1px 2px oklch(0 0 0 / 0.30), 0 6px 20px -14px oklch(0 0 0 / 0.45);
 }
 * { box-sizing:border-box; }
 html { scroll-behavior:smooth; }
@@ -39,22 +47,38 @@ nav .brand { font-weight:700; letter-spacing:-0.01em; margin-right:16px; font-si
 nav a { padding:6px 12px; border-radius:8px; color:var(--mut); font-size:13.5px;
         font-weight:500; transition:background-color .15s ease, color .15s ease; }
 nav a:hover { background:var(--elev); color:var(--ink); text-decoration:none; }
-/* Active page: brighter text + a solid underline bar, not just a faint fill —
-   the old subtle tint was easy to miss among 16 links. */
-nav a.on { background:var(--acc-soft); color:var(--acc); font-weight:700; }
-nav a.on::after { content:""; position:absolute; left:10px; right:10px; bottom:-11px;
-                  height:2px; background:var(--acc); border-radius:2px 2px 0 0; }
-nav a { position:relative; }
+nav a { position:relative; padding:6px 11px; }
 nav a:focus-visible { outline:2px solid var(--acc); outline-offset:-2px; }
-/* Grouping by visual containment, not text labels — a subtle inset pill around each
-   cluster reads as a group without the width a label row would cost (which forced the
-   nav to wrap to two rows). The group's name is exposed to assistive tech via title. */
-.navgroup { display:flex; gap:1px; align-items:center; padding:2px; border-radius:10px;
-            background:oklch(0.24 0.008 72 / 0.5); }
-.navsep { display:none; }
-nav a { padding:6px 11px; }
-@media (max-width:820px) { .navgroup { background:none; padding:0; }
-                           nav { gap:2px; padding:9px 14px; } }
+
+/* Tier 1 — the four sections. Each is a place, so it gets an icon and real weight. */
+.sectabs { display:flex; gap:4px; align-items:center; }
+.sectab { display:inline-flex; align-items:center; gap:7px; padding:7px 14px !important;
+          border-radius:9px; font-size:13.5px; font-weight:600; color:var(--mut); }
+.sectab .ico { font-size:14px; opacity:.85; }
+.sectab.on { background:var(--acc-soft); color:var(--acc); font-weight:700; }
+.sectab.on::after { content:""; position:absolute; left:12px; right:12px; bottom:-12px;
+                    height:2px; background:var(--acc); border-radius:2px 2px 0 0; }
+
+/* Tier 2 — only the pages inside the section you're in. */
+.subnav { position:sticky; top:49px; z-index:19; display:flex; align-items:baseline;
+          gap:18px; flex-wrap:wrap; padding:9px 22px; background:var(--bg);
+          border-bottom:1px solid var(--line-soft); }
+.subnav-label { font-size:11px; text-transform:uppercase; letter-spacing:0.1em;
+                font-weight:700; color:var(--ink); white-space:nowrap; }
+.subnav-label em { display:block; font-style:normal; text-transform:none;
+                   letter-spacing:0; font-weight:400; font-size:11.5px;
+                   color:var(--faint); margin-top:2px; }
+.subnav-links { display:flex; gap:2px; flex-wrap:wrap; }
+.subnav-links a { padding:5px 11px; border-radius:8px; color:var(--mut);
+                  font-size:13px; font-weight:500; }
+.subnav-links a:hover { background:var(--elev); color:var(--ink); text-decoration:none; }
+.subnav-links a.on { background:var(--elev); color:var(--ink); font-weight:650;
+                     box-shadow:inset 0 0 0 1px var(--line); }
+.toc { top:96px; }   /* clears both nav tiers */
+@media (max-width:820px) { .sectab { padding:6px 10px !important; }
+                           .sectab span.ico { display:none; }
+                           .subnav { padding:8px 14px; }
+                           .subnav-label em { display:none; } }
 
 main { max-width:1120px; margin:0 auto; padding:26px 22px 96px; }
 main p, main li { max-width:76ch; }
@@ -81,12 +105,12 @@ tr:last-child td { border-bottom:none; }
 
 .chip { display:inline-block; padding:2.5px 11px; border-radius:999px; font-size:11.5px;
         font-weight:650; letter-spacing:0.01em; line-height:1.5; white-space:nowrap; }
-.chip.TEST { background:oklch(0.76 0.15 156 / 0.16); color:var(--good);
-             box-shadow:inset 0 0 0 1px oklch(0.76 0.15 156 / 0.22); }
-.chip.WATCH { background:oklch(0.81 0.13 82 / 0.15); color:var(--warn);
-              box-shadow:inset 0 0 0 1px oklch(0.81 0.13 82 / 0.22); }
-.chip.KILL { background:oklch(0.665 0.17 26 / 0.16); color:var(--bad);
-             box-shadow:inset 0 0 0 1px oklch(0.665 0.17 26 / 0.24); }
+.chip.TEST { background:oklch(0.745 0.135 156 / 0.16); color:var(--good);
+             box-shadow:inset 0 0 0 1px oklch(0.745 0.135 156 / 0.24); }
+.chip.WATCH { background:oklch(0.795 0.12 78 / 0.15); color:var(--warn);
+              box-shadow:inset 0 0 0 1px oklch(0.795 0.12 78 / 0.24); }
+.chip.KILL { background:oklch(0.665 0.165 25 / 0.16); color:var(--bad);
+             box-shadow:inset 0 0 0 1px oklch(0.665 0.165 25 / 0.26); }
 .chip.info { background:var(--elev); color:var(--mut);
              box-shadow:inset 0 0 0 1px var(--line); }
 
@@ -98,9 +122,9 @@ tr:last-child td { border-bottom:none; }
 .kpi span { color:var(--faint); font-size:11px; text-transform:uppercase;
             letter-spacing:0.06em; margin-top:5px; display:block; }
 
-code, pre { background:oklch(0.14 0.006 72); border:1px solid var(--line-soft);
+code, pre { background:oklch(0.145 0.004 250); border:1px solid var(--line-soft);
             border-radius:7px; font:13px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
-code { padding:1.5px 6px; color:oklch(0.86 0.03 279); }
+code { padding:1.5px 6px; color:oklch(0.855 0.05 236); }
 /* Wrap long prose lines (the month-one bullet notes overflowed their panel and
    clipped behind a scrollbar). Short aligned number columns stay on one line at
    panel width; only genuinely long lines wrap. */
@@ -168,7 +192,7 @@ hr { border:none; border-top:1px solid var(--line-soft); margin:18px 0; }
                   border:1px solid var(--line); text-align:center; line-height:17px;
                   font-size:13px; color:var(--good); text-decoration:none;
                   transition:border-color .15s ease, background-color .15s ease; }
-.pbstep .box a:hover { border-color:var(--good); background:oklch(0.76 0.15 156 / 0.12); }
+.pbstep .box a:hover { border-color:var(--good); background:oklch(0.745 0.135 156 / 0.12); }
 .pbstep .body b { display:inline-block; }
 .pbstep .src { font-size:11px; color:var(--faint); margin-left:6px; }
 .pbstep .cmd { margin-top:4px; }
@@ -242,7 +266,16 @@ details.how > summary:focus-visible { outline:2px solid var(--acc); outline-offs
 .card .nm { font-size:17px; font-weight:650; letter-spacing:-0.01em; }
 .avatar { width:44px; height:44px; border-radius:50%; display:inline-flex;
           align-items:center; justify-content:center; font-weight:700; font-size:18px;
-          background:var(--acc-soft); color:var(--acc); flex:0 0 auto; }
+          background:var(--acc-soft); color:var(--acc); flex:0 0 auto;
+          overflow:hidden; object-fit:cover; }
+img.avatar { background:var(--elev); box-shadow:inset 0 0 0 1px var(--line); }
+.avatar.lg { width:76px; height:76px; font-size:28px; }
+/* "no photo yet" reads as a task, not a broken image. */
+.avatar.empty { background:var(--elev); color:var(--faint);
+                box-shadow:inset 0 0 0 1px var(--line); font-size:13px; }
+.lane { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11.5px;
+        font-weight:600; background:var(--elev); color:var(--mut);
+        box-shadow:inset 0 0 0 1px var(--line); }
 .crow { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
 
 /* ── copy button on code blocks ───────────────────────────────────────────── */
@@ -390,27 +423,47 @@ _JS = r"""
 })();
 """
 
-# Nav in three groups: what you DO daily, what you BUILD, what you LEARN FROM.
-# Fourteen undifferentiated links is a wall; grouped, it reads as a workspace.
-_NAV_GROUPS = [
-    ("operate", [("Overview", "/"), ("Audit", "/audit"), ("Launch", "/launch"),
-                 ("Playbook", "/playbook")]),
-    ("build",   [("Catalog", "/catalog"), ("Restyle", "/restyle"), ("Ideas", "/ideas"),
-                 ("Search", "/search"), ("Actors", "/actors"),
-                 ("Styles", "/styles"), ("Creators", "/creators")]),
-    # Labels are kept short deliberately: fifteen full-width links wrap to a second
-    # row, and a two-row nav pushes every page's content below the fold.
-    ("learn",   [("Ask", "/assistant"), ("Organic", "/organic"),
-                 ("Ads", "/advertising"), ("Budget", "/budget"),
-                 ("Profit", "/profit")]),   # /million still routes; Profit is the goal page now
+# ── Information architecture ─────────────────────────────────────────────────
+# Sixteen flat links is a wall you have to read every time. Instead the app has
+# four NAMED SECTIONS, each answering one question, and the second nav row only
+# ever shows the pages inside the section you're in. You always know where you
+# are and what else lives here.
+#
+#   ENGINE  — what should I sell?      (find, score, decide)
+#   STUDIO  — how do I make the video? (actors, footage, style)
+#   MONEY   — what will this earn?     (budget, profit, ads)
+#   START   — what do I do first?      (the ordered checklists)
+SECTIONS = [
+    ("engine", "Engine", "🔍", "Find and pick the product",
+     [("Overview", "/"), ("Catalog", "/catalog"), ("Search", "/search"),
+      ("Ideas", "/ideas"), ("Audit", "/audit")]),
+    ("studio", "Studio", "🎬", "Make the videos",
+     [("Actors", "/actors"), ("Restyle", "/restyle"), ("Styles", "/styles"),
+      ("Creators", "/creators")]),
+    ("money", "Money", "💵", "See what it earns",
+     [("Profit", "/profit"), ("Budget", "/budget"), ("Ads", "/advertising"),
+      ("Organic", "/organic")]),
+    ("start", "Start", "🚩", "Do it in order",
+     [("Launch", "/launch"), ("Playbook", "/playbook"), ("Ask", "/assistant")]),
 ]
 
-# Flat view, kept because callers and tests reason about "is this page in the nav".
-_NAV = [item for _, items in _NAV_GROUPS for item in items]
+# Flat view — callers and tests reason about "is this page reachable from the nav".
+_NAV = [item for *_, items in SECTIONS for item in items]
+
+# Back-compat for anything still importing the old grouping shape.
+_NAV_GROUPS = [(key, items) for key, _, _, _, items in SECTIONS]
+
+
+def _section_for(path: str):
+    """Which section owns this page. Falls back to the first section."""
+    for entry in SECTIONS:
+        if any(href == path for _, href in entry[4]):
+            return entry
+    return SECTIONS[0]
 
 
 def sparkline(values: list[float], width: int = 220, height: int = 44,
-              stroke: str = "oklch(0.76 0.128 279)") -> str:
+              stroke: str = "oklch(0.705 0.125 236)") -> str:
     """Inline SVG sparkline — no JS, no external assets. A soft area fill under the
     line grounds it; the last point gets a dot so the current value reads at a glance."""
     pts = [v for v in values if v is not None]
@@ -449,19 +502,26 @@ def meter(fraction: float, label: str) -> str:
 
 
 def page(title: str, body: str, active: str = "/") -> str:
-    groups = []
-    for i, (label_name, items) in enumerate(_NAV_GROUPS):
-        links = "".join(
-            f'<a href="{href}"{" class=on" if href == active else ""}>{esc(label)}</a>'
-            for label, href in items
-        )
-        groups.append(f"<span class=navgroup title='{esc(label_name)}' "
-                      f"aria-label='{esc(label_name)}'>{links}</span>")
-    nav = "".join(groups)
+    """Two-tier nav: sections on top, the current section's pages beneath. You can
+    always see which area you're in and what else it contains."""
+    key, sec_label, icon, tagline, items = _section_for(active)
+
+    tabs = "".join(
+        f'<a href="{k_items[0][1]}" class="sectab{" on" if k == key else ""}">'
+        f'<span class=ico aria-hidden=true>{ico}</span>{esc(lbl)}</a>'
+        for k, lbl, ico, _tag, k_items in SECTIONS
+    )
+    subs = "".join(
+        f'<a href="{href}"{" class=on" if href == active else ""}>{esc(label)}</a>'
+        for label, href in items
+    )
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{esc(title)} · ENGINE</title><style>{_CSS}</style></head><body>"
-            f"<nav><span class=brand>◈ ENGINE</span>{nav}</nav>"
+            f"<nav><a class=brand href='/'>◈ ENGINE</a>"
+            f"<span class=sectabs>{tabs}</span></nav>"
+            f"<div class=subnav><span class=subnav-label>{esc(sec_label)}"
+            f"<em>{esc(tagline)}</em></span><span class=subnav-links>{subs}</span></div>"
             f"<main>{body}</main><div id=toast></div>"
             f"<script>{_JS}</script></body></html>")
 
@@ -479,6 +539,22 @@ def empty_state(icon: str, text: str, action_html: str = "") -> str:
     act = f"<div class=act>{action_html}</div>" if action_html else ""
     return (f"<div class=empty><span class=ico aria-hidden=true>{esc(icon)}</span>"
             f"<div>{text}</div>{act}</div>")
+
+
+def avatar(persona, large: bool = False) -> str:
+    """The actor's REAL reference photo when they have one, initials when they don't.
+
+    The photo is the operator's own still (they already need 20–25 of them to train a
+    Soul ID) — served from /face?actor=<slug>. The app never invents or renders a
+    face; a missing photo says so plainly instead of faking one."""
+    size = " lg" if large else ""
+    name = getattr(persona, "name", "?") or "?"
+    if getattr(persona, "avatar", ""):
+        return (f"<img class='avatar{size}' src='/face?actor={esc(persona.slug)}' "
+                f"alt='{esc(name)}' loading=lazy>")
+    initials = "".join(w[0] for w in name.split()[:2]).upper() or "?"
+    return (f"<span class='avatar{size} empty' title='No photo yet — add one on this "
+            f"actor&#39;s page'>{esc(initials)}</span>")
 
 
 def cmd_code(command: str) -> str:

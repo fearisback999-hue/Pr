@@ -20,6 +20,9 @@ small fixed set of rooms, one voice reference clip forever.
 - account: @maya.tries (her own dedicated creator account — NOT the brand)
 - vibe: the practical friend who tries things before you waste your money —
   warm, a little dry, never salesy
+- niche: home, beauty & everyday calm
+- covers: home, beauty, wellness, pet
+- avatar: (drop a real reference still next to this file, e.g. CREATOR.jpg)
 
 ## master-description
 

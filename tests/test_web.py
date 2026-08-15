@@ -176,8 +176,8 @@ def test_product_page_shows_lifecycle_confidence_and_chart(server):
 def test_overview_shows_autopilot_and_run_proposes(server):
     status, body = _get(server, "/")
     assert status == 200
-    assert "Autopilot — automated, approval-gated" in body
-    assert "nothing runs until you approve" in body
+    assert "Autopilot" in body
+    assert "nothing happens until you say yes" in body
 
     status, _ = _get(server, "/autopilot/run")
     assert status == 303                               # propose + redirect, no page spend
@@ -264,7 +264,7 @@ def test_overview_links_to_playbook(server):
     status, body = _get(server, "/")
     assert status == 200
     assert "/playbook" in body
-    assert "playbook steps" in body
+    assert "setup steps done" in body      # KPI label, plain-language pass
 
 
 def test_playbook_page_renders_all_phases(server):

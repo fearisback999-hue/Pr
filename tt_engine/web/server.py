@@ -24,8 +24,8 @@ from ..playbook import STEPS, VERIFIED_DATE, all_sources, current_phase, overall
 from ..reports.scorecard import render_scorecard, verdict
 from ..validation import KILL_HOURS, hours_below_breakeven, summarize_tests
 from .render import (
-    chip, cmd_code, empty_state, esc, kpi, md_to_html, meter, page, sparkline,
-    stage_chip, table, toc,
+    avatar, chip, cmd_code, empty_state, esc, kpi, md_to_html, meter, page,
+    sparkline, stage_chip, table, toc,
 )
 
 # Pricing verified 2026-07-09 via live web research — reverify before budgeting against
@@ -80,10 +80,10 @@ def page_overview(db: Database) -> str:
     pb_done, pb_total = overall(db)
     body.append("<div class=kpis>"
                 + kpi(str(len(scores)), "products scored")
-                + kpi(str(attack), "TEST-ready now")
-                + kpi(str(len(live_tests)), "products with live tests")
-                + kpi(f"{CONFIG.score_threshold:.0f}", "score threshold")
-                + kpi(f"{pb_done}/{pb_total}", "playbook steps")
+                + kpi(str(attack), "ready to test")
+                + kpi(str(len(live_tests)), "tests running")
+                + kpi(f"{CONFIG.score_threshold:.0f}", "score needed to test")
+                + kpi(f"{pb_done}/{pb_total}", "setup steps done")
                 + "</div>")
 
     where = current_phase(db)
@@ -140,11 +140,11 @@ def page_overview(db: Database) -> str:
 
     # ── Autopilot: the approval-gated automation queue ─────────────────────────
     pending = db.autopilot_actions(status="pending")
-    body.append("<h2>Autopilot — automated, approval-gated</h2><div class=panel>")
-    body.append("<p><a href='/autopilot/run'>↻ refresh proposals</a> — the engine "
-                "proposes every next step; nothing runs until you approve it. "
-                "<span class=mut>Safe (internal) steps approve right here; anything "
-                "that spends money is CLI-only, always.</span></p>")
+    body.append("<h2>Autopilot</h2><div class=panel>")
+    body.append("<p>The engine suggests the next step; <b>nothing happens until you say yes</b>. "
+                "<a href='/autopilot/run'>↻ Suggest next steps</a></p>"
+                "<p class=mut>Free steps you can approve right here. Anything that spends "
+                "money is terminal-only, always.</p>")
     if pending:
         rows = []
         for i in pending:
@@ -620,10 +620,10 @@ def page_audit(db: Database) -> str:
                   for s in ("critical", "warning", "info", "good")}
 
     body = ["<h1>Audit</h1>",
-            "<p class=mut>Every check the engine can make about your business, run "
-            "against your real database. The rules layer is arithmetic — no model in "
-            "the loop, nothing to hallucinate. The judgment layer is clearly labeled "
-            "and can only add commentary, never talk you out of a finding.</p>"]
+            "<p class=mut>Every check the engine can run against your real data, worst "
+            "first. The checks are plain arithmetic, so they can't be wrong about a "
+            "number. The AI comment at the top only adds priority — it can never "
+            "remove a problem.</p>"]
 
     body.append("<div class=kpis>"
                 + kpi(f"{report.score}", "readiness")
@@ -1022,50 +1022,125 @@ def page_actors(db: Database, use_slug: str = "") -> str:
     """The actor roster as a hub: every AI creator you've built, each on its own
     account. Click one to create a video with them — pick a product and the engine
     starts an editable spec (actor + product + prompt) you fix before generating."""
-    from ..creative.persona import load_personas, persona_by_slug, validate_persona
+    from ..creative.persona import (
+        lane_report, load_personas, persona_by_slug, validate_persona,
+    )
     roster = load_personas()
     body = ["<h1>Actors</h1>",
-            "<blockquote>Your roster of AI creators, each posting from its OWN account. "
-            "Click <b>Create with…</b> on an actor, pick a product, and the engine "
-            "starts an editable video spec (actor · product · prompt) you fix before "
-            "spending any credits. Add more as <code>docs/persona/*.md</code> "
-            "files.</blockquote>"]
+            "<p class=mut>Each actor is one AI person with one TikTok account. "
+            "Click an actor to see their face, rooms and voice — or to start a video "
+            "with them.</p>"]
     if not roster:
-        body.append("<div class=panel><p class=mut>No actors yet. The shipped template "
-                    "is <code>docs/persona/CREATOR.md</code>; copy it to add more.</p></div>")
+        body.append(empty_state("🎭", "No actors yet.",
+                    "<span class=mut>Copy <code>docs/persona/CREATOR.md</code> to add "
+                    "one.</span>"))
         return page("Actors", "".join(body), "/actors")
 
     chosen = persona_by_slug(use_slug) if use_slug else None
 
     if chosen is None:
-        # The roster grid — pick an actor to create with.
+        # ── The one thing people get wrong about a roster ──────────────────────
+        from ..sourcing.catalog import is_prohibited
+        lanes = lane_report(roster, [p.category for p in db.all_products()
+                                     if not is_prohibited(p)[0]])
+        body.append(
+            "<div class=panel><p class=label>One actor sells MANY products — but all "
+            "from one world</p>"
+            "<p>TikTok learns who an account is for. An account that posts a dog vest, "
+            "then guitar straps, then blue-light glasses never lets the algorithm settle "
+            "on an audience, and reach drops. So each actor owns a <b>lane</b> (a kind of "
+            "person they talk to) and can sell <b>any number of products inside it</b>.</p>"
+            "<p class=mut>Maya can do a candle, a mug and a scalp massager — all "
+            "\"home &amp; calm\". A power drill belongs to a different actor.</p></div>")
+
         body.append("<div class=grid>")
         for p in roster:
             ready = not validate_persona(p)
-            initial = esc(p.name[:1].upper())
-            status = ("<span class=good>ready</span>" if ready
-                      else "<span class=warn>needs setup</span>")
+            status = ("<span class='chip TEST'>ready</span>" if ready
+                      else "<span class='chip WATCH'>needs setup</span>")
+            lane = (f"<span class=lane>{esc(p.niche)}</span>" if p.niche
+                    else "<span class=lane>no lane set</span>")
+            covers = ", ".join(p.covers) or "—"
             body.append(
                 f"<div class=card><div class=crow>"
-                f"<span class=avatar>{initial}</span>"
+                f"{avatar(p)}"
                 f"<div><div class=nm>{esc(p.name)}</div>"
-                f"<div class=mut style='font-size:12px'>{esc(p.account or 'no account set')}"
+                f"<div class=mut style='font-size:12px'>{esc(p.handle or 'no account set')}"
                 f"</div></div></div>"
-                f"<p class=mut style='min-height:34px'>rooms: "
-                f"{esc(', '.join(p.settings) or '—')}</p>"
-                f"<p>{status} · <a href='/actors?use={esc(p.slug)}'>"
-                "<b>Create with " + esc(p.name) + " →</b></a></p></div>")
+                f"<p style='margin:2px 0 8px'>{lane}</p>"
+                f"<p class=mut style='min-height:32px;font-size:13px'>"
+                f"Sells: {esc(covers)}</p>"
+                f"<p>{status} &nbsp; <a href='/actors?use={esc(p.slug)}'>"
+                "<b>Open " + esc(p.name) + " →</b></a></p></div>")
         body.append("</div>")
+
+        # Which product types have nobody to sell them.
+        if lanes["uncovered"]:
+            body.append(
+                "<div class='panel sev sev-warning'><p class=label>Product types with no "
+                "actor</p><p>You have products in these categories but no actor whose "
+                "lane covers them: <b>" + esc(", ".join(lanes["uncovered"])) + "</b>.</p>"
+                "<p class=mut>Either add the category to an existing actor's "
+                "<code>covers:</code> line (if it genuinely fits their world), or make a "
+                "new actor for it. Don't quietly hand it to whoever is free — that is "
+                "the mixed-account problem above.</p></div>")
+        if lanes["actors_without_lane"]:
+            names = ", ".join(a.name for a in lanes["actors_without_lane"])
+            body.append(
+                f"<div class='panel sev sev-warning'><p class=label>Actors with no lane"
+                f"</p><p><b>{esc(names)}</b> "
+                f"{'has' if len(lanes['actors_without_lane']) == 1 else 'have'} no "
+                "<code>niche:</code> / <code>covers:</code> set, so the engine can't "
+                "route products to them.</p>"
+                "<p class=mut>Add two lines to their bible:<br>"
+                "<code>- niche: home &amp; everyday calm</code><br>"
+                "<code>- covers: home, beauty, wellness</code></p></div>")
         return page("Actors", "".join(body), "/actors")
 
     # A specific actor chosen — the FULL character profile: look, rooms, voice, and
     # the create-a-spec picker. Everything that defines the character, in one place.
     p = chosen
     warns = validate_persona(p)
-    body.append(f"<div class=crow style='margin:8px 0 4px'>"
-                f"<span class=avatar>{esc(p.name[:1].upper())}</span>"
+    lane = (f"<span class=lane>{esc(p.niche)}</span>" if p.niche
+            else "<span class=lane>no lane set</span>")
+    body.append(f"<div class=crow style='margin:8px 0 4px;gap:16px'>"
+                f"{avatar(p, large=True)}"
                 f"<div><div class=nm style='font-size:22px'>{esc(p.name)}</div>"
-                f"<div class=mut>{esc(p.account or 'no account set')}</div></div></div>")
+                f"<div class=mut>{esc(p.handle or 'no account set')}</div>"
+                f"<div style='margin-top:6px'>{lane}</div></div></div>")
+
+    # ── Their face (the real reference still) ──────────────────────────────────
+    body.append("<h2>Their face</h2><div class=panel>")
+    if p.avatar:
+        body.append(f"<p class=mut>Using <code>{esc(Path(p.avatar).name)}</code>. This is "
+                    "the photo shown on their card and profile — the same still you use "
+                    "to train their Soul ID.</p>")
+    else:
+        body.append("<p>No photo yet, so cards show initials. Upload one real reference "
+                    "still of this character and it becomes their face everywhere.</p>")
+    body.append(
+        "<form class='calc wide' method=post action='/actors/face' "
+        "enctype='multipart/form-data'>"
+        f"<input type=hidden name=actor value='{esc(p.slug)}'>"
+        "<label>Photo<input type=file name=photo accept='image/*' required></label>"
+        "<button type=submit>Save face</button></form>"
+        "<p class=mut>Stored next to their bible in <code>docs/persona/</code>. Use a "
+        "still of the character you generated — the app never invents a face.</p></div>")
+
+    # ── What they sell (the lane) ──────────────────────────────────────────────
+    body.append("<h2>What they sell</h2><div class=panel>")
+    if p.covers:
+        body.append("<p>Product types this account can carry: <b>"
+                    + esc(", ".join(p.covers)) + "</b>.</p>"
+                    "<p class=mut>Any number of products inside that list is fine — that "
+                    "is the point of a lane. A product from outside it should go to a "
+                    "different actor, or get one of their own.</p>")
+    else:
+        body.append("<p>No lane set, so the engine can't route products here.</p>"
+                    "<p class=mut>Add to their bible:<br>"
+                    "<code>- niche: home &amp; everyday calm</code><br>"
+                    "<code>- covers: home, beauty, wellness</code></p>")
+    body.append("</div>")
 
     def field(label, value):
         return (f"<tr><td style='color:var(--faint);white-space:nowrap;"
@@ -1903,6 +1978,8 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/publish":
                     html = page_publish(db, (q.get("id") or [""])[0],
                                         (q.get("confirm") or [""])[0] == "1")
+                elif url.path == "/face":
+                    return self._send_face((q.get("actor") or [""])[0])
                 elif url.path == "/actors":
                     html = page_actors(db, (q.get("use") or [""])[0])
                 elif url.path == "/actors/new":
@@ -1945,6 +2022,8 @@ class Handler(BaseHTTPRequestHandler):
         generation stays a separate, explicitly confirmed CLI step."""
         from urllib.parse import quote
         url = urlparse(self.path)
+        if url.path == "/actors/face":
+            return self._post_actor_face()
         if url.path != "/restyle/new":
             return self._send(404, page("Not found", "<h1>404</h1>"))
         try:
@@ -1974,6 +2053,59 @@ class Handler(BaseHTTPRequestHandler):
             return self._redirect(f"/restyle?id={jid}")
         except Exception as e:
             return self._redirect("/restyle?msg=" + quote(f"{type(e).__name__}: {e}"))
+
+    _IMG_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+                  ".webp": "image/webp"}
+
+    def _post_actor_face(self) -> None:
+        """Save an actor's reference photo beside their bible, named after it, so
+        `load_persona` picks it up automatically on the next read."""
+        from urllib.parse import quote
+        from ..creative.persona import persona_by_slug
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 20 * 1024 * 1024:
+            return self._redirect("/actors?msg=" + quote("photo must be under 20MB"))
+        form = parse_multipart(self.rfile.read(length),
+                               self.headers.get("Content-Type", ""))
+        slug = form.get("actor", "")
+        p = persona_by_slug(slug) if slug else None
+        if p is None or "__file__" not in form:
+            return self._redirect("/actors")
+        filename, data = form["__file__"]
+        suffix = Path(filename).suffix.lower()
+        if suffix not in self._IMG_TYPES:
+            return self._redirect(f"/actors?use={quote(slug)}")
+        # Named after the bible so _find_avatar resolves it with no config.
+        dest = Path(p.source_path).with_suffix(suffix)
+        for other in self._IMG_TYPES:            # one face per actor — replace, not stack
+            stale = Path(p.source_path).with_suffix(other)
+            if stale.exists() and stale != dest:
+                stale.unlink()
+        dest.write_bytes(data)
+        return self._redirect(f"/actors?use={quote(slug)}")
+
+    def _send_face(self, slug: str) -> None:
+        """Serve an actor's reference photo. Only ever serves the exact path recorded
+        on a known persona — the slug is looked up, never joined into a path, so a
+        crafted `actor=` can't reach an arbitrary file."""
+        from ..creative.persona import persona_by_slug
+        p = persona_by_slug(slug) if slug else None
+        if p is None or not p.avatar:
+            return self._send(404, page("Not found", "<h1>No photo</h1>"))
+        path = Path(p.avatar)
+        ctype = self._IMG_TYPES.get(path.suffix.lower())
+        if ctype is None or not path.exists():
+            return self._send(404, page("Not found", "<h1>No photo</h1>"))
+        data = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _redirect(self, location: str) -> None:
         self.send_response(303)

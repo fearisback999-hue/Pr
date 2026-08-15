@@ -39,7 +39,20 @@ class Persona:
     voice_reference: str = ""               # canonical clip fed to native-audio gen
     forbidden: list[str] = field(default_factory=list)      # must-never-change list
     account: str = ""                       # the dedicated account this actor posts from
+    # The LANE this account serves. Not one product — one AUDIENCE. TikTok learns who
+    # an account's content is for; an account that jumps from dog vests to guitar
+    # straps to blue-light glasses never lets the algorithm find a stable audience,
+    # so reach decays. One actor can carry many products INSIDE their lane.
+    niche: str = ""                         # short label, e.g. "home & tidy living"
+    covers: list[str] = field(default_factory=list)   # product categories in this lane
+    avatar: str = ""                        # path to the actor's real reference photo
     source_path: str = ""
+
+    @property
+    def handle(self) -> str:
+        """Just the @handle, without the explanatory parenthetical the bible carries
+        for the human reading it ("@maya.tries (her own account — NOT the brand)")."""
+        return (self.account or "").split("(")[0].strip()
 
     @property
     def slug(self) -> str:
@@ -155,7 +168,66 @@ def load_persona(path: Optional[str] = None) -> Optional[Persona]:
         speech_quirks=quirks, voice_description=voice.get("description", ""),
         voice_reference=voice.get("reference", ""), forbidden=forbidden,
         account=identity.get("account", ""), source_path=str(p),
+        niche=identity.get("niche", ""),
+        covers=[c.strip().lower() for c in identity.get("covers", "").split(",")
+                if c.strip()],
+        avatar=_find_avatar(p, identity.get("avatar", "")),
     )
+
+
+# Image files an actor's photo may use. The photo is the operator's own reference
+# still (they already need 20–25 of them for Soul ID training) — the app just shows
+# the one they point at, it never invents a face.
+_AVATAR_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def _find_avatar(bible_path: Path, declared: str) -> str:
+    """Resolve the actor's face photo: an explicit `avatar:` line wins, otherwise a
+    sibling file named after the bible (MAYA.md → MAYA.jpg). Returns "" if none."""
+    if declared:
+        cand = Path(declared)
+        if not cand.is_absolute():
+            cand = bible_path.parent / declared
+        if cand.exists():
+            return str(cand.resolve())
+    for suf in _AVATAR_SUFFIXES:
+        cand = bible_path.with_suffix(suf)
+        if cand.exists():
+            return str(cand.resolve())
+    return ""
+
+
+# ── lanes: which actor should sell which product ─────────────────────────────
+# The answer to "does every character need a niche?" — an account needs a coherent
+# AUDIENCE, not a single product. Many products per actor is fine and desirable;
+# products from a different world are what break the account.
+
+def actor_for_product(personas: list[Persona], category: str) -> Optional[Persona]:
+    """Pick the roster actor whose lane covers this product category. Returns None
+    when nobody covers it — which is a real answer, not a failure: it means either
+    assign the lane to an actor deliberately, or the product doesn't fit your roster."""
+    cat = (category or "").strip().lower()
+    if not cat:
+        return None
+    for p in personas:
+        if cat in p.covers:
+            return p
+    return None
+
+
+def lane_report(personas: list[Persona], categories: list[str]) -> dict:
+    """Which lanes are covered, which actor owns each, and which product categories
+    have no home yet. Used by the dashboard to make the routing visible."""
+    covered: dict[str, Persona] = {}
+    for p in personas:
+        for c in p.covers:
+            covered.setdefault(c, p)
+    uncovered = sorted({(c or "").lower() for c in categories if c} - set(covered))
+    return {
+        "covered": covered,
+        "uncovered": uncovered,
+        "actors_without_lane": [p for p in personas if not p.covers],
+    }
 
 
 def load_personas(directory: Optional[str] = None) -> list[Persona]:
