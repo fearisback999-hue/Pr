@@ -24,7 +24,8 @@ from ..playbook import STEPS, VERIFIED_DATE, all_sources, current_phase, overall
 from ..reports.scorecard import render_scorecard, verdict
 from ..validation import KILL_HOURS, hours_below_breakeven, summarize_tests
 from .render import (
-    chip, esc, kpi, md_to_html, meter, page, sparkline, stage_chip, table,
+    chip, cmd_code, empty_state, esc, kpi, md_to_html, meter, page, sparkline,
+    stage_chip, table, toc,
 )
 
 # Pricing verified 2026-07-09 via live web research — reverify before budgeting against
@@ -94,14 +95,47 @@ def page_overview(db: Database) -> str:
     body.append("<h2>What to do next</h2><div class=panel>")
     steps = all_steps(db)
     if not steps:
-        body.append("<p class=mut>Nothing in the pipeline yet — import a CSV or add a "
-                    "product: <code>python -m tt_engine.cli import-csv …</code></p>")
-    for s in steps[:12]:
-        cmd = f"<div class=cmd><code>{esc(s.command)}</code></div>" if s.command else ""
-        body.append(f"<div class=step><a href='/product?id={esc(s.product_id)}'>"
-                    f"<b>{esc(s.product_id)}</b></a> "
-                    f"<span class='chip info'>{esc(s.stage)}</span> "
-                    f"{esc(s.action)}{cmd}</div>")
+        body.append(empty_state("📥", "Nothing in the pipeline yet — import a CSV or add "
+                    "a product to get started.",
+                    cmd_code("python -m tt_engine.cli import-csv exports/kalodata.csv "
+                             "--source kalodata")))
+    else:
+        # Many products often share the exact same next step (e.g. 30 demo products all
+        # "need daily metrics"). Rendering 12 byte-identical rows is noise; collapse any
+        # stage with 3+ products into one summary row with links to each, and show the
+        # genuinely distinct steps individually.
+        from collections import OrderedDict
+        groups: "OrderedDict[str, list]" = OrderedDict()
+        for s in steps:
+            groups.setdefault(s.stage, []).append(s)
+        shown = 0
+        for stage, members in groups.items():
+            if shown >= 12:
+                break
+            if len(members) >= 3:
+                links = " ".join(
+                    f"<a href='/product?id={esc(m.product_id)}'>{esc(m.product_id)}</a>"
+                    for m in members[:24])
+                cmd = (f"<div class=cmd>{cmd_code(members[0].command)}</div>"
+                       if members[0].command else "")
+                body.append(
+                    f"<div class=step><span class='chip info'>{esc(stage)}</span> "
+                    f"<b>{len(members)} products</b> — {esc(members[0].action)}"
+                    f"<div class=mut style='margin-top:6px;line-height:2'>{links}</div>"
+                    f"{cmd}</div>")
+                shown += 1
+            else:
+                for s in members:
+                    if shown >= 12:
+                        break
+                    cmd = (f"<div class=cmd>{cmd_code(s.command)}</div>"
+                           if s.command else "")
+                    body.append(
+                        f"<div class=step><a href='/product?id={esc(s.product_id)}'>"
+                        f"<b>{esc(s.product_id)}</b></a> "
+                        f"<span class='chip info'>{esc(s.stage)}</span> "
+                        f"{esc(s.action)}{cmd}</div>")
+                    shown += 1
     body.append("</div>")
 
     # ── Autopilot: the approval-gated automation queue ─────────────────────────
@@ -131,8 +165,8 @@ def page_overview(db: Database) -> str:
                          esc(i["stage"]), esc(i["description"][:90]), act])
         body.append(table(["#", "Product", "Step", "What it does", "Decision"], rows))
     else:
-        body.append("<p class=mut>Queue empty — hit refresh to propose next steps "
-                    "from the live state.</p>")
+        body.append(empty_state("🤖", "Queue is empty.",
+                    "<a class=btn href='/autopilot/run'>↻ Propose next steps</a>"))
     body.append("</div>")
 
     # ── Test queue: ranked by expected dollars, not points ─────────────────────
@@ -315,7 +349,7 @@ def page_restyle(db: Database, job_id: str = "", msg: str = "") -> str:
 
     body.append(
         "<div class=panel><p class=label>New restyle</p>"
-        "<form class=calc method=post action='/restyle/new' "
+        "<form class='calc wide' method=post action='/restyle/new' "
         "enctype='multipart/form-data'>"
         f"<label>product<select name=product_id>{opts}</select></label>"
         "<label>your video<input type=file name=video accept='video/*' required></label>"
@@ -542,6 +576,21 @@ def page_catalog(db: Database, category: str = "") -> str:
                 "product can support paid traffic at all, not a pricing recommendation; "
                 "price off the margin floor in <code>scorecard</code> once real demand "
                 "data is in.</p>")
+
+    # Prohibited items are excluded from the ranking (they cannot be listed at all),
+    # but shown here so the exclusion is transparent — not a silent drop.
+    banned = cat.prohibited_products(db)
+    if banned:
+        rows = [[esc(p.name[:52]), esc(p.category),
+                 f"<span class='chip KILL'>cannot be listed</span>", esc(why)]
+                for p, why in banned]
+        body.append("<h2>Excluded — prohibited category</h2>"
+                    "<div class='panel sev sev-critical'>"
+                    "<p class=mut>These have supplier quotes but are on TikTok Shop's "
+                    "<b>permanently-prohibited</b> list. This is a compliance wall, not a "
+                    "MOQ or shipping issue — no margin makes them sellable. They are kept "
+                    "out of the ranking above.</p>"
+                    + table(["product", "category", "status", "why"], rows) + "</div>")
     return page("Catalog", "".join(body), "/catalog")
 
 
@@ -596,18 +645,20 @@ def page_audit(db: Database) -> str:
 
     for domain, items in by_domain.items():
         body.append(f"<div class=phasehead><h2 style='margin:0'>{esc(domain)}</h2>"
-                    f"<span class=n>{len(items)}</span></div><div class=panel>")
+                    f"<span class=n>{len(items)}</span></div>")
         for f in items:
             cls = _SEV_CLASS.get(f.severity, "info")
-            body.append(f"<div class=finding><p><span class='chip {cls}'>"
+            # Whole-card severity rail so criticals/warnings are scannable without
+            # reading the badge (bug #14).
+            body.append(f"<div class='panel sev sev-{esc(f.severity)}'>"
+                        f"<div class=finding><p><span class='chip {cls}'>"
                         f"{esc(f.severity)}</span> <b>{esc(f.title)}</b></p>"
                         f"<p class=mut>{esc(f.detail)}</p>")
             if f.money:
                 body.append(f"<p class=cost><b>Costs if ignored:</b> {esc(f.money)}</p>")
             if f.fix:
-                body.append(f"<p class=fix><b>Fix:</b> <code>{esc(f.fix)}</code></p>")
-            body.append("</div>")
-        body.append("</div>")
+                body.append(f"<p class=fix><b>Fix:</b> {cmd_code(f.fix)}</p>")
+            body.append("</div></div>")
 
     if not report.criticals:
         body.append("<blockquote>No criticals — nothing is actively bleeding. That is "
@@ -732,8 +783,11 @@ def page_launch(db: Database) -> str:
           "Scaled → raise 20–30% at a time, re-validating after each raise",
           "Diversify creative before scaling hard — fatigue kills a single creative"]),
     ]
-    for when, cost, title, items in phases:
-        body.append(f"<div class=phasehead><h2 style='margin:0'>{esc(title)}</h2>"
+    # Sticky jump-list so the 7 phases are reachable without scrolling blind.
+    body.append(toc([(f"phase-{i}", when) for i, (when, *_ ) in enumerate(phases)]))
+    for i, (when, cost, title, items) in enumerate(phases):
+        body.append(f"<div class=phasehead id='phase-{i}'><h2 style='margin:0'>"
+                    f"{esc(title)}</h2>"
                     f"<span class=n>{esc(when)} · {esc(cost)}</span></div>")
         body.append("<div class=panel><ul>"
                     + "".join(f"<li>{i}</li>" for i in items) + "</ul></div>")
@@ -767,9 +821,14 @@ def page_playbook(db: Database) -> str:
                 "themselves off the moment the DB shows the work; manual steps "
                 "(marked <code>manual</code>) you tick yourself once done off-engine.</p></div>")
 
-    for p in phases:
+    # A sticky jump-list — 13 phases is a lot of blind scrolling otherwise. The label
+    # is the leading number of each phase name (e.g. "0", "1", …) to stay compact.
+    body.append(toc([(f"pb-{i}", p.name.split("—")[0].strip().split(" ")[0] or p.name[:6])
+                     for i, p in enumerate(phases)]))
+    for i, p in enumerate(phases):
         ppct = int(100 * p.done_count / p.total) if p.total else 0
-        body.append(f"<div class=phasehead><h2 style='margin:0'>{esc(p.name)}</h2>"
+        body.append(f"<div class=phasehead id='pb-{i}'><h2 style='margin:0'>"
+                    f"{esc(p.name)}</h2>"
                     f"<span class=n>{p.done_count}/{p.total}</span></div>")
         body.append(f"<div class=panel><div class=bar><i style='width:{ppct}%'></i></div>")
         for step, is_done in p.steps:
@@ -1639,16 +1698,39 @@ def page_search(db: Database, q: dict) -> str:
     min_p = _f(q, "min_price", 0.0)
     max_p = _f(q, "max_price", 0.0)
 
+    from ..sourcing.catalog import TARGET_MULTIPLE
+
+    # A real dropdown of the categories that actually exist in the data — the old
+    # free-text field couldn't tell you "home" was the only value present.
+    cats = sorted({p.category for p in db.all_products() if p.category})
+    cat_opts = "<option value=''>all categories</option>" + "".join(
+        f"<option value='{esc(c)}'{' selected' if c == cat else ''}>{esc(c)}</option>"
+        for c in cats)
+
     body = ["<h1>Search products</h1>",
             "<div class=panel><form class=calc method=get action=/search>"
-            f"<label>Keyword<input name=q value='{esc(query)}'></label>"
-            f"<label>Category<input name=category value='{esc(cat)}'></label>"
+            f"<label>Keyword<input type=text name=q value='{esc(query)}'></label>"
+            f"<label>Category<select name=category>{cat_opts}</select></label>"
             f"<label>Min price $<input name=min_price value='{min_p:g}'></label>"
             f"<label>Max price $<input name=max_price value='{max_p:g}'></label>"
-            "<button>Search</button></form>"
+            "<button type=submit>Search</button></form>"
             "<p class=mut>Searches everything in YOUR database — imported CSVs, manual "
             "adds, and the sample feed. It does not (and by design will not) scrape "
             "TikTok/Amazon live; feed it exports and it searches them.</p></div>"]
+
+    def _price_cell(p, metrics):
+        """Observed market price if we have demand data; otherwise the supplier-derived
+        target price (same formula as Catalog) so the two views agree, marked '~' and
+        explained so it is never confused with a real observation."""
+        if metrics:
+            return f"${metrics[-1].price:.2f}", metrics[-1].price
+        sup = db.suppliers_for(p.id)
+        if sup:
+            best = min(sup, key=lambda s: s.cost + s.ship_cost)
+            tgt = round((best.cost + best.ship_cost) * TARGET_MULTIPLE, 2)
+            return (f"<span class=mut title='target price from supplier landed cost — "
+                    f"no observed demand data yet'>~${tgt:.2f}</span>", tgt)
+        return "—", None
 
     rows = []
     for p in db.all_products():
@@ -1657,7 +1739,7 @@ def page_search(db: Database, q: dict) -> str:
         if cat and p.category.lower() != cat.lower():
             continue
         metrics = db.metrics_for(p.id)
-        price = metrics[-1].price if metrics else None
+        price_html, price = _price_cell(p, metrics)
         if min_p and (price is None or price < min_p):
             continue
         if max_p and (price is None or price > max_p):
@@ -1668,7 +1750,7 @@ def page_search(db: Database, q: dict) -> str:
         rows.append((score.total if score else -1, [
             f"<a href='/product?id={esc(p.id)}'>{esc(p.id)}</a>",
             esc(p.name), esc(p.category),
-            f"${price:.2f}" if price else "—",
+            price_html,
             f"{score.total:.0f}" if score else "—",
             chip(verdict(score.gates_passed, score.total)) if score else "—",
             stage_chip(sr.lifecycle.stage) if sr else "—",
@@ -1680,9 +1762,12 @@ def page_search(db: Database, q: dict) -> str:
     if rows:
         body.append(table(["Product", "Name", "Category", "Price", "Score", "Verdict",
                            "Lifecycle", "Trend"], [r for _, r in rows], num_cols={3, 4}))
+        body.append("<p class=mut>Prices marked <span class=mut>~</span> are target "
+                    "prices derived from supplier cost (no observed demand yet) — the "
+                    "same number the Catalog shows; plain prices are observed.</p>")
     else:
-        body.append("<p class=mut>Nothing matches — loosen the filters or import more "
-                    "data (<code>import-csv</code>).</p>")
+        body.append(empty_state("🔍", "Nothing matches those filters.",
+                    "<a class=btn href='/search'>Clear filters</a>"))
     body.append("</div>")
     return page("Search", "".join(body), "/search")
 
@@ -1709,12 +1794,23 @@ def page_assistant(db: Database, q: dict) -> str:
             "</blockquote>",
             "<div class=panel><form class=calc method=get action=/assistant>"
             f"<label style='flex:1;min-width:320px'>Question"
-            f"<input name=q value='{esc(question)}' style='width:100%'></label>"
-            "<button>Ask</button></form>",
-            "<p class=mut>Try: "
-            + " · ".join(f"<a href='/assistant?q={esc(s.replace(' ', '+'))}'>{esc(s)}</a>"
-                         for s in _SUGGESTED_QUESTIONS)
-            + "</p></div>"]
+            f"<input type=text name=q value='{esc(question)}' style='width:100%' "
+            f"placeholder='Ask about your board, next steps, fees, sourcing…'></label>"
+            "<button type=submit>Ask</button></form>",
+            "<p class=mut suggest>Try: "
+            + " · ".join(
+                f"<a href='/assistant?q={esc(s.replace(' ', '+'))}' "
+                f"data-q=\"{esc(s)}\">{esc(s)}</a>"
+                for s in _SUGGESTED_QUESTIONS)
+            + "</p>"]
+
+    if not CONFIG.llm_available:
+        body.append("<p class=mut>ℹ️ <code>ANTHROPIC_API_KEY</code> isn't set, so answers "
+                    "come from <b>offline routing</b> — it matches your question to the "
+                    "relevant live data and knowledge sections. Set the key in "
+                    "<code>.env</code> for conversational answers grounded in the same "
+                    "data.</p>")
+    body.append("</div>")
 
     if question:
         result = assistant_answer(db, question)

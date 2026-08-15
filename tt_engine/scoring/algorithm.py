@@ -30,14 +30,14 @@ DEFAULT_WEIGHTS = {
 def load_weights() -> dict[str, float]:
     if _WEIGHTS_PATH.exists():
         try:
-            return {k: float(v) for k, v in json.loads(_WEIGHTS_PATH.read_text()).items()}
+            return {k: float(v) for k, v in json.loads(_WEIGHTS_PATH.read_text(encoding="utf-8")).items()}
         except (json.JSONDecodeError, ValueError):
             pass
     return dict(DEFAULT_WEIGHTS)
 
 
 def save_weights(weights: dict[str, float]) -> None:
-    _WEIGHTS_PATH.write_text(json.dumps(weights, indent=2) + "\n")
+    _WEIGHTS_PATH.write_text(json.dumps(weights, indent=2) + "\n", encoding="utf-8")
 
 
 @dataclass

@@ -293,8 +293,8 @@ def weekly(
 def _write_report(report: OpportunityReport, out_dir: str) -> None:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / f"opportunity_{report.date}.md").write_text(render_report(report))
+    (out / f"opportunity_{report.date}.md").write_text(render_report(report), encoding="utf-8")
     # One brief file per attack-ready product, ready for Hermes Agent.
     for p in report.packets:
         if p.kit:
-            (out / f"brief_{p.product.id}.md").write_text(p.kit.brief_text())
+            (out / f"brief_{p.product.id}.md").write_text(p.kit.brief_text(), encoding="utf-8")

@@ -334,7 +334,7 @@ def cmd_scorecard(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out}")
         else:
             print(text)
@@ -404,7 +404,7 @@ def cmd_psych(args) -> int:
         if args.file:
             from pathlib import Path
             try:
-                new = [ln.strip() for ln in Path(args.file).read_text().splitlines()
+                new = [ln.strip() for ln in Path(args.file).read_text(encoding="utf-8").splitlines()
                        if ln.strip()]
             except FileNotFoundError:
                 print(f"{args.file} not found")
@@ -451,7 +451,7 @@ def cmd_creative(args) -> int:
         if args.brief:
             from pathlib import Path
             Path(args.brief).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.brief).write_text(kit.brief_text())
+            Path(args.brief).write_text(kit.brief_text(), encoding="utf-8")
             print(f"brief written to {args.brief}")
     return 0
 
@@ -471,7 +471,7 @@ def cmd_report_monthly(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out}")
         else:
             print(text)
@@ -530,7 +530,7 @@ def cmd_analyze(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out}")
         else:
             print(text)
@@ -552,7 +552,7 @@ def cmd_creative_pack(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out} — {len(pack.hooks)} hooks, {len(pack.concepts)} "
                   f"concepts, {len(pack.paid_scripts)}+{len(pack.organic_scripts)} scripts"
                   + (f", ⚠️ {len(pack.flagged)} compliance flag(s)" if pack.flagged else ""))
@@ -586,7 +586,7 @@ def cmd_production(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out} — {len(runbook.ads)} ad(s), "
                   f"{sum(len(a.scenes) for a in runbook.ads)} scenes")
         else:
@@ -611,7 +611,7 @@ def cmd_slideshows(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out} — {len(plan.posts)} slideshow(s), "
                   f"{sum(len(p.slides) for p in plan.posts)} slides")
         else:
@@ -636,7 +636,7 @@ def cmd_landing(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out}"
                   + (f" — ⚠️ {len(page.flagged)} compliance flag(s)" if page.flagged else ""))
         else:
@@ -729,7 +729,7 @@ def cmd_optimize(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out}")
         else:
             print(text)
@@ -1339,7 +1339,7 @@ def cmd_playbook(args) -> int:
         if args.out:
             from pathlib import Path
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(text)
+            Path(args.out).write_text(text, encoding="utf-8")
             print(f"wrote {args.out}")
         else:
             print(text)

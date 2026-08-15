@@ -116,7 +116,7 @@ def load_persona(path: Optional[str] = None) -> Optional[Persona]:
     p = Path(path or CONFIG.persona_path)
     if not p.exists():
         return None
-    sections = _parse_sections(p.read_text())
+    sections = _parse_sections(p.read_text(encoding="utf-8"))
 
     def kv(section: str) -> dict[str, str]:
         out = {}
@@ -279,7 +279,7 @@ def create_bible(name: str, account: str = "", directory: Optional[str] = None) 
     path = root / f"{_slugify(name).upper().replace('-', '_')}.md"
     if path.exists():
         raise FileExistsError(f"{path} already exists — edit it instead of recreating.")
-    path.write_text(bible_template(name, account))
+    path.write_text(bible_template(name, account), encoding="utf-8")
     return path
 
 

@@ -363,7 +363,7 @@ def export_creatives(db: Database, product_id: str, out_path: str) -> ExportResu
             "soul_id": c.soul_id, "asset_url": c.asset_url, "status": "exported",
             "aigc_disclosure": c.meta["aigc_disclosure"],
         } for c in result.exported]
-        out.write_text(json.dumps(manifest, indent=2))
+        out.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         result.manifest_path = str(out)
         for c in result.exported:
             c.status = "exported"

@@ -331,13 +331,53 @@ def score_supply(product: models.Product, s: models.Supplier) -> CatalogPick:
                        supply_score=round(total, 1), reasons=reasons, blockers=blockers)
 
 
+# TikTok Shop's PERMANENTLY prohibited categories — never sellable at any price, so a
+# fat supply margin on one is not a "candidate", it is a trap. This is a hard exclusion,
+# separate from and stronger than the impulse/MOQ blockers (which are just economics).
+# Matched against the product's `restricted` flag OR keywords in its category/name.
+PROHIBITED_KEYWORDS = (
+    "vape", "vaping", "e-cig", "ecig", "e-liquid", "nicotine", "tobacco", "cigarette",
+    "cigar", "hookah", "alcohol", "liquor", "wine", "beer", "spirits", "cbd", "thc",
+    "cannabis", "marijuana", "kratom", "weapon", "firearm", "ammo", "ammunition",
+    "gun", "knife-set", "pepper-spray", "prescription", "adult-toy",
+)
+
+
+def is_prohibited(product: models.Product) -> tuple[bool, str]:
+    """(prohibited?, why). Prohibited = the DB restricted flag, or a category/name that
+    matches a permanently-banned category. This is a compliance verdict, not economics."""
+    if getattr(product, "restricted", False):
+        return True, "flagged as a restricted TikTok category"
+    hay = f"{product.category} {product.name}".lower()
+    for kw in PROHIBITED_KEYWORDS:
+        if kw in hay:
+            return True, f"'{kw}' is on TikTok Shop's permanently-prohibited list"
+    return False, ""
+
+
+def prohibited_products(db: Database) -> list[tuple[models.Product, str]]:
+    """Products the catalog EXCLUDES from ranking because they cannot be listed at all.
+    Surfaced separately so the exclusion is transparent, never a silent drop."""
+    out = []
+    for p in db.all_products():
+        if not db.suppliers_for(p.id):
+            continue
+        banned, why = is_prohibited(p)
+        if banned:
+            out.append((p, why))
+    return out
+
+
 def rank(db: Database, top: int = 20, category: str = "",
          max_landed: float = 0.0) -> list[CatalogPick]:
     """The research shortlist, best supply economics first. Products with no supplier
-    quote are excluded — there is nothing to rank them on."""
+    quote are excluded (nothing to rank them on); prohibited-category products are
+    HARD-excluded (they cannot be listed — a supply score would be misleading)."""
     picks: list[CatalogPick] = []
     for p in db.all_products():
         if category and p.category != category.lower():
+            continue
+        if is_prohibited(p)[0]:            # never rank something that can't be sold
             continue
         suppliers = db.suppliers_for(p.id)
         if not suppliers:

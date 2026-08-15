@@ -22,7 +22,7 @@ class Database:
         self._init_schema()
 
     def _init_schema(self) -> None:
-        self.conn.executescript(_SCHEMA.read_text())
+        self.conn.executescript(_SCHEMA.read_text(encoding="utf-8"))
         self._migrate()
         self.conn.commit()
 

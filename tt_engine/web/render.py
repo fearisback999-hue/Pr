@@ -13,7 +13,9 @@ _CSS = """
   --bg:oklch(0.165 0.006 72); --panel:oklch(0.207 0.008 72);
   --elev:oklch(0.247 0.009 72); --line:oklch(0.315 0.008 72);
   --line-soft:oklch(0.27 0.007 72);
-  --ink:oklch(0.945 0.006 82); --mut:oklch(0.685 0.01 82); --faint:oklch(0.56 0.008 82);
+  /* --mut / --faint bumped for WCAG AA (≥4.5:1 on --panel): secondary text and
+     table headers were failing contrast at the old lightness. */
+  --ink:oklch(0.945 0.006 82); --mut:oklch(0.74 0.01 82); --faint:oklch(0.655 0.01 82);
   --acc:oklch(0.76 0.128 279); --acc-soft:oklch(0.76 0.128 279 / 0.15);
   --acc-line:oklch(0.76 0.128 279 / 0.30); --acc-ink:oklch(0.20 0.03 279);
   --good:oklch(0.76 0.15 156); --warn:oklch(0.81 0.13 82); --bad:oklch(0.665 0.17 26);
@@ -37,12 +39,21 @@ nav .brand { font-weight:700; letter-spacing:-0.01em; margin-right:16px; font-si
 nav a { padding:6px 12px; border-radius:8px; color:var(--mut); font-size:13.5px;
         font-weight:500; transition:background-color .15s ease, color .15s ease; }
 nav a:hover { background:var(--elev); color:var(--ink); text-decoration:none; }
-nav a.on { background:var(--acc-soft); color:var(--acc); font-weight:600; }
+/* Active page: brighter text + a solid underline bar, not just a faint fill —
+   the old subtle tint was easy to miss among 16 links. */
+nav a.on { background:var(--acc-soft); color:var(--acc); font-weight:700; }
+nav a.on::after { content:""; position:absolute; left:10px; right:10px; bottom:-11px;
+                  height:2px; background:var(--acc); border-radius:2px 2px 0 0; }
+nav a { position:relative; }
 nav a:focus-visible { outline:2px solid var(--acc); outline-offset:-2px; }
-.navgroup { display:flex; gap:2px; align-items:center; }
-.navsep { width:1px; height:17px; background:var(--line); margin:0 9px; flex:0 0 auto;
-          border-radius:1px; }
-@media (max-width:760px) { .navsep { display:none; }
+/* Grouping by visual containment, not text labels — a subtle inset pill around each
+   cluster reads as a group without the width a label row would cost (which forced the
+   nav to wrap to two rows). The group's name is exposed to assistive tech via title. */
+.navgroup { display:flex; gap:1px; align-items:center; padding:2px; border-radius:10px;
+            background:oklch(0.24 0.008 72 / 0.5); }
+.navsep { display:none; }
+nav a { padding:6px 11px; }
+@media (max-width:820px) { .navgroup { background:none; padding:0; }
                            nav { gap:2px; padding:9px 14px; } }
 
 main { max-width:1120px; margin:0 auto; padding:26px 22px 96px; }
@@ -90,7 +101,10 @@ tr:last-child td { border-bottom:none; }
 code, pre { background:oklch(0.14 0.006 72); border:1px solid var(--line-soft);
             border-radius:7px; font:13px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
 code { padding:1.5px 6px; color:oklch(0.86 0.03 279); }
-pre { padding:13px 15px; overflow-x:auto; }
+/* Wrap long prose lines (the month-one bullet notes overflowed their panel and
+   clipped behind a scrollbar). Short aligned number columns stay on one line at
+   panel width; only genuinely long lines wrap. */
+pre { padding:13px 15px; overflow-x:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
 pre code { background:none; border:none; padding:0; color:inherit; }
 
 blockquote { margin:12px 0; padding:13px 16px; color:var(--mut); background:var(--acc-soft);
@@ -108,8 +122,12 @@ form.calc input:focus, form.calc select:focus { outline:none; border-color:var(-
 /* Selects and file inputs default to their own intrinsic heights, which breaks the
    row baseline next to text inputs. Match them explicitly. */
 form.calc select { margin-top:6px; padding:8px 11px; width:160px; height:37px;
-                   background:var(--elev); border:1px solid var(--line);
+                   max-width:100%; background:var(--elev); border:1px solid var(--line);
                    border-radius:9px; color:var(--ink); font-size:14px; }
+/* Wider fields for forms whose values are phrases, not numbers (e.g. Restyle). */
+form.calc.wide select { width:230px; }
+form.calc.wide input { width:230px; }
+form.calc.wide input::placeholder { color:var(--faint); }
 form.calc input[type=file] { width:210px; padding:7px 10px; font-size:12.5px;
                              color:var(--mut); }
 form.calc input[type=file]::file-selector-button {
@@ -226,6 +244,150 @@ details.how > summary:focus-visible { outline:2px solid var(--acc); outline-offs
           align-items:center; justify-content:center; font-weight:700; font-size:18px;
           background:var(--acc-soft); color:var(--acc); flex:0 0 auto; }
 .crow { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+
+/* ── copy button on code blocks ───────────────────────────────────────────── */
+.codewrap { position:relative; }
+.copybtn { position:absolute; top:7px; right:7px; z-index:2; font:600 10.5px/1
+           ui-monospace,Menlo,monospace; letter-spacing:0.05em; text-transform:uppercase;
+           color:var(--mut); background:var(--panel); border:1px solid var(--line);
+           border-radius:6px; padding:4px 8px; cursor:pointer; opacity:0; transition:
+           opacity .14s ease, color .14s ease, border-color .14s ease; }
+.codewrap:hover .copybtn, .copybtn:focus-visible { opacity:1; }
+.copybtn:hover { color:var(--acc); border-color:var(--acc-line); }
+.copybtn.ok { color:var(--good); border-color:var(--good); opacity:1; }
+code.cmdline { display:block; padding-right:60px; }
+
+/* ── sortable table headers ───────────────────────────────────────────────── */
+th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+th.sortable:hover { color:var(--ink); }
+th.sortable::after { content:"⇅"; opacity:0.35; margin-left:5px; font-size:10px; }
+th.sortable.asc::after { content:"↑"; opacity:1; color:var(--acc); }
+th.sortable.desc::after { content:"↓"; opacity:1; color:var(--acc); }
+
+/* ── severity: a colored left rail on the whole card, scannable at a glance ── */
+.sev { border-left:3px solid var(--line); }
+.sev-critical { border-left-color:var(--bad);
+                box-shadow:var(--shadow), inset 3px 0 0 -1px var(--bad); }
+.sev-warning  { border-left-color:var(--warn); }
+.sev-good     { border-left-color:var(--good); }
+.sev-info     { border-left-color:var(--acc-line); }
+
+/* ── empty states: icon + copy + action, not a bare sentence ──────────────── */
+.empty { text-align:center; padding:34px 20px; color:var(--mut); }
+.empty .ico { font-size:30px; opacity:0.5; display:block; margin-bottom:10px; }
+.empty .act { margin-top:14px; }
+.btn { display:inline-block; padding:8px 16px; border-radius:9px; background:var(--acc);
+       color:var(--acc-ink); font-weight:650; font-size:13.5px; border:none;
+       cursor:pointer; text-decoration:none; }
+.btn:hover { filter:brightness(1.07); text-decoration:none; }
+.btn.ghost { background:transparent; color:var(--acc); border:1px solid var(--acc-line); }
+
+/* ── sticky in-page section jump (long pages) ─────────────────────────────── */
+.toc { position:sticky; top:49px; z-index:10; display:flex; gap:6px; flex-wrap:wrap;
+       padding:10px 0; margin:6px 0 4px; background:var(--bg);
+       border-bottom:1px solid var(--line-soft); }
+.toc a { font-size:12px; padding:4px 10px; border-radius:7px; background:var(--elev);
+         color:var(--mut); border:1px solid var(--line-soft); white-space:nowrap; }
+.toc a:hover { color:var(--ink); text-decoration:none; border-color:var(--acc-line); }
+
+/* ── loading state + toast ────────────────────────────────────────────────── */
+button[aria-busy="true"] { opacity:0.6; pointer-events:none; }
+button[aria-busy="true"]::after { content:" …"; }
+#toptop { position:fixed; right:20px; bottom:20px; z-index:30; width:40px; height:40px;
+          border-radius:50%; background:var(--panel); border:1px solid var(--line);
+          color:var(--ink); font-size:17px; cursor:pointer; opacity:0; transition:
+          opacity .2s ease; box-shadow:var(--shadow); }
+#toptop.show { opacity:0.85; } #toptop:hover { opacity:1; border-color:var(--acc-line); }
+#toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+         z-index:40; background:var(--elev); color:var(--ink); border:1px solid var(--line);
+         border-radius:10px; padding:11px 18px; font-size:13.5px; box-shadow:var(--shadow);
+         opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+"""
+
+# One shared, dependency-free enhancement layer. Everything here is PROGRESSIVE —
+# the pages work with JS off (forms are real GET forms, chips are real links, code
+# is selectable); this just makes them nicer. Inlined so the offline server needs
+# no static assets.
+_JS = r"""
+(function(){
+  function toast(msg){
+    var t=document.getElementById('toast'); if(!t){t=document.createElement('div');
+      t.id='toast'; document.body.appendChild(t);} t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},1900);
+  }
+  // Copy buttons on every code block.
+  function addCopy(el, text){
+    var w=el.closest('.codewrap'); if(w) return;
+    w=document.createElement('span'); w.className='codewrap';
+    el.parentNode.insertBefore(w, el); w.appendChild(el);
+    var b=document.createElement('button'); b.className='copybtn'; b.type='button';
+    b.textContent='copy'; b.setAttribute('aria-label','Copy to clipboard');
+    b.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation();
+      var t=text(); navigator.clipboard && navigator.clipboard.writeText(t).then(function(){
+        b.textContent='copied'; b.classList.add('ok'); toast('Copied to clipboard');
+        setTimeout(function(){b.textContent='copy'; b.classList.remove('ok');},1400);
+      }, function(){ toast('Copy failed — select and press Ctrl+C'); });
+    });
+    w.appendChild(b);
+  }
+  document.querySelectorAll('pre').forEach(function(p){ addCopy(p, function(){return p.innerText;}); });
+  document.querySelectorAll('.cmd > code, .fix code, .cmdline').forEach(function(c){
+    addCopy(c, function(){return c.innerText;});
+  });
+  // Suggestion chips: fill the page's first text input and submit (progressive).
+  document.querySelectorAll('.suggest a').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var form=document.querySelector('form.calc'); var inp=form && form.querySelector('input[type=text],input:not([type])');
+      if(form && inp){ e.preventDefault(); inp.value=a.getAttribute('data-q')||a.textContent;
+        inp.focus(); form.requestSubmit ? form.requestSubmit() : form.submit(); }
+    });
+  });
+  // Selects: mirror the chosen option into a title tooltip so a truncated value
+  // is always inspectable on hover.
+  document.querySelectorAll('select').forEach(function(s){
+    function t(){ var o=s.options[s.selectedIndex]; s.title=o?o.text:''; }
+    t(); s.addEventListener('change', t);
+  });
+  // Loading state on any form submit.
+  document.querySelectorAll('form').forEach(function(f){
+    f.addEventListener('submit', function(){
+      var b=f.querySelector('button'); if(b){ b.setAttribute('aria-busy','true'); }
+    });
+  });
+  // Sortable tables (opt-in via data-sortable on <table>, or any table with a
+  // numeric column — we mark headers and sort client-side).
+  document.querySelectorAll('table').forEach(function(tbl){
+    var head=tbl.tHead; if(!head) return; var body=tbl.tBodies[0]; if(!body||body.rows.length<3) return;
+    Array.prototype.forEach.call(head.rows[0].cells, function(th, idx){
+      th.classList.add('sortable'); th.tabIndex=0;
+      var dir=0;
+      function sort(){
+        dir = dir===1 ? -1 : 1;
+        Array.prototype.forEach.call(head.rows[0].cells,function(o){o.classList.remove('asc','desc');});
+        th.classList.add(dir===1?'asc':'desc');
+        var rows=Array.prototype.slice.call(body.rows);
+        rows.sort(function(a,b){
+          var x=(a.cells[idx]||{}).innerText||'', y=(b.cells[idx]||{}).innerText||'';
+          var nx=parseFloat(x.replace(/[^0-9.\-]/g,'')), ny=parseFloat(y.replace(/[^0-9.\-]/g,''));
+          var bothNum=!isNaN(nx)&&!isNaN(ny)&&x.match(/\d/)&&y.match(/\d/);
+          if(bothNum) return (nx-ny)*dir;
+          return x.localeCompare(y)*dir;
+        });
+        rows.forEach(function(r){body.appendChild(r);});
+      }
+      th.addEventListener('click', sort);
+      th.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();sort();} });
+    });
+  });
+  // Back-to-top.
+  var top=document.createElement('button'); top.id='toptop'; top.type='button';
+  top.textContent='↑'; top.setAttribute('aria-label','Back to top');
+  top.addEventListener('click', function(){ window.scrollTo({top:0,behavior:'smooth'}); });
+  document.body.appendChild(top);
+  window.addEventListener('scroll', function(){ top.classList.toggle('show', window.scrollY>400); });
+})();
 """
 
 # Nav in three groups: what you DO daily, what you BUILD, what you LEARN FROM.
@@ -288,19 +450,40 @@ def meter(fraction: float, label: str) -> str:
 
 def page(title: str, body: str, active: str = "/") -> str:
     groups = []
-    for i, (_, items) in enumerate(_NAV_GROUPS):
+    for i, (label_name, items) in enumerate(_NAV_GROUPS):
         links = "".join(
             f'<a href="{href}"{" class=on" if href == active else ""}>{esc(label)}</a>'
             for label, href in items
         )
-        sep = "<span class=navsep aria-hidden=true></span>" if i else ""
-        groups.append(f"{sep}<span class=navgroup>{links}</span>")
+        groups.append(f"<span class=navgroup title='{esc(label_name)}' "
+                      f"aria-label='{esc(label_name)}'>{links}</span>")
     nav = "".join(groups)
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{esc(title)} · ENGINE</title><style>{_CSS}</style></head><body>"
             f"<nav><span class=brand>◈ ENGINE</span>{nav}</nav>"
-            f"<main>{body}</main></body></html>")
+            f"<main>{body}</main><div id=toast></div>"
+            f"<script>{_JS}</script></body></html>")
+
+
+def toc(sections: list[tuple[str, str]]) -> str:
+    """Sticky in-page jump list for long pages. sections = [(anchor_id, label)]."""
+    if len(sections) < 3:
+        return ""
+    links = "".join(f"<a href='#{esc(a)}'>{esc(l)}</a>" for a, l in sections)
+    return f"<nav class=toc aria-label='On this page'>{links}</nav>"
+
+
+def empty_state(icon: str, text: str, action_html: str = "") -> str:
+    """A consistent empty state: icon + copy + optional action button."""
+    act = f"<div class=act>{action_html}</div>" if action_html else ""
+    return (f"<div class=empty><span class=ico aria-hidden=true>{esc(icon)}</span>"
+            f"<div>{text}</div>{act}</div>")
+
+
+def cmd_code(command: str) -> str:
+    """A shell command styled for the one-click copy button the JS attaches."""
+    return f"<code class=cmdline>{esc(command)}</code>"
 
 
 def chip(verdict: str) -> str:

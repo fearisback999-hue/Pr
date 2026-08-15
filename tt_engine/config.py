@@ -14,7 +14,7 @@ def _load_dotenv(path: Path = ROOT / ".env") -> None:
     """Minimal .env loader (no dependency on python-dotenv). Existing env wins."""
     if not path.exists():
         return
-    for raw in path.read_text().splitlines():
+    for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
