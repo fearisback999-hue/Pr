@@ -174,5 +174,32 @@ CREATE TABLE IF NOT EXISTS video_specs (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Restyle jobs: YOUR base footage + what may be changed around it. `changes` is a
+-- JSON object of target -> instruction; the product is never a valid target.
+CREATE TABLE IF NOT EXISTS restyle_jobs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id TEXT NOT NULL,
+    base_video TEXT NOT NULL,
+    changes    TEXT NOT NULL DEFAULT '{}',
+    actor_slug TEXT NOT NULL DEFAULT '',
+    notes      TEXT NOT NULL DEFAULT '',
+    status     TEXT NOT NULL DEFAULT 'draft',  -- draft | approved | generated
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON product_daily_metrics(date);
 CREATE INDEX IF NOT EXISTS idx_scores_total ON scores(total);
+
+-- Lookups by product_id were full table scans. That is invisible on a seeded demo
+-- DB and quadratic on a real one: catalog import creates thousands of products AND
+-- thousands of supplier rows, and every per-product sweep (audit, catalog rank,
+-- scoring) re-scans the whole table once per product.
+CREATE INDEX IF NOT EXISTS idx_suppliers_product ON suppliers(product_id);
+CREATE INDEX IF NOT EXISTS idx_creatives_product ON creatives(product_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_product ON product_daily_metrics(product_id);
+CREATE INDEX IF NOT EXISTS idx_scores_product ON scores(product_id);
+CREATE INDEX IF NOT EXISTS idx_tests_creative ON tests(creative_id);
+CREATE INDEX IF NOT EXISTS idx_specs_product ON video_specs(product_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_product ON product_pipeline(product_id);
+CREATE INDEX IF NOT EXISTS idx_restyle_product ON restyle_jobs(product_id);

@@ -26,3 +26,6 @@ htmlcov/
 .vscode/
 .idea/
 .DS_Store
+
+# Uploaded base videos for restyle — your footage, never committed
+uploads/

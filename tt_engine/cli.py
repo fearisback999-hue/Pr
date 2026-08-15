@@ -908,6 +908,86 @@ def cmd_sourcing_guide(args) -> int:
     return 0
 
 
+def cmd_restyle(args) -> int:
+    """Restyle YOUR OWN footage: keep the product and the physics, change the rest."""
+    from .creative import restyle
+    from .creative.mcp_client import ConfirmationRequired, GenerationNotWired
+    from .creative.spend import BatchTooLarge, SpendCeilingExceeded
+    from .creative.video_spec import AlreadyGenerated
+    action = (args.action or "list").lower()
+    with _db(args) as db:
+        if action == "guide":
+            print(restyle.render_guide())
+            return 0
+        if action == "list":
+            print(restyle.render_list(db.restyle_jobs()))
+            return 0
+        if action == "new":
+            if not args.product or not args.video:
+                print("usage: restyle new <product-id> <base-video.mp4> "
+                      "--change wall='sage green' [--actor slug] --i-own-this")
+                return 1
+            changes = {}
+            for c in (args.change or []):
+                target, _, instruction = c.partition("=")
+                changes[target] = instruction
+            try:
+                jid = restyle.create_restyle(
+                    db, args.product, args.video, changes,
+                    actor_slug=args.actor, notes=args.notes,
+                    i_own_this_footage=args.i_own_this)
+            except restyle.NotYourFootage as e:
+                print(f"refused: {e}")
+                return 1
+            except (ValueError, FileNotFoundError) as e:
+                print(f"refused: {e}")
+                return 1
+            print(restyle.load(db, jid).render())
+            return 0
+        # remaining actions take a job id in `product`
+        if not args.product:
+            print(f"usage: restyle {action} <job-id>")
+            return 1
+        try:
+            jid = int(args.product)
+        except ValueError:
+            print(f"'{args.product}' is not a job id")
+            return 1
+        job = restyle.load(db, jid)
+        if job is None:
+            print(f"no restyle job #{jid}")
+            return 1
+        if action == "show":
+            print(job.render())
+            return 0
+        if action == "approve":
+            db.update_restyle_job(jid, status="approved")
+            print(f"restyle #{jid} approved — `restyle generate {jid} --confirm` spends.")
+            return 0
+        if action == "generate":
+            try:
+                res = restyle.generate_restyle(db, jid, confirm=args.confirm)
+            except ConfirmationRequired as e:
+                print(f"⚠ {e}")
+                return 1
+            except AlreadyGenerated as e:
+                print(f"refused (double-spend guard): {e}")
+                return 1
+            except (BatchTooLarge, SpendCeilingExceeded) as e:
+                print(f"refused (spend guard): {e}")
+                return 1
+            except GenerationNotWired as e:
+                print(f"not wired: {e}")
+                return 1
+            except (ValueError, FileNotFoundError) as e:
+                print(f"refused: {e}")
+                return 1
+            print(res.summary)
+            return 0
+        print(f"unknown action '{action}' — new | list | show | approve | generate | guide")
+        return 1
+
+
 def cmd_profit(args) -> int:
     """The $400k profit plan + the levers that decide whether it happens."""
     from . import profit
@@ -1599,6 +1679,20 @@ def main(argv=None) -> int:
     sub.add_parser("launch",
                    help="the first 30 days in time order, with the $2k money split"
                    ).set_defaults(func=cmd_launch)
+    p = sub.add_parser("restyle",
+                       help="restyle YOUR footage: real product + physics, new person/room")
+    p.add_argument("action", nargs="?", default="list",
+                   help="new | list | show | approve | generate | guide")
+    p.add_argument("product", nargs="?", default="", help="product id (new) or job id")
+    p.add_argument("video", nargs="?", default="", help="your base video file (new)")
+    p.add_argument("--change", action="append", default=[],
+                   help="what to change: --change wall='sage green' (repeatable)")
+    p.add_argument("--actor", default="", help="roster persona slug for the new person")
+    p.add_argument("--notes", default="")
+    p.add_argument("--i-own-this", action="store_true",
+                   help="confirm the base video is YOUR footage (required)")
+    p.add_argument("--confirm", action="store_true", help="spend credits and generate")
+    p.set_defaults(func=cmd_restyle)
     p = sub.add_parser("profit",
                        help="the $400k profit plan + the levers that actually move it")
     p.add_argument("--target", type=float, default=400_000.0,

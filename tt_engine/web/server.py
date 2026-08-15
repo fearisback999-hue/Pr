@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date as _date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -187,6 +188,172 @@ def page_overview(db: Database) -> str:
         body.append("<p class=mut>No scores yet — run <code>daily</code> after importing data.</p>")
     body.append("</div>")
     return page("Overview", "".join(body), "/")
+
+
+UPLOAD_DIR = "uploads"
+_MAX_UPLOAD = 200 * 1024 * 1024      # matches restyle.MAX_BASE_MB
+
+
+def parse_multipart(body: bytes, content_type: str) -> dict:
+    """Minimal multipart/form-data parser for one small form + one file.
+
+    Written out rather than using `cgi.FieldStorage`, which is deprecated in 3.11 and
+    gone in 3.13. Scope is deliberately narrow: this serves a local single-user
+    dashboard, not the open internet.
+
+    Returns {field: str} plus {"__file__": (filename, bytes)} when a file part exists.
+    """
+    out: dict = {}
+    marker = "boundary="
+    if marker not in content_type:
+        return out
+    boundary = content_type.split(marker, 1)[1].strip().strip('"')
+    sep = b"--" + boundary.encode()
+
+    for part in body.split(sep):
+        if not part or part in (b"--\r\n", b"--", b"\r\n"):
+            continue
+        head, _, data = part.partition(b"\r\n\r\n")
+        if not _:
+            continue
+        data = data.rstrip(b"\r\n")
+        headers = head.decode("utf-8", "replace")
+        disp = next((l for l in headers.splitlines()
+                     if l.lower().startswith("content-disposition")), "")
+        if 'name="' not in disp:
+            continue
+        name = disp.split('name="', 1)[1].split('"', 1)[0]
+        if 'filename="' in disp:
+            filename = disp.split('filename="', 1)[1].split('"', 1)[0]
+            if filename and data:
+                out["__file__"] = (filename, data)
+        else:
+            out[name] = data.decode("utf-8", "replace")
+    return out
+
+
+def save_upload(filename: str, data: bytes, directory: str = UPLOAD_DIR) -> str:
+    """Write an uploaded clip to disk under a safe name. Returns the path."""
+    import re as _re
+    from pathlib import Path as _Path
+
+    # Never trust a client-supplied filename: strip directories and anything that
+    # isn't a plain name character, so a crafted name can't escape the directory.
+    base = _Path(filename).name
+    safe = _re.sub(r"[^A-Za-z0-9._-]", "_", base)[:80] or "upload.mp4"
+    target = _Path(directory)
+    target.mkdir(parents=True, exist_ok=True)
+    dest = target / safe
+    n = 1
+    while dest.exists():                       # never silently overwrite a base clip
+        dest = target / f"{_Path(safe).stem}-{n}{_Path(safe).suffix}"
+        n += 1
+    dest.write_bytes(data)
+    return str(dest.resolve())
+
+
+def page_restyle(db: Database, job_id: str = "", msg: str = "") -> str:
+    """Upload your own footage and restyle everything around the product."""
+    from ..creative import restyle as rs
+
+    if job_id:
+        job = rs.load(db, int(job_id)) if job_id.isdigit() else None
+        if job is None:
+            return page("Restyle", "<h1>No such restyle job</h1>"
+                        "<p><a href='/restyle'>← back</a></p>", "/restyle")
+        body = [f"<h1>Restyle #{job.id}</h1>",
+                f"<p class=mut>{esc(job.product_id)} · base "
+                f"<code>{esc(job.base_name)}</code> · <b>{esc(job.status)}</b></p>"]
+        body.append("<div class=panel><p class=label>What changes</p><ul>"
+                    + "".join(f"<li><b>{esc(k)}</b> → {esc(v)}</li>"
+                              for k, v in job.changes.items())
+                    + (f"<li><b>actor</b> → {esc(job.actor_slug)}</li>"
+                       if job.actor_slug else "")
+                    + "</ul></div>")
+        body.append("<div class=panel><p class=label>Preserved exactly</p><ul>"
+                    + "".join(f"<li>{esc(p)}</li>" for p in rs.PRESERVED)
+                    + "</ul></div>")
+        body.append("<div class=panel><p class=label>Assembled prompt — read before "
+                    "you spend</p><pre>" + esc(rs.build_prompt(job)) + "</pre></div>")
+        if job.status == "draft":
+            body.append(f"<p><a href='/restyle/approve?id={job.id}'>Approve this job →"
+                        "</a>  <span class=mut>(approving spends nothing; generation is "
+                        "a separate confirmed step)</span></p>")
+        else:
+            body.append("<blockquote>Approved. Generate from the CLI, where the spend "
+                        f"confirmation lives: <code>restyle generate {job.id} --confirm"
+                        "</code></blockquote>")
+        body.append("<p><a href='/restyle'>← all restyle jobs</a></p>")
+        return page(f"Restyle #{job.id}", "".join(body), "/restyle")
+
+    products = db.all_products()
+    body = ["<h1>Restyle</h1>",
+            "<p class=mut>Film the real product yourself, then change everything around "
+            "it. <b>The product and the physics stay exactly as you filmed them</b> — "
+            "only the person, the wall, and the room are generated. Real weight, real "
+            "sag, real hands is precisely what fully-generated video gets wrong.</p>"]
+
+    if msg:
+        body.append(f"<blockquote>{esc(msg)}</blockquote>")
+
+    if not products:
+        body.append("<div class=panel><p>Add a product first — a restyle attaches to "
+                    "the product it is selling.</p><pre><code>python -m tt_engine.cli "
+                    "add --name \"Doorway Pull Up Bar\" --category fitness --price 34.99"
+                    "</code></pre></div>")
+        return page("Restyle", "".join(body), "/restyle")
+
+    opts = "".join(f"<option value='{esc(p.id)}'>{esc(p.name[:52])}</option>"
+                   for p in products)
+    try:
+        from ..creative.persona import load_personas
+        actors = load_personas()
+    except Exception:
+        actors = []
+    actor_opts = "<option value=''>— no actor swap —</option>" + "".join(
+        f"<option value='{esc(a.slug)}'>{esc(a.name)}</option>" for a in actors)
+
+    body.append(
+        "<div class=panel><p class=label>New restyle</p>"
+        "<form class=calc method=post action='/restyle/new' "
+        "enctype='multipart/form-data'>"
+        f"<label>product<select name=product_id>{opts}</select></label>"
+        "<label>your video<input type=file name=video accept='video/*' required></label>"
+        f"<label>actor<select name=actor>{actor_opts}</select></label>"
+        "<label>wall<input name=wall placeholder='soft sage green, matte'></label>"
+        "<label>room<input name=room placeholder='sunlit bedroom doorway'></label>"
+        "<label>wardrobe<input name=wardrobe placeholder='grey hoodie'></label>"
+        "<label>lighting<input name=lighting placeholder='morning window light'></label>"
+        "<label class=check><input type=checkbox name=own value='1' required>"
+        "<span>This is my own footage</span></label>"
+        "<button type=submit>Create draft</button>"
+        "</form>"
+        "<p class=mut>Creating a draft spends nothing. You read the assembled prompt, "
+        "approve it, and only then confirm generation.</p></div>")
+
+    body.append("<blockquote><b>The base video must be yours.</b> Restyling someone "
+                "else's ad is copying their copyrighted footage and often a real "
+                "person's likeness — swapping the actor and the wall does not change "
+                "that. <b>The product is never restylable</b> either: changing it "
+                "misrepresents what the buyer receives.</blockquote>")
+
+    jobs = db.restyle_jobs()
+    if jobs:
+        rows = [[f"<a href='/restyle?id={j['id']}'>#{j['id']}</a>",
+                 esc(j["product_id"][:28]),
+                 f"<code>{esc(Path(j['base_video']).name[:26])}</code>",
+                 esc(", ".join(sorted(j["changes"])) or "—"),
+                 f"<span class='chip {'TEST' if j['status'] != 'draft' else 'info'}'>"
+                 f"{esc(j['status'])}</span>"] for j in jobs]
+        body.append("<h2>Your restyle jobs</h2><div class=panel>"
+                    + table(["job", "product", "base clip", "changes", "status"], rows)
+                    + "</div>")
+
+    body.append("<h2>Filming a base clip worth restyling</h2><div class=panel>"
+                + md_to_html(rs.render_guide().split("## Shoot", 1)[1]
+                             .split("## Then", 1)[0].replace("  ", ""))
+                + "</div>")
+    return page("Restyle", "".join(body), "/restyle")
 
 
 def page_profit(db: Database, target: float = 400_000.0) -> str:
@@ -1579,6 +1746,14 @@ class Handler(BaseHTTPRequestHandler):
                     if html is None:
                         return self._send(404, page("Not found",
                                                     f"<h1>No product {esc(pid)}</h1>"))
+                elif url.path == "/restyle":
+                    html = page_restyle(db, (q.get("id") or [""])[0],
+                                        (q.get("msg") or [""])[0])
+                elif url.path == "/restyle/approve":
+                    jid = (q.get("id") or [""])[0]
+                    if jid.isdigit():
+                        db.update_restyle_job(int(jid), status="approved")
+                    return self._redirect(f"/restyle?id={jid}")
                 elif url.path == "/profit":
                     html = page_profit(db)
                 elif url.path == "/catalog":
@@ -1668,6 +1843,41 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, html)
         except Exception as e:  # show the error instead of a hung tab (local tool)
             self._send(500, page("Error", f"<h1>Error</h1><pre>{esc(repr(e))}</pre>"))
+
+    def do_POST(self):  # noqa: N802 (http.server API)
+        """Only the restyle upload posts. Creating a draft never spends money —
+        generation stays a separate, explicitly confirmed CLI step."""
+        from urllib.parse import quote
+        url = urlparse(self.path)
+        if url.path != "/restyle/new":
+            return self._send(404, page("Not found", "<h1>404</h1>"))
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > _MAX_UPLOAD:
+            return self._redirect("/restyle?msg=" + quote(
+                f"upload must be between 1 byte and {_MAX_UPLOAD // (1024*1024)}MB"))
+        form = parse_multipart(self.rfile.read(length),
+                               self.headers.get("Content-Type", ""))
+        if "__file__" not in form:
+            return self._redirect("/restyle?msg=" + quote("no video file received"))
+
+        filename, data = form["__file__"]
+        changes = {k: form.get(k, "").strip()
+                   for k in ("wall", "room", "wardrobe", "lighting", "mood")
+                   if form.get(k, "").strip()}
+        try:
+            from ..creative import restyle as rs
+            path = save_upload(filename, data)
+            with Database(self.db_path) as db:
+                jid = rs.create_restyle(
+                    db, form.get("product_id", ""), path, changes,
+                    actor_slug=form.get("actor", ""),
+                    i_own_this_footage=form.get("own") == "1")
+            return self._redirect(f"/restyle?id={jid}")
+        except Exception as e:
+            return self._redirect("/restyle?msg=" + quote(f"{type(e).__name__}: {e}"))
 
     def _redirect(self, location: str) -> None:
         self.send_response(303)

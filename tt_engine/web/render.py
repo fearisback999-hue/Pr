@@ -103,8 +103,24 @@ form.calc label { display:flex; flex-direction:column; font-size:11px; color:var
 form.calc input { margin-top:6px; padding:8px 11px; width:140px; background:var(--elev);
                   border:1px solid var(--line); border-radius:9px; color:var(--ink);
                   font-size:14px; transition:border-color .15s ease, box-shadow .15s ease; }
-form.calc input:focus { outline:none; border-color:var(--acc);
+form.calc input:focus, form.calc select:focus { outline:none; border-color:var(--acc);
                         box-shadow:0 0 0 3px var(--acc-soft); }
+/* Selects and file inputs default to their own intrinsic heights, which breaks the
+   row baseline next to text inputs. Match them explicitly. */
+form.calc select { margin-top:6px; padding:8px 11px; width:160px; height:37px;
+                   background:var(--elev); border:1px solid var(--line);
+                   border-radius:9px; color:var(--ink); font-size:14px; }
+form.calc input[type=file] { width:210px; padding:7px 10px; font-size:12.5px;
+                             color:var(--mut); }
+form.calc input[type=file]::file-selector-button {
+    background:var(--elev); color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:4px 10px; margin-right:9px; cursor:pointer;
+    font-size:12.5px; font-weight:600; }
+form.calc input[type=file]::file-selector-button:hover { border-color:var(--acc); }
+form.calc label.check { flex-direction:row; align-items:center; gap:8px;
+                        text-transform:none; letter-spacing:0; font-size:13.5px;
+                        color:var(--ink); font-weight:500; height:37px; }
+form.calc label.check input { width:auto; margin:0; accent-color:var(--acc); }
 form.calc button { padding:9px 20px; border-radius:9px; border:none; background:var(--acc);
                    color:var(--acc-ink); font-weight:650; font-size:14px; cursor:pointer;
                    transition:transform .16s cubic-bezier(.22,1,.36,1), filter .16s ease; }
@@ -217,7 +233,7 @@ details.how > summary:focus-visible { outline:2px solid var(--acc); outline-offs
 _NAV_GROUPS = [
     ("operate", [("Overview", "/"), ("Audit", "/audit"), ("Launch", "/launch"),
                  ("Playbook", "/playbook")]),
-    ("build",   [("Catalog", "/catalog"), ("Ideas", "/ideas"),
+    ("build",   [("Catalog", "/catalog"), ("Restyle", "/restyle"), ("Ideas", "/ideas"),
                  ("Search", "/search"), ("Actors", "/actors"),
                  ("Styles", "/styles"), ("Creators", "/creators")]),
     # Labels are kept short deliberately: fifteen full-width links wrap to a second

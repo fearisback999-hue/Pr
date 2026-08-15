@@ -284,6 +284,51 @@ class Database:
         self.conn.commit()
 
     # ── video specs (composable, editable-before-generate) ─────────────────────
+    # ── restyle jobs ──────────────────────────────────────────────────────────
+    def create_restyle_job(self, product_id: str, base_video: str, changes: dict,
+                           actor_slug: str = "", notes: str = "") -> int:
+        cur = self.conn.execute(
+            """INSERT INTO restyle_jobs(product_id, base_video, changes, actor_slug, notes)
+                 VALUES(?,?,?,?,?)""",
+            (product_id, base_video, json.dumps(changes), actor_slug, notes))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def restyle_job(self, job_id: int) -> Optional[dict]:
+        row = self.conn.execute(
+            "SELECT * FROM restyle_jobs WHERE id=?", (job_id,)).fetchone()
+        return self._restyle_row(row) if row else None
+
+    def restyle_jobs(self, product_id: Optional[str] = None) -> list[dict]:
+        if product_id:
+            rows = self.conn.execute(
+                "SELECT * FROM restyle_jobs WHERE product_id=? ORDER BY id DESC",
+                (product_id,)).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM restyle_jobs ORDER BY id DESC").fetchall()
+        return [self._restyle_row(r) for r in rows]
+
+    @staticmethod
+    def _restyle_row(row) -> dict:
+        d = dict(row)
+        try:
+            d["changes"] = json.loads(d.get("changes") or "{}")
+        except (ValueError, TypeError):
+            d["changes"] = {}
+        return d
+
+    def update_restyle_job(self, job_id: int, **fields) -> None:
+        if not fields:
+            return
+        if "changes" in fields and not isinstance(fields["changes"], str):
+            fields["changes"] = json.dumps(fields["changes"])
+        cols = ", ".join(f"{k}=?" for k in fields)
+        self.conn.execute(
+            f"UPDATE restyle_jobs SET {cols}, updated_at=datetime('now') WHERE id=?",
+            (*fields.values(), job_id))
+        self.conn.commit()
+
     def create_video_spec(self, product_id: str, actor_slug: str, prompt: str,
                           shot_mode: str = "full") -> int:
         cur = self.conn.execute(
