@@ -45,21 +45,22 @@ def next_step(db: Database, product: models.Product) -> Step:
     metrics = db.metrics_for(pid)
     if len(metrics) < 7:
         return Step(pid, product.name, "needs-data",
-                    f"Only {len(metrics)} day(s) of metrics — momentum needs a series. "
-                    "Log daily (or import a CSV covering more days).",
+                    f"Only {len(metrics)} day(s) of sales data. You need about a week to "
+                    "see whether it is growing. Log it daily, or import a longer CSV.",
                     _cli(f"add-metric {pid} --units N --price P"), 1)
 
     if not db.suppliers_for(pid):
         return Step(pid, product.name, "needs-supplier",
-                    "No real landed cost on file — economics is refused and the margin "
-                    "gate fails until you enter the actual supplier quote.",
+                    "No supplier cost yet, so profit can't be worked out. Enter the real "
+                    "price your supplier charges.",
                     _cli(f"add-supplier {pid} --cost X --ship-cost Y"), 2)
 
     score = db.latest_score(pid)
     today = _date.today().isoformat()
     if score is None or score.date != today:
         return Step(pid, product.name, "needs-score",
-                    "Metrics are newer than the last score — re-score before acting.",
+                    "New sales data has come in since this was last scored. Re-score it "
+                    "before deciding anything.",
                     _cli(f"scorecard {pid}"), 1)
 
     # A recorded final outcome means this product's loop is closed.

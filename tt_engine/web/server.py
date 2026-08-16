@@ -25,7 +25,7 @@ from ..reports.scorecard import render_scorecard, verdict
 from ..validation import KILL_HOURS, hours_below_breakeven, summarize_tests
 from .render import (
     avatar, chip, cmd_code, empty_state, esc, kpi, md_to_html, meter, page,
-    sparkline, stage_chip, table, toc,
+    sparkline, stage_chip, stage_words, table, toc,
 )
 
 # Pricing verified 2026-07-09 via live web research — reverify before budgeting against
@@ -119,7 +119,8 @@ def page_overview(db: Database) -> str:
                 cmd = (f"<div class=cmd>{cmd_code(members[0].command)}</div>"
                        if members[0].command else "")
                 body.append(
-                    f"<div class=step><span class='chip info'>{esc(stage)}</span> "
+                    f"<div class=step><span class='chip info' title='{esc(stage)}'>"
+                    f"{esc(stage_words(stage))}</span> "
                     f"<b>{len(members)} products</b> — {esc(members[0].action)}"
                     f"<div class=mut style='margin-top:6px;line-height:2'>{links}</div>"
                     f"{cmd}</div>")
@@ -133,7 +134,8 @@ def page_overview(db: Database) -> str:
                     body.append(
                         f"<div class=step><a href='/product?id={esc(s.product_id)}'>"
                         f"<b>{esc(s.product_id)}</b></a> "
-                        f"<span class='chip info'>{esc(s.stage)}</span> "
+                        f"<span class='chip info' title='{esc(s.stage)}'>"
+                        f"{esc(stage_words(s.stage))}</span> "
                         f"{esc(s.action)}{cmd}</div>")
                     shown += 1
     body.append("</div>")
@@ -322,10 +324,10 @@ def page_restyle(db: Database, job_id: str = "", msg: str = "") -> str:
 
     products = db.all_products()
     body = ["<h1>Restyle</h1>",
-            "<p class=mut>Film the real product yourself, then change everything around "
-            "it. <b>The product and the physics stay exactly as you filmed them</b> — "
-            "only the person, the wall, and the room are generated. Real weight, real "
-            "sag, real hands is precisely what fully-generated video gets wrong.</p>"]
+            "<p>Film the real product yourself. AI changes the person, the wall and the "
+            "room — <b>your product and how it moves stay exactly as you shot them.</b></p>"
+            "<p class=mut>Real weight and real hands are what fully-generated video gets "
+            "wrong. This keeps them.</p>"]
 
     if msg:
         body.append(f"<blockquote>{esc(msg)}</blockquote>")
@@ -503,11 +505,11 @@ def page_catalog(db: Database, category: str = "") -> str:
     have_demand = {p.id for p in db.all_products() if db.metrics_for(p.id)}
 
     body = ["<h1>Catalog</h1>",
-            "<p class=mut>Your supplier's products, ranked on what a catalog actually "
-            "knows: margin headroom inside the impulse price band, shipping speed, US "
-            "warehouse, and MOQ. <b>There is no demand term here</b> — a catalog "
-            "contains no demand information. This is what is worth researching, not "
-            "what is worth testing.</p>"]
+            "<p>Your supplier's products, ranked on cost, shipping speed and US "
+            "warehouse.</p>"
+            "<p class=mut><b>This does not tell you what sells.</b> A supplier list "
+            "knows prices, not demand — there is no demand term here. Treat it as a "
+            "research shortlist, not a list of things to test.</p>"]
 
     if not picks:
         body.append(
@@ -1789,9 +1791,8 @@ def page_search(db: Database, q: dict) -> str:
             f"<label>Min price $<input name=min_price value='{min_p:g}'></label>"
             f"<label>Max price $<input name=max_price value='{max_p:g}'></label>"
             "<button type=submit>Search</button></form>"
-            "<p class=mut>Searches everything in YOUR database — imported CSVs, manual "
-            "adds, and the sample feed. It does not (and by design will not) scrape "
-            "TikTok/Amazon live; feed it exports and it searches them.</p></div>"]
+            "<p class=mut>Searches everything you have imported or added. It does not scrape "
+            "TikTok or Amazon — feed it exports and it searches those.</p></div>"]
 
     def _price_cell(p, metrics):
         """Observed market price if we have demand data; otherwise the supplier-derived
@@ -1862,11 +1863,9 @@ def page_assistant(db: Database, q: dict) -> str:
 
     question = (q.get("q") or [""])[0].strip()
     body = ["<h1>Assistant</h1>",
-            "<blockquote>Ask about YOUR live state (board, verdicts, next actions, "
-            "playbook) or how anything in the engine works. It answers from your real "
-            "data + the engine's knowledge — it never invents numbers, and it never "
-            "executes anything: every action it suggests is a command you run."
-            "</blockquote>",
+            "<p>Ask anything about your products, your numbers, or what to do next. "
+            "Answers come from your real data — it never makes numbers up, and it never "
+            "runs anything for you.</p>",
             "<div class=panel><form class=calc method=get action=/assistant>"
             f"<label style='flex:1;min-width:320px'>Question"
             f"<input type=text name=q value='{esc(question)}' style='width:100%' "

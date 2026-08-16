@@ -140,7 +140,7 @@ def test_search_page_filters_and_renders(server):
     assert "P-COWHIDESTRAP" in body
     assert "P-PIMPLEPATCH" not in body              # keyword filter works
     assert "<svg" in body                            # trend sparkline rendered
-    assert "will not) scrape" in body                # the no-scraping stance is stated
+    assert "does not scrape" in body                # the no-scraping stance is stated
 
     status, body = _get(server, "/search?category=beauty")
     assert status == 200
@@ -154,7 +154,7 @@ def test_search_page_filters_and_renders(server):
 def test_assistant_page_answers_grounded_in_live_data(server):
     status, body = _get(server, "/assistant")
     assert status == 200
-    assert "never invents numbers" in body            # the honesty contract, on-page
+    assert "never makes numbers up" in body            # the honesty contract, on-page
 
     status, body = _get(server, "/assistant?q=is+P-PIMPLEPATCH+worth+testing")
     assert status == 200
