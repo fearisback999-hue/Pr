@@ -278,6 +278,26 @@ img.avatar { background:var(--elev); box-shadow:inset 0 0 0 1px var(--line); }
         box-shadow:inset 0 0 0 1px var(--line); }
 .crow { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
 
+/* ── "How it works" explainer ─────────────────────────────────────────────── */
+.stepnum { display:inline-flex; align-items:center; justify-content:center;
+           width:30px; height:30px; border-radius:50%; background:var(--acc);
+           color:var(--acc-ink); font-weight:800; font-size:16px; flex:0 0 auto; }
+.gaterow { display:flex; gap:13px; align-items:flex-start; padding:13px 0;
+           border-bottom:1px solid var(--line-soft); }
+.gaterow:last-child { border-bottom:none; }
+.gatex { display:inline-flex; align-items:center; justify-content:center;
+         width:26px; height:26px; border-radius:50%; flex:0 0 auto; font-weight:700;
+         background:oklch(0.695 0.16 25 / 0.18); color:var(--bad); font-size:14px; }
+.scorerow { display:grid; grid-template-columns:minmax(180px,1.3fr) 2fr 70px;
+            gap:16px; align-items:center; padding:11px 0;
+            border-bottom:1px solid var(--line-soft); }
+.scorerow:last-child { border-bottom:none; }
+.scorepts { text-align:right; font-weight:700; font-variant-numeric:tabular-nums;
+            color:var(--ink); }
+.scorerow .bar > i { background:var(--acc); }
+@media (max-width:700px) { .scorerow { grid-template-columns:1fr auto; }
+                           .scorerow .bar { grid-column:1 / -1; } }
+
 /* ── copy button on code blocks ───────────────────────────────────────────── */
 .codewrap { position:relative; }
 .copybtn { position:absolute; top:7px; right:7px; z-index:2; font:600 10.5px/1
@@ -435,8 +455,8 @@ _JS = r"""
 #   START   — what do I do first?      (the ordered checklists)
 SECTIONS = [
     ("engine", "Engine", "🔍", "Find and pick the product",
-     [("Overview", "/"), ("Catalog", "/catalog"), ("Search", "/search"),
-      ("Ideas", "/ideas"), ("Audit", "/audit")]),
+     [("Overview", "/"), ("How it works", "/how"), ("Catalog", "/catalog"),
+      ("Search", "/search"), ("Ideas", "/ideas"), ("Audit", "/audit")]),
     ("studio", "Studio", "🎬", "Make the videos",
      [("Actors", "/actors"), ("Restyle", "/restyle"), ("Styles", "/styles"),
       ("Creators", "/creators")]),

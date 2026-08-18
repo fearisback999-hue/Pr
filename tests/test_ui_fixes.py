@@ -227,3 +227,44 @@ def test_handle_strips_the_bible_parenthetical():
     p = Persona(name="Maya", master_description="m",
                 account="@maya.tries (her own account — NOT the brand)")
     assert p.handle == "@maya.tries"
+
+
+# ── "How it works" explainer ─────────────────────────────────────────────────
+
+def test_how_page_explains_the_four_steps_in_plain_words(tmp_path):
+    from tt_engine.web.server import page_how
+    db = _seeded(tmp_path)
+    html = page_how(db)
+    for probe in ["How the engine works", "Get the facts", "deal-breakers",
+                  "Score what", "Test with real money"]:   # apostrophe is HTML-escaped
+        assert probe in html, f"missing: {probe}"
+    # It must state the limits, not just the mechanics.
+    assert "never do" in html
+    assert "market decides" in html
+    db.close()
+
+
+def test_how_page_numbers_come_from_the_real_config(tmp_path):
+    """The explainer must not hardcode thresholds — if a gate changes, the page
+    changes with it, or it becomes a lie."""
+    from tt_engine.economics.calculator import MARGIN_FLOOR
+    from tt_engine.validation import KILL_HOURS
+    from tt_engine.web.server import page_how
+    db = _seeded(tmp_path)
+    html = page_how(db)
+    assert f"{MARGIN_FLOOR*100:.0f}%" in html
+    assert f"{KILL_HOURS:.0f}-hour" in html
+    db.close()
+
+
+def test_how_page_gate_count_matches_the_list(tmp_path):
+    """The summary card said 'Five' while six were listed — an easy, embarrassing drift."""
+    import re
+    from tt_engine.web.server import page_how
+    db = _seeded(tmp_path)
+    html = page_how(db)
+    listed = html.count("class=gatex")
+    words = {5: "Five", 6: "Six", 7: "Seven"}
+    assert f"{words[listed]} things that kill" in html, \
+        f"{listed} gates listed but the card says otherwise"
+    db.close()

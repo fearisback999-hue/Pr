@@ -1263,6 +1263,107 @@ def page_publish(db: Database, creative_id: str, confirm: bool) -> str:
     return page("Post", "".join(body), "/")
 
 
+def page_how(db: Database) -> str:
+    """How the engine works, drawn rather than described. Answers one question:
+    what happens between "here is a product" and "spend money on this one"."""
+    from ..economics.calculator import MARGIN_FLOOR
+    from ..scoring.algorithm import DEFAULT_WEIGHTS
+    from ..scoring.gates import COMMODITY_SATURATION_MAX, RETURN_RISK_RED_FLAG
+    from ..validation import KILL_HOURS
+
+    body = ["<h1>How the engine works</h1>",
+            "<p>It answers one question: <b>which product should I spend money on?</b> "
+            "It does that in four steps, and it will not skip any of them.</p>"]
+
+    # ── The four steps, as a flow ──────────────────────────────────────────────
+    steps = [
+        ("1", "Get the facts", "You bring sales data and a real supplier price.",
+         "Nothing is invented. No cost = no score."),
+        ("2", "Check the deal-breakers", "Six things that kill a product outright.",
+         "Fails any one → out, no matter how good it looks."),
+        ("3", "Score what's left", "Six parts, 100 points total.",
+         f"Needs {CONFIG.score_threshold:.0f}+ to be worth testing."),
+        ("4", "Test with real money", "Small ad spend, logged daily.",
+         f"{KILL_HOURS:.0f}h below break-even → killed."),
+    ]
+    cards = "".join(
+        f"<div class=card style='flex:1 1 220px'>"
+        f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:8px'>"
+        f"<span class=stepnum>{n}</span><b style='font-size:17px'>{esc(t)}</b></div>"
+        f"<p style='margin:0 0 6px'>{esc(d)}</p>"
+        f"<p class=mut style='margin:0;font-size:14.5px'>{esc(note)}</p></div>"
+        for n, t, d, note in steps)
+    body.append(f"<div style='display:flex;gap:14px;flex-wrap:wrap;margin:18px 0'>{cards}</div>")
+
+    # ── Step 2: the gates ──────────────────────────────────────────────────────
+    gates = [
+        (f"Margin under {MARGIN_FLOOR*100:.0f}%",
+         "There is no room for ads, fees and a refund. You'd pay to sell it."),
+        ("No real supplier price",
+         "Profit can't be worked out, so nothing else can be trusted."),
+        (f"Returns at or above {RETURN_RISK_RED_FLAG*100:.0f}%",
+         "Refunds eat the profit and wreck your shop's rating."),
+        ("Branded or trademarked",
+         "You'd get taken down for selling someone else's brand."),
+        ("Banned category",
+         "Vape, alcohol, weapons — TikTok will never let you list it."),
+        (f"Everyone already sells it (saturation {COMMODITY_SATURATION_MAX:.0f}+)",
+         "A crowded race to the bottom. You lose on price."),
+    ]
+    rows = "".join(
+        f"<div class=gaterow><span class=gatex>✕</span>"
+        f"<div><b>{esc(t)}</b><div class=mut style='font-size:14.5px'>{esc(w)}</div></div></div>"
+        for t, w in gates)
+    body.append("<h2>Step 2 — the six deal-breakers</h2>"
+                "<p>Any <b>one</b> of these and the product is out. A great score can "
+                "never override them, because these are the things that lose money no "
+                "matter how well the video does.</p>"
+                f"<div class='panel sev sev-critical'>{rows}</div>")
+
+    # ── Step 3: the score, as bars ─────────────────────────────────────────────
+    plain = {
+        "viral_demo": ("Is it fun to watch?", "Does it show well in a short video"),
+        "market_demand": ("Are people buying it?", "Real sales, and growing"),
+        "competition_timing": ("Am I early?", "Few sellers so far, ads still fresh"),
+        "economics": ("Does the money work?", "Margin after every fee"),
+        "content_potential": ("Can I make lots of videos?", "Enough angles to keep posting"),
+        "brand_potential": ("Could this become a brand?", "Something to build on, not a one-off"),
+    }
+    total = sum(DEFAULT_WEIGHTS.values())
+    bars = ""
+    for key, pts in sorted(DEFAULT_WEIGHTS.items(), key=lambda kv: -kv[1]):
+        title, sub = plain.get(key, (key, ""))
+        pct = 100 * pts / total
+        bars += (f"<div class=scorerow>"
+                 f"<div class=scorelab><b>{esc(title)}</b>"
+                 f"<div class=mut style='font-size:14px'>{esc(sub)}</div></div>"
+                 f"<div class=bar style='margin:0'><i style='width:{pct:.0f}%'></i></div>"
+                 f"<span class=scorepts>{pts:.0f} pts</span></div>")
+    body.append(f"<h2>Step 3 — the score out of {total:.0f}</h2>"
+                "<p>Six questions. Each is worth points, and the points reflect how much "
+                "that question actually predicts a winner.</p>"
+                f"<div class=panel>{bars}"
+                f"<p class=mut style='margin:14px 0 0'>A product needs "
+                f"<b>{CONFIG.score_threshold:.0f} or more</b> — and it must have already "
+                "passed all six deal-breakers.</p></div>")
+
+    # ── Step 4: the kill rule ──────────────────────────────────────────────────
+    body.append(f"<h2>Step 4 — the {KILL_HOURS:.0f}-hour rule</h2>"
+                "<div class=panel>"
+                "<p>Once a product is live, you log what you spent and what it made, "
+                "every day. If it stays below break-even for "
+                f"<b>{KILL_HOURS:.0f} hours straight, it is dead</b> and you stop.</p>"
+                "<p class=mut>This is the rule that protects the budget. It fires while "
+                "you still feel hopeful — that is the entire point of writing it down "
+                "before you start.</p></div>")
+
+    body.append("<blockquote><b>What the engine will never do:</b> invent a price, "
+                "guess a margin, spend money on its own, or tell you a product will "
+                "work. It narrows a big list down to a few worth risking money on. "
+                "The market decides the rest.</blockquote>")
+    return page("How it works", "".join(body), "/how")
+
+
 def page_ideas(db: Database) -> str:
     """Product options — a menu of researched directions to validate, with the honest
     'not guaranteed winners' framing and the validation gate."""
@@ -1994,6 +2095,8 @@ class Handler(BaseHTTPRequestHandler):
                     prod = (q.get("product") or [""])[0]
                     create_variants(db, prod)          # one spec per roster actor
                     return self._redirect(f"/product?id={prod}" if prod else "/actors")
+                elif url.path == "/how":
+                    html = page_how(db)
                 elif url.path == "/ideas":
                     html = page_ideas(db)
                 elif url.path == "/organic":
