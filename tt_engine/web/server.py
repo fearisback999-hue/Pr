@@ -1886,6 +1886,17 @@ def page_search(db: Database, q: dict) -> str:
         for c in cats)
 
     body = ["<h1>Search products</h1>",
+            "<div class=panel><p class=label>Add products fast</p>"
+            "<p>Scroll TikTok Creative Center or Amazon yourself, copy what you see, "
+            "and paste it here — one product per line. Messy is fine.</p>"
+            "<form method=post action='/paste'>"
+            "<textarea name=blob rows=7 class=pastebox placeholder=\"Doorway Pull Up "
+            "Bar $34.99 fitness&#10;Scalp Massager - $12.99 (beauty)&#10;Blue Light "
+            "Glasses  19.99\"></textarea>"
+            "<div style='margin-top:10px'><button class=btn type=submit>Add these "
+            "products</button></div></form>"
+            "<p class=mut>Adding costs nothing. Anything it can't read is reported, "
+            "never silently dropped.</p></div>",
             "<div class=panel><form class=calc method=get action=/search>"
             f"<label>Keyword<input type=text name=q value='{esc(query)}'></label>"
             f"<label>Category<select name=category>{cat_opts}</select></label>"
@@ -1935,6 +1946,14 @@ def page_search(db: Database, q: dict) -> str:
         ]))
     rows.sort(key=lambda r: r[0], reverse=True)
 
+    added = (q.get("added") or [""])[0]
+    if added.isdigit():
+        skipped = (q.get("skipped") or ["0"])[0]
+        extra = (f" {skipped} line(s) couldn't be read." if skipped.isdigit()
+                 and int(skipped) else "")
+        body.insert(1, f"<blockquote><b>Added {esc(added)} product(s).</b>{esc(extra)} "
+                       "Next: get a real supplier cost for each, then check the "
+                       "scorecard.</blockquote>")
     body.append(f"<h2>{len(rows)} result(s)</h2><div class=panel>")
     if rows:
         body.append(table(["Product", "Name", "Category", "Price", "Score", "Verdict",
@@ -2126,6 +2145,8 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         if url.path == "/actors/face":
             return self._post_actor_face()
+        if url.path == "/paste":
+            return self._post_paste()
         if url.path != "/restyle/new":
             return self._send(404, page("Not found", "<h1>404</h1>"))
         try:
@@ -2158,6 +2179,25 @@ class Handler(BaseHTTPRequestHandler):
 
     _IMG_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
                   ".webp": "image/webp"}
+
+    def _post_paste(self) -> None:
+        """Bulk-add pasted products. Free — it only writes rows, never spends."""
+        from urllib.parse import parse_qs as _pq, quote, unquote_plus
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 2 * 1024 * 1024:
+            return self._redirect("/search")
+        raw = self.rfile.read(length).decode("utf-8", "replace")
+        blob = (_pq(raw).get("blob") or [""])[0]
+        if not blob.strip():
+            return self._redirect("/search")
+        from ..paste import paste_products
+        with Database(self.db_path) as db:
+            res = paste_products(db, blob)
+        return self._redirect(f"/search?added={len(res.added)}"
+                              f"&skipped={len(res.skipped)}")
 
     def _post_actor_face(self) -> None:
         """Save an actor's reference photo beside their bible, named after it, so

@@ -273,6 +273,13 @@ img.avatar { background:var(--elev); box-shadow:inset 0 0 0 1px var(--line); }
 /* "no photo yet" reads as a task, not a broken image. */
 .avatar.empty { background:var(--elev); color:var(--faint);
                 box-shadow:inset 0 0 0 1px var(--line); font-size:13px; }
+.pastebox { width:100%; min-height:150px; padding:13px 15px; background:var(--elev);
+            border:1px solid var(--line); border-radius:10px; color:var(--ink);
+            font:14px/1.65 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+            resize:vertical; }
+.pastebox:focus { outline:none; border-color:var(--acc);
+                  box-shadow:0 0 0 3px var(--acc-soft); }
+.pastebox::placeholder { color:var(--faint); }
 .lane { display:inline-block; padding:3px 12px; border-radius:999px; font-size:13.5px;
         font-weight:600; background:var(--elev); color:var(--mut);
         box-shadow:inset 0 0 0 1px var(--line); }

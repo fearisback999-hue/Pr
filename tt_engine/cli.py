@@ -988,6 +988,25 @@ def cmd_restyle(args) -> int:
         return 1
 
 
+def cmd_paste(args) -> int:
+    """Bulk-add products from a pasted list (or a file)."""
+    from pathlib import Path as _P
+    from .paste import paste_products
+    if args.file:
+        blob = _P(args.file).read_text(encoding="utf-8")
+    else:
+        print("Paste your product list, then press Ctrl+Z + Enter (Windows) "
+              "or Ctrl+D (Mac/Linux):\n")
+        import sys
+        blob = sys.stdin.read()
+    if not blob.strip():
+        print("nothing pasted.")
+        return 1
+    with _db(args) as db:
+        print(paste_products(db, blob).summary)
+    return 0
+
+
 def cmd_profit(args) -> int:
     """The $400k profit plan + the levers that decide whether it happens."""
     from . import profit
@@ -1693,6 +1712,10 @@ def main(argv=None) -> int:
                    help="confirm the base video is YOUR footage (required)")
     p.add_argument("--confirm", action="store_true", help="spend credits and generate")
     p.set_defaults(func=cmd_restyle)
+    p = sub.add_parser("paste",
+                       help="bulk-add products from a pasted list — the fast way in")
+    p.add_argument("--file", default="", help="read the list from a file instead")
+    p.set_defaults(func=cmd_paste)
     p = sub.add_parser("profit",
                        help="the $400k profit plan + the levers that actually move it")
     p.add_argument("--target", type=float, default=400_000.0,
