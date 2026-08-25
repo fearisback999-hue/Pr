@@ -988,6 +988,27 @@ def cmd_restyle(args) -> int:
         return 1
 
 
+def cmd_expand(args) -> int:
+    """Find products FROM a product — accessories, upgrades, companions, refills."""
+    from .expand import expand, expand_all
+    with _db(args) as db:
+        if args.product_id:
+            e = expand(db, args.product_id)
+            if e is None:
+                print(f"no product '{args.product_id}'. Run `board` for the list.")
+                return 1
+            print(e.render())
+            return 0
+        exps = expand_all(db, limit=args.top)
+        if not exps:
+            print("No products yet — `paste` a few in first.")
+            return 1
+        for e in exps:
+            print(e.render())
+            print()
+    return 0
+
+
 def cmd_paste(args) -> int:
     """Bulk-add products from a pasted list (or a file)."""
     from pathlib import Path as _P
@@ -1712,6 +1733,12 @@ def main(argv=None) -> int:
                    help="confirm the base video is YOUR footage (required)")
     p.add_argument("--confirm", action="store_true", help="spend credits and generate")
     p.set_defaults(func=cmd_restyle)
+    p = sub.add_parser("expand",
+                       help="find products FROM a product (accessories, upgrades, refills)")
+    p.add_argument("product_id", nargs="?", default="",
+                   help="seed product id; omit to expand your best-scoring products")
+    p.add_argument("--top", type=int, default=3)
+    p.set_defaults(func=cmd_expand)
     p = sub.add_parser("paste",
                        help="bulk-add products from a pasted list — the fast way in")
     p.add_argument("--file", default="", help="read the list from a file instead")

@@ -1017,6 +1017,34 @@ def page_product(db: Database, pid: str) -> Optional[str]:
                 for t in sorted(tests, key=lambda t: t.date)]
         body.append(table(["Date", "Spend", "Revenue", "ROAS"], rows, num_cols={1, 2, 3}))
         body.append("</div>")
+    # ── Leads from this product ────────────────────────────────────────────────
+    from ..expand import AXES, expand as _expand
+    exp = _expand(db, pid)
+    if exp and exp.leads:
+        body.append("<h2>More products from this one</h2><div class=panel>"
+                    "<p>The person who buys this buys other things too. These are the "
+                    "obvious next places to look — <b>leads, not verified products</b>. "
+                    "Each still needs real demand and a real cost before it counts.</p>")
+        if exp.actor:
+            body.append(f"<p class=mut>All of these would live on "
+                        f"<b>{esc(exp.actor)}</b>'s account — same audience, same lane."
+                        "</p>")
+        by_axis: dict[str, list] = {}
+        for l in exp.leads:
+            by_axis.setdefault(l.axis, []).append(l)
+        rows = []
+        for axis, items in by_axis.items():
+            for i, l in enumerate(items):
+                rows.append([
+                    (f"<b>{esc(axis)}</b><br><span class=mut style='font-size:13px'>"
+                     f"{esc(AXES.get(axis, ''))}</span>") if i == 0 else "",
+                    esc(l.prompt),
+                    f"<span class=mut>{esc(l.why)}</span>",
+                ])
+        body.append(table(["type", "look for", "why they buy it"], rows))
+        body.append("<p class=mut>Found one that's real? Add it on "
+                    "<a href='/search'>Search</a> — paste box at the top.</p></div>")
+
     return page(pid, "".join(body), "/")
 
 
